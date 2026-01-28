@@ -22,17 +22,23 @@ const Index = () => {
 
       <div className="container py-6">
         <div className="flex gap-6">
-          {/* Left Sidebar - Hidden on mobile */}
-          <div className="hidden lg:block">
-            <LeftSidebar />
+          {/* Left Sidebar - Fixed/Sticky with internal scroll */}
+          <div className="hidden lg:block flex-shrink-0">
+            <div className="sticky top-20 w-64 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+              <LeftSidebar />
+            </div>
           </div>
 
-          {/* Main Feed */}
-          <NewsFeed />
+          {/* Main Feed - Scrollable */}
+          <div className="flex-1 min-w-0">
+            <NewsFeed />
+          </div>
 
-          {/* Right Sidebar - Hidden on tablet and mobile */}
-          <div className="hidden xl:block">
-            <RightSidebar />
+          {/* Right Sidebar - Fixed/Sticky with internal scroll */}
+          <div className="hidden xl:block flex-shrink-0">
+            <div className="sticky top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+              <RightSidebar />
+            </div>
           </div>
         </div>
       </div>

@@ -43,13 +43,13 @@ export function NewsCard({ news }: NewsCardProps) {
           <span>by {news.author}</span>
         </div>
 
-        {/* Headline */}
-        <h2 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors">
+        {/* Headline - AI Processed Title */}
+        <h2 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors leading-tight">
           {news.title}
         </h2>
 
-        {/* Auto-Summary */}
-        <p className="text-muted-foreground line-clamp-3 mb-4">
+        {/* AI-Generated Summary - Full display, no truncation */}
+        <p className="text-muted-foreground mb-4 leading-relaxed">
           {news.summary}
         </p>
 
