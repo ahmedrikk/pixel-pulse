@@ -49,7 +49,7 @@ export function NewsCard({ news }: NewsCardProps) {
         </h2>
 
         {/* AI-Generated Summary - Full display, no truncation */}
-        <p className="text-muted-foreground mb-4 leading-relaxed">
+        <p className="text-muted-foreground mb-4 leading-relaxed whitespace-normal break-words">
           {news.summary}
         </p>
 
