@@ -1,11 +1,40 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { Navbar } from "@/components/Navbar";
+import { LeftSidebar } from "@/components/LeftSidebar";
+import { NewsFeed } from "@/components/NewsFeed";
+import { RightSidebar } from "@/components/RightSidebar";
+import { MobileMenu } from "@/components/MobileMenu";
 
 const Index = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-background">
+      <Navbar
+        onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        isMobileMenuOpen={isMobileMenuOpen}
+      />
+
+      <MobileMenu
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
+
+      <div className="container py-6">
+        <div className="flex gap-6">
+          {/* Left Sidebar - Hidden on mobile */}
+          <div className="hidden lg:block">
+            <LeftSidebar />
+          </div>
+
+          {/* Main Feed */}
+          <NewsFeed />
+
+          {/* Right Sidebar - Hidden on tablet and mobile */}
+          <div className="hidden xl:block">
+            <RightSidebar />
+          </div>
+        </div>
       </div>
     </div>
   );
