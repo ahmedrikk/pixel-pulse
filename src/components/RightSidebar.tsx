@@ -76,7 +76,7 @@ export function RightSidebar() {
       </div>
 
       {/* Gaming Trivia */}
-      <div className="bg-card rounded-lg border p-4 card-shadow sticky top-20">
+      <div className="bg-card rounded-lg border p-4 card-shadow">
         <h3 className="font-semibold mb-3 flex items-center gap-2">
           <HelpCircle className="h-4 w-4 text-accent" />
           Daily Trivia
