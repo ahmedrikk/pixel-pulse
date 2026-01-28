@@ -75,8 +75,8 @@ async function fetchFeed(feedConfig: { url: string; source: string }): Promise<N
         extractImageFromHtml(content) ||
         FALLBACK_IMAGE;
 
-      // Clean up summary
-      const summary = stripHtml(item.description || "").slice(0, 600);
+      // Use full description without truncation
+      const summary = stripHtml(item.description || item.content || "");
 
       return {
         id: `${feedConfig.source}-${index}-${Date.now()}`,
