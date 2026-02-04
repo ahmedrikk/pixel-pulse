@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Zap, Users, HelpCircle, ExternalLink } from "lucide-react";
+import { Zap, Users, HelpCircle, ExternalLink, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FRIENDS_ONLINE, TRIVIA_QUESTION } from "@/data/mockNews";
+import { FRIENDS_ONLINE, TRIVIA_QUESTION, LIVE_MATCH } from "@/data/mockNews";
 
 export function RightSidebar() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -14,29 +14,59 @@ export function RightSidebar() {
 
   return (
     <aside className="w-full lg:w-72 space-y-4">
+      {/* Live Match Widget */}
+      <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
+        <div className="bg-gradient-to-r from-destructive/20 to-primary/10 p-4 border-b">
+          <div className="flex items-center gap-2">
+            <Radio className="h-5 w-5 text-destructive animate-pulse" />
+            <h3 className="font-semibold">Live Now</h3>
+            <span className="ml-auto flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive"></span>
+              </span>
+              <span className="px-2 py-0.5 bg-destructive text-destructive-foreground text-xs rounded-full font-medium">
+                LIVE
+              </span>
+            </span>
+          </div>
+        </div>
+        <div className="p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+            {LIVE_MATCH.tournamentName}
+          </p>
+          <h4 className="font-bold text-lg mb-2">{LIVE_MATCH.matchTitle}</h4>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+            <Users className="h-4 w-4" />
+            <span>{LIVE_MATCH.viewers} watching</span>
+          </div>
+          <Button asChild className="w-full gap-2">
+            <a href={LIVE_MATCH.streamUrl} target="_blank" rel="noopener noreferrer">
+              Watch on {LIVE_MATCH.platform}
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </Button>
+        </div>
+      </div>
+
       {/* Live Events */}
       <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
         <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-4 border-b">
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary animate-pulse-glow" />
-            <h3 className="font-semibold">Live Event</h3>
-            <span className="ml-auto px-2 py-0.5 bg-destructive text-destructive-foreground text-xs rounded-full font-medium">
-              LIVE
-            </span>
+            <h3 className="font-semibold">Upcoming Event</h3>
           </div>
         </div>
         <div className="p-4">
-          <h4 className="font-bold mb-1">Valorant Champions Tour</h4>
+          <h4 className="font-bold mb-1">League of Legends Worlds</h4>
           <p className="text-sm text-muted-foreground mb-3">
-            Grand Finals: Sentinels vs. Fnatic
+            Semifinals: T1 vs. Gen.G
           </p>
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-            <Users className="h-4 w-4" />
-            <span>124,521 watching</span>
+            <span>🕐 Starts in 2 hours</span>
           </div>
-          <Button className="w-full gap-2">
-            Join Stream
-            <ExternalLink className="h-3 w-3" />
+          <Button variant="secondary" className="w-full gap-2">
+            Set Reminder
           </Button>
         </div>
       </div>

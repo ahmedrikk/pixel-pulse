@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Gamepad2, Search, Sun, Moon, Menu, X, User } from "lucide-react";
+import { TrendingUp, Search, Sun, Moon, Menu, X, User } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,9 +32,11 @@ export function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) {
 
         {/* Logo */}
         <a href="/" className="flex items-center gap-2 font-bold text-xl">
-          <Gamepad2 className="h-6 w-6 text-primary" />
+          <div className="relative">
+            <TrendingUp className="h-6 w-6 text-primary" />
+          </div>
           <span className="hidden sm:inline">
-            Play<span className="text-primary">.to</span>
+            Level<span className="text-primary">Up</span><span className="text-accent">XP</span>
           </span>
         </a>
 
