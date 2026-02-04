@@ -51,10 +51,42 @@ function inferCategory(title: string, content: string): string {
   if (text.includes("pc") || text.includes("steam") || text.includes("nvidia") || text.includes("amd") || text.includes("gpu")) return "PCGaming";
   if (text.includes("fps") || text.includes("shooter") || text.includes("call of duty") || text.includes("valorant") || text.includes("counter-strike")) return "FPS";
   if (text.includes("rpg") || text.includes("final fantasy") || text.includes("elden ring") || text.includes("baldur")) return "RPG";
-  if (text.includes("indie") || text.includes("hollow knight") || text.includes("celeste")) return "IndieGames";
+  if (text.includes("indie") || text.includes("hollow knight") || text.includes("celeste")) return "Indie";
   if (text.includes("esport") || text.includes("tournament") || text.includes("championship")) return "Esports";
   
   return "Gaming";
+}
+
+// Infer tags from content
+function inferTags(title: string, content: string): string[] {
+  const text = `${title} ${content}`.toLowerCase();
+  const tags: string[] = [];
+  
+  // Platform tags
+  if (text.includes("playstation") || text.includes("ps5") || text.includes("ps4") || text.includes("sony")) tags.push("PlayStation");
+  if (text.includes("xbox") || text.includes("microsoft") || text.includes("game pass")) tags.push("Xbox");
+  if (text.includes("nintendo") || text.includes("switch")) tags.push("Nintendo");
+  if (text.includes("pc") || text.includes("steam") || text.includes("nvidia") || text.includes("amd")) tags.push("PCGaming");
+  
+  // Genre tags
+  if (text.includes("fps") || text.includes("shooter") || text.includes("call of duty") || text.includes("valorant")) tags.push("FPS");
+  if (text.includes("rpg") || text.includes("final fantasy") || text.includes("elden ring")) tags.push("RPG");
+  if (text.includes("indie") || text.includes("hollow knight")) tags.push("Indie");
+  
+  // Streaming tags
+  if (text.includes("twitch") || text.includes("stream")) tags.push("Twitch");
+  if (text.includes("youtube")) tags.push("YouTube");
+  if (text.includes("kick")) tags.push("Kick");
+  
+  // Streamer tags
+  if (text.includes("kai cenat") || text.includes("kaicenat")) tags.push("KaiCenat");
+  if (text.includes("xqc")) tags.push("xQc");
+  if (text.includes("ninja")) tags.push("Ninja");
+  
+  // Default tag if none found
+  if (tags.length === 0) tags.push("Gaming");
+  
+  return tags.slice(0, 4);
 }
 
 async function fetchFeed(feedConfig: { url: string; source: string }): Promise<NewsItem[]> {
@@ -77,6 +109,7 @@ async function fetchFeed(feedConfig: { url: string; source: string }): Promise<N
 
       // Use full description without truncation
       const summary = stripHtml(item.description || item.content || "");
+      const category = inferCategory(item.title, content);
 
       return {
         id: `${feedConfig.source}-${index}-${Date.now()}`,
@@ -84,10 +117,12 @@ async function fetchFeed(feedConfig: { url: string; source: string }): Promise<N
         summary: summary || "Click to read the full article for more details.",
         sourceUrl: item.link,
         imageUrl,
-        category: inferCategory(item.title, content),
+        category,
         timestamp: item.pubDate,
         source: feedConfig.source,
         author: item.author || "Staff Writer",
+        tags: inferTags(item.title, content),
+        likes: Math.floor(Math.random() * 500) + 50,
       };
     });
   } catch (error) {
