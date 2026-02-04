@@ -24,6 +24,8 @@ const RSS_FEEDS = [
   { url: "https://www.gamespot.com/feeds/news/", source: "GameSpot" },
   { url: "https://kotaku.com/rss", source: "Kotaku" },
   { url: "https://www.polygon.com/rss/index.xml", source: "Polygon" },
+  { url: "https://www.dexerto.com/feed", source: "Dexerto" },
+  { url: "https://www.sportskeeda.com/feed/esports", source: "Sportskeeda" },
 ];
 
 const RSS2JSON_API = "https://api.rss2json.com/v1/api.json?rss_url=";
@@ -57,8 +59,8 @@ function inferCategory(title: string, content: string): string {
   return "Gaming";
 }
 
-// Infer tags from content
-function inferTags(title: string, content: string): string[] {
+// Infer tags from content with source-specific defaults
+function inferTags(title: string, content: string, source: string): string[] {
   const text = `${title} ${content}`.toLowerCase();
   const tags: string[] = [];
   
@@ -72,6 +74,7 @@ function inferTags(title: string, content: string): string[] {
   if (text.includes("fps") || text.includes("shooter") || text.includes("call of duty") || text.includes("valorant")) tags.push("FPS");
   if (text.includes("rpg") || text.includes("final fantasy") || text.includes("elden ring")) tags.push("RPG");
   if (text.includes("indie") || text.includes("hollow knight")) tags.push("Indie");
+  if (text.includes("moba") || text.includes("league of legends") || text.includes("dota")) tags.push("MOBA");
   
   // Streaming tags
   if (text.includes("twitch") || text.includes("stream")) tags.push("Twitch");
@@ -82,11 +85,40 @@ function inferTags(title: string, content: string): string[] {
   if (text.includes("kai cenat") || text.includes("kaicenat")) tags.push("KaiCenat");
   if (text.includes("xqc")) tags.push("xQc");
   if (text.includes("ninja")) tags.push("Ninja");
+  if (text.includes("pokimane")) tags.push("Pokimane");
+  if (text.includes("irl") || text.includes("just chatting")) tags.push("IRL");
   
-  // Default tag if none found
-  if (tags.length === 0) tags.push("Gaming");
+  // Esports tags
+  if (text.includes("esport") || text.includes("tournament") || text.includes("championship") || text.includes("competitive")) tags.push("Esports");
+  if (text.includes("ranked") || text.includes("ladder")) tags.push("Ranked");
   
-  return tags.slice(0, 4);
+  // Source-specific default tags to ensure diversity
+  const sourceDefaults: Record<string, string[]> = {
+    "Dexerto": ["Streamers", "Entertainment", "Twitch", "YouTube"],
+    "Sportskeeda": ["Esports", "Competitive", "Tournaments", "Ranked"],
+    "IGN": ["Reviews", "Gaming", "News", "Industry"],
+    "GameSpot": ["Reviews", "Gaming", "Previews", "Industry"],
+    "Kotaku": ["Culture", "Gaming", "Opinion", "Industry"],
+    "Polygon": ["Culture", "Gaming", "Entertainment", "Reviews"],
+  };
+  
+  // Add source defaults that aren't already present
+  const defaults = sourceDefaults[source] || ["Gaming", "News", "Industry", "Entertainment"];
+  for (const tag of defaults) {
+    if (!tags.includes(tag) && tags.length < 6) {
+      tags.push(tag);
+    }
+  }
+  
+  // Ensure we always have at least 4 tags
+  const fallbackTags = ["Gaming", "News", "Trending", "Community"];
+  for (const fallback of fallbackTags) {
+    if (!tags.includes(fallback) && tags.length < 4) {
+      tags.push(fallback);
+    }
+  }
+  
+  return tags.slice(0, 6);
 }
 
 async function fetchFeed(feedConfig: { url: string; source: string }): Promise<NewsItem[]> {
@@ -121,7 +153,7 @@ async function fetchFeed(feedConfig: { url: string; source: string }): Promise<N
         timestamp: item.pubDate,
         source: feedConfig.source,
         author: item.author || "Staff Writer",
-        tags: inferTags(item.title, content),
+        tags: inferTags(item.title, content, feedConfig.source),
         likes: Math.floor(Math.random() * 500) + 50,
       };
     });
