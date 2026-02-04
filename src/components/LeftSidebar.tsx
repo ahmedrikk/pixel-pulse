@@ -1,5 +1,6 @@
 import { Home, Star, Trophy, BookOpen, Cpu } from "lucide-react";
 import { CATEGORIES } from "@/data/mockNews";
+import { useTagFilter } from "@/contexts/TagFilterContext";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
@@ -10,6 +11,16 @@ const NAV_ITEMS = [
 ];
 
 export function LeftSidebar() {
+  const { activeTag, setActiveTag } = useTagFilter();
+
+  const handleTagClick = (tagId: string) => {
+    if (activeTag === tagId) {
+      setActiveTag(null);
+    } else {
+      setActiveTag(tagId);
+    }
+  };
+
   return (
     <aside className="w-full lg:w-64 space-y-4">
       {/* User Profile Card */}
@@ -53,14 +64,18 @@ export function LeftSidebar() {
         </h4>
         <div className="space-y-2">
           {CATEGORIES.map((cat) => (
-            <a
+            <button
               key={cat.id}
-              href={`/category/${cat.id}`}
-              className="flex items-center gap-2 px-3 py-2 rounded-md bg-tag text-tag-foreground hover:opacity-80 transition-opacity text-sm font-medium"
+              onClick={() => handleTagClick(cat.id)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                activeTag === cat.id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-tag text-tag-foreground hover:opacity-80"
+              }`}
             >
               <span>{cat.icon}</span>
               <span>{cat.label}</span>
-            </a>
+            </button>
           ))}
         </div>
       </div>
