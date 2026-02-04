@@ -8,7 +8,17 @@ export interface NewsItem {
   timestamp: string;
   source: string;
   author: string;
+  tags: string[];
+  likes?: number;
 }
+
+export const LIVE_MATCH = {
+  tournamentName: "Valorant Champions Tour",
+  matchTitle: "Sentinels vs. Fnatic",
+  viewers: "124,521",
+  platform: "Twitch",
+  streamUrl: "https://twitch.tv/valorant",
+};
 
 export const INITIAL_NEWS: NewsItem[] = [
   {
@@ -20,7 +30,9 @@ export const INITIAL_NEWS: NewsItem[] = [
     category: "RPG",
     timestamp: "2024-01-15T10:30:00Z",
     source: "IGN",
-    author: "Sarah Mitchell"
+    author: "Sarah Mitchell",
+    tags: ["PlayStation", "Xbox", "PCGaming", "RPG"],
+    likes: 342,
   },
   {
     id: "2",
@@ -31,7 +43,9 @@ export const INITIAL_NEWS: NewsItem[] = [
     category: "PlayStation",
     timestamp: "2024-01-14T15:45:00Z",
     source: "Kotaku",
-    author: "Jason Schreier"
+    author: "Jason Schreier",
+    tags: ["PlayStation", "PCGaming", "Indie"],
+    likes: 218,
   },
   {
     id: "3",
@@ -42,7 +56,9 @@ export const INITIAL_NEWS: NewsItem[] = [
     category: "FPS",
     timestamp: "2024-01-14T08:20:00Z",
     source: "GameSpot",
-    author: "Michael Torres"
+    author: "Michael Torres",
+    tags: ["FPS", "Twitch", "xQc", "PCGaming"],
+    likes: 567,
   },
   {
     id: "4",
@@ -53,7 +69,9 @@ export const INITIAL_NEWS: NewsItem[] = [
     category: "IndieGames",
     timestamp: "2024-01-13T12:00:00Z",
     source: "Polygon",
-    author: "Emily Zhang"
+    author: "Emily Zhang",
+    tags: ["Indie", "Nintendo", "PlayStation", "Xbox"],
+    likes: 892,
   },
   {
     id: "5",
@@ -64,7 +82,9 @@ export const INITIAL_NEWS: NewsItem[] = [
     category: "PCGaming",
     timestamp: "2024-01-13T09:15:00Z",
     source: "Tom's Hardware",
-    author: "Dave James"
+    author: "Dave James",
+    tags: ["PCGaming", "FPS", "RPG"],
+    likes: 445,
   },
   {
     id: "6",
@@ -75,17 +95,81 @@ export const INITIAL_NEWS: NewsItem[] = [
     category: "Xbox",
     timestamp: "2024-01-12T14:30:00Z",
     source: "Eurogamer",
-    author: "Tom Phillips"
-  }
+    author: "Tom Phillips",
+    tags: ["Xbox", "RPG", "Indie", "PCGaming"],
+    likes: 312,
+  },
+  {
+    id: "7",
+    title: "KaiCenat Breaks Twitch Records with Marathon Gaming Stream Event",
+    summary: "Popular streamer KaiCenat has shattered Twitch viewership records during his latest marathon streaming event, attracting over two million concurrent viewers at peak moments. The content creator hosted special guests including major gaming personalities and surprise celebrity appearances throughout the multi-day broadcast. Industry analysts note this achievement represents a significant shift in streaming culture, with personality-driven content now rivaling traditional esports broadcasts in viewer engagement. The event generated unprecedented chat activity and donations, cementing KaiCenat's position as one of the most influential figures in modern gaming entertainment and content creation.",
+    sourceUrl: "https://dexerto.com",
+    imageUrl: "https://images.unsplash.com/photo-1493711662062-fa541f7f3d24?w=800&h=400&fit=crop",
+    category: "Streaming",
+    timestamp: "2024-01-12T11:00:00Z",
+    source: "Dexerto",
+    author: "Jake Lucky",
+    tags: ["Twitch", "KaiCenat", "YouTube", "Kick"],
+    likes: 1203,
+  },
+  {
+    id: "8",
+    title: "Nintendo Switch 2 Reveal Imminent as Leaks Flood Social Media",
+    summary: "Credible leaks regarding Nintendo's next-generation console have flooded social media platforms, suggesting an official announcement may be imminent from the Japanese gaming giant. Leaked specifications indicate a significant performance upgrade, with NVIDIA's latest mobile architecture powering the hybrid device. Industry insiders claim the console will maintain backward compatibility with existing Switch titles while supporting enhanced graphics modes for newer releases. Nintendo has remained characteristically silent, but retailer listings and manufacturing reports point toward a spring announcement with a potential holiday season launch window.",
+    sourceUrl: "https://nintendolife.com",
+    imageUrl: "https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?w=800&h=400&fit=crop",
+    category: "Nintendo",
+    timestamp: "2024-01-11T16:45:00Z",
+    source: "Nintendo Life",
+    author: "Alex Olney",
+    tags: ["Nintendo", "Indie", "RPG"],
+    likes: 678,
+  },
+  {
+    id: "9",
+    title: "xQc Signs Exclusive Streaming Deal Worth Reported $100 Million",
+    summary: "Controversial streamer and former Overwatch pro xQc has reportedly signed a groundbreaking exclusive streaming deal worth over one hundred million dollars, according to industry sources. The multi-year agreement represents one of the largest individual creator contracts in streaming history, reflecting the immense value platforms place on top-tier content creators. The deal includes guaranteed minimum payouts regardless of viewership metrics, along with substantial creative freedom provisions. Gaming industry analysts suggest this contract could trigger a new wave of platform competition for established streamers as companies seek to secure exclusive content arrangements.",
+    sourceUrl: "https://esportsheadlines.com",
+    imageUrl: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&h=400&fit=crop",
+    category: "Streaming",
+    timestamp: "2024-01-11T09:30:00Z",
+    source: "Esports Headlines",
+    author: "Richard Lewis",
+    tags: ["xQc", "Twitch", "Kick", "YouTube"],
+    likes: 534,
+  },
+  {
+    id: "10",
+    title: "Ninja Returns to Streaming After Health Scare with Emotional Broadcast",
+    summary: "Legendary Fortnite streamer Ninja has made an emotional return to streaming following his recent health scare that required medical attention and time away from content creation. The broadcast attracted hundreds of thousands of viewers eager to welcome back one of gaming's most recognizable personalities. During the stream, Ninja expressed gratitude for the overwhelming support from fans and fellow creators during his recovery period. The veteran content creator announced plans for a more balanced streaming schedule moving forward, prioritizing personal wellness while maintaining connection with his dedicated community.",
+    sourceUrl: "https://kotaku.com",
+    imageUrl: "https://images.unsplash.com/photo-1560253023-3ec5d502959f?w=800&h=400&fit=crop",
+    category: "Streaming",
+    timestamp: "2024-01-10T14:00:00Z",
+    source: "Kotaku",
+    author: "Patricia Hernandez",
+    tags: ["Ninja", "Twitch", "YouTube", "FPS"],
+    likes: 2341,
+  },
 ];
 
 export const CATEGORIES = [
   { id: "FPS", label: "#FPS", icon: "🎯" },
   { id: "RPG", label: "#RPG", icon: "⚔️" },
-  { id: "IndieGames", label: "#IndieGames", icon: "🎮" },
+  { id: "Indie", label: "#Indie", icon: "🎮" },
   { id: "PlayStation", label: "#PlayStation", icon: "🎵" },
   { id: "Xbox", label: "#Xbox", icon: "❎" },
   { id: "PCGaming", label: "#PCGaming", icon: "🖥️" },
+  { id: "Nintendo", label: "#Nintendo", icon: "🍄" },
+  { id: "Twitch", label: "#Twitch", icon: "📺" },
+  { id: "YouTube", label: "#YouTube", icon: "▶️" },
+  { id: "Kick", label: "#Kick", icon: "🟢" },
+];
+
+export const STREAMER_TAGS = [
+  { id: "KaiCenat", label: "#KaiCenat" },
+  { id: "xQc", label: "#xQc" },
+  { id: "Ninja", label: "#Ninja" },
 ];
 
 export const FRIENDS_ONLINE = [
