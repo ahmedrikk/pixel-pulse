@@ -44,7 +44,7 @@ export const INITIAL_NEWS: NewsItem[] = [
     timestamp: "2024-01-14T15:45:00Z",
     source: "Kotaku",
     author: "Jason Schreier",
-    tags: ["PlayStation", "PCGaming", "Indie"],
+    tags: ["PlayStation", "PCGaming", "Indie", "Gaming"],
     likes: 218,
   },
   {
@@ -83,7 +83,7 @@ export const INITIAL_NEWS: NewsItem[] = [
     timestamp: "2024-01-13T09:15:00Z",
     source: "Tom's Hardware",
     author: "Dave James",
-    tags: ["PCGaming", "FPS", "RPG"],
+    tags: ["PCGaming", "FPS", "RPG", "Gaming"],
     likes: 445,
   },
   {
@@ -122,7 +122,7 @@ export const INITIAL_NEWS: NewsItem[] = [
     timestamp: "2024-01-11T16:45:00Z",
     source: "Nintendo Life",
     author: "Alex Olney",
-    tags: ["Nintendo", "Indie", "RPG"],
+    tags: ["Nintendo", "Indie", "RPG", "Gaming"],
     likes: 678,
   },
   {
@@ -163,7 +163,8 @@ export const CATEGORIES = [
   { id: "Nintendo", label: "#Nintendo", icon: "🍄" },
   { id: "Twitch", label: "#Twitch", icon: "📺" },
   { id: "YouTube", label: "#YouTube", icon: "▶️" },
-  { id: "Kick", label: "#Kick", icon: "🟢" },
+  { id: "Streamers", label: "#Streamers", icon: "🎙️" },
+  { id: "Esports", label: "#Esports", icon: "🏆" },
 ];
 
 export const STREAMER_TAGS = [
