@@ -14,6 +14,7 @@ interface ArticleInput {
 interface ProcessedArticle {
   processedTitle: string;
   processedSummary: string;
+  processedTags: string[];
 }
 
 serve(async (req) => {
@@ -29,7 +30,7 @@ serve(async (req) => {
     }
 
     const { articles } = await req.json() as { articles: ArticleInput[] };
-    
+
     if (!articles || !Array.isArray(articles) || articles.length === 0) {
       return new Response(
         JSON.stringify({ error: "No articles provided" }),
@@ -39,90 +40,89 @@ serve(async (req) => {
 
     console.log(`Processing ${articles.length} articles with Gemini...`);
 
-    // Process articles in parallel (batch of up to 5 at a time for rate limiting)
+    // Process articles in parallel (batch of up to 5 at a time)
     const batchSize = 5;
     const processedArticles: ProcessedArticle[] = [];
 
     for (let i = 0; i < articles.length; i += batchSize) {
       const batch = articles.slice(i, i + batchSize);
-      
+
       const batchResults = await Promise.all(
         batch.map(async (article) => {
           try {
-            // Generate title
-            const titleResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            // Single API call for Title, Summary, and Tags
+            const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${LOVABLE_API_KEY}`,
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-3-flash-preview",
+                model: "google/gemini-2.0-flash-lite-preview-02-05", // Using a fast, "small" model equivalent
                 messages: [
                   {
                     role: "system",
-                    content: "You are a gaming news headline writer. Generate engaging, click-worthy headlines that are informative but not clickbait. Always respond with ONLY the headline text, nothing else."
+                    content: `You are an expert gaming news editor and SEO specialist. 
+                    Your task is to process gaming news articles and return a JSON object.
+                    
+                    Follow these strict rules:
+                    1. **Summary**: Write a concise, factual summary exactly between 90-110 words. It must be "AI Engine Optimized" (AEO) - direct, answer-first, and data-rich. No bullet points.
+                    2. **Title**: Generate a compelling, high-CTR headline (under 60 chars). No clickbait.
+                    3. **Tags**: Generate 3-5 relevant hashtags. Always include specific game names, genres, or platforms mentioned.
+                    
+                    Respond ONLY with valid JSON in this format:
+                    {
+                      "title": "string",
+                      "summary": "string",
+                      "tags": ["string", "string"]
+                    }`
                   },
                   {
                     role: "user",
-                    content: `Read the following article title and content, then generate a new, more engaging and click-worthy headline that is under 60 characters. Do not be clickbait, but be compelling.\n\nOriginal Title: ${article.title}\n\nContent: ${article.content.substring(0, 1500)}`
+                    content: `Article Title: ${article.title}\nSource: ${article.source}\nContent: ${article.content.substring(0, 2000)}`
                   }
                 ],
               }),
             });
 
-            if (!titleResponse.ok) {
-              const errorText = await titleResponse.text();
-              console.error(`Title generation failed: ${titleResponse.status}`, errorText);
-              throw new Error(`Title API error: ${titleResponse.status}`);
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`AI API error: ${response.status}`, errorText);
+              throw new Error(`AI API error: ${response.status}`);
             }
 
-            const titleData = await titleResponse.json();
-            const processedTitle = titleData.choices?.[0]?.message?.content?.trim() || article.title;
+            const data = await response.json();
+            const aiContent = data.choices?.[0]?.message?.content?.trim();
 
-            // Generate summary
-            const summaryResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${LOVABLE_API_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "google/gemini-3-flash-preview",
-                messages: [
-                  {
-                    role: "system",
-                    content: "You are a gaming news summarizer. Write concise, comprehensive summaries in a clear, journalistic tone. Never use bullet points. Always respond with ONLY the summary text, nothing else."
-                  },
-                  {
-                    role: "user",
-                    content: `Read the following article and provide a concise, comprehensive summary that is exactly 100 words long. Do not use bullet points. Write in a clear, journalistic tone.\n\nTitle: ${article.title}\nSource: ${article.source}\n\nContent: ${article.content.substring(0, 3000)}`
-                  }
-                ],
-              }),
-            });
-
-            if (!summaryResponse.ok) {
-              const errorText = await summaryResponse.text();
-              console.error(`Summary generation failed: ${summaryResponse.status}`, errorText);
-              throw new Error(`Summary API error: ${summaryResponse.status}`);
+            // Parse JSON response
+            let parsedResult;
+            try {
+              // Handle potential markdown code blocks in response
+              const cleanJson = aiContent.replace(/```json\n?|\n?```/g, '');
+              parsedResult = JSON.parse(cleanJson);
+            } catch (e) {
+              console.error("Failed to parse AI JSON response:", aiContent);
+              // Fallback if JSON parsing fails
+              parsedResult = {
+                title: article.title,
+                summary: article.content.substring(0, 300) + "...",
+                tags: []
+              };
             }
 
-            const summaryData = await summaryResponse.json();
-            const processedSummary = summaryData.choices?.[0]?.message?.content?.trim() || article.content.substring(0, 500);
-
-            console.log(`Processed article: "${processedTitle.substring(0, 40)}..."`);
+            console.log(`Processed: "${parsedResult.title}"`);
 
             return {
-              processedTitle: processedTitle.replace(/^["']|["']$/g, ''), // Remove quotes if present
-              processedSummary,
+              processedTitle: parsedResult.title || article.title,
+              processedSummary: parsedResult.summary || article.content.substring(0, 100),
+              processedTags: Array.isArray(parsedResult.tags) ? parsedResult.tags : []
             };
           } catch (error) {
             console.error(`Error processing article "${article.title}":`, error);
-            // Return original content as fallback
             return {
               processedTitle: article.title,
-              processedSummary: article.content.substring(0, 500),
+              processedSummary: article.content.substring(0, 100) + "...",
+              processedTags: []
             };
           }
         })
@@ -139,21 +139,6 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Edge function error:", error);
-    
-    if (error instanceof Error) {
-      if (error.message.includes("429")) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (error.message.includes("402")) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
 
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
