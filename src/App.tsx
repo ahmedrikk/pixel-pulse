@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import Esports from "./pages/Esports";
+import GameCatalog from "./pages/GameCatalog";
 import GameReview from "./pages/GameReview";
 import NotFound from "./pages/NotFound";
 
