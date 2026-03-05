@@ -5,6 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
+import Profile from "./pages/Profile";
+import Login from "./pages/Login";
+import SteamCallback from "./pages/SteamCallback";
+import PublicProfile from "./pages/PublicProfile";
+import DailyTrivia from "./pages/DailyTrivia";
+import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -18,6 +24,12 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/u/:username" element={<PublicProfile />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/trivia" element={<DailyTrivia />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/auth/steam/callback" element={<SteamCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

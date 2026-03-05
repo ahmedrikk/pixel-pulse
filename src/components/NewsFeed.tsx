@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { RefreshCw, AlertCircle, X } from "lucide-react";
+import { RefreshCw, AlertCircle, X, Clock } from "lucide-react";
 import { useGamingNews } from "@/hooks/useGamingNews";
 import { NewsCard } from "./NewsCard";
 import { NewsCardSkeleton } from "./NewsCardSkeleton";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 
 export function NewsFeed() {
-  const { news, isLoading, error, isUsingFallback, refresh } = useGamingNews();
+  const { news, isLoading, isRefreshing, error, isUsingFallback, lastUpdated, refresh } = useGamingNews();
   const { activeTag, clearFilter } = useTagFilter();
   const [displayedCount, setDisplayedCount] = useState(6);
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -59,11 +59,15 @@ export function NewsFeed() {
             variant="ghost" 
             size="icon" 
             onClick={refresh}
-            disabled={isLoading}
+            disabled={isLoading || isRefreshing}
             className="h-8 w-8"
+            title="Refresh articles"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${(isLoading || isRefreshing) ? 'animate-spin' : ''}`} />
           </Button>
+          {isRefreshing && (
+            <span className="text-xs text-muted-foreground">Updating...</span>
+          )}
         </div>
         <select className="bg-secondary text-foreground text-sm px-3 py-1.5 rounded-md border-0 focus:ring-2 focus:ring-primary">
           <option>Most Recent</option>
@@ -98,14 +102,22 @@ export function NewsFeed() {
         </div>
       )}
 
-      {/* Live indicator */}
+      {/* Live indicator with last updated */}
       {!isLoading && !isUsingFallback && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-          </span>
-          <span>Live from {filteredNews.length} articles across gaming sources</span>
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            <span>Live from {filteredNews.length} articles across gaming sources</span>
+          </div>
+          {lastUpdated && (
+            <div className="flex items-center gap-1 text-xs">
+              <Clock className="h-3 w-3" />
+              <span>Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          )}
         </div>
       )}
 

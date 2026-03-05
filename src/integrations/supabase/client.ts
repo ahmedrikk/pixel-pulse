@@ -5,13 +5,112 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+// Check if Supabase credentials are available
+const hasValidConfig = SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY && 
+  !SUPABASE_URL.includes('your-project') && 
+  !SUPABASE_PUBLISHABLE_KEY.includes('your-anon-key');
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+// Create the Supabase client with better error handling
+export const supabase = createClient<Database>(
+  SUPABASE_URL || 'http://localhost:54321',
+  SUPABASE_PUBLISHABLE_KEY || 'dummy-key',
+  {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+    global: {
+      fetch: async (url, options) => {
+        try {
+          const response = await fetch(url, {
+            ...options,
+            // Add timeout
+            signal: options?.signal || AbortSignal.timeout(10000),
+          });
+          return response;
+        } catch (error) {
+          console.error('Supabase fetch error:', error);
+          throw error;
+        }
+      },
+    },
   }
-});
+);
+
+// Helper to check if Supabase is reachable
+export async function checkSupabaseConnection(): Promise<boolean> {
+  if (!hasValidConfig) return false;
+  
+  try {
+    const { error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+    return !error || error.code !== 'NETWORK_ERROR';
+  } catch {
+    return false;
+  }
+}
+
+// Mock user for offline/demo mode
+export const MOCK_USER = {
+  id: 'demo-user-123',
+  email: 'demo@pixelpulse.com',
+  user_metadata: {
+    username: 'DemoGamer',
+    avatar_url: null,
+  },
+};
+
+// Check if we're in demo mode
+export const isDemoMode = () => {
+  return localStorage.getItem('pixelpulse_demo_mode') === 'true' || !hasValidConfig;
+};
+
+// Enable demo mode
+export function enableDemoMode() {
+  localStorage.setItem('pixelpulse_demo_mode', 'true');
+  localStorage.setItem('demo_user', JSON.stringify(MOCK_USER));
+  window.location.reload();
+}
+
+// Disable demo mode
+export function disableDemoMode() {
+  localStorage.removeItem('pixelpulse_demo_mode');
+  localStorage.removeItem('demo_user');
+  window.location.reload();
+}
+
+// Get current user (handles demo mode)
+export async function getCurrentUser() {
+  if (isDemoMode()) {
+    const stored = localStorage.getItem('demo_user');
+    return { user: stored ? JSON.parse(stored) : MOCK_USER, error: null };
+  }
+  
+  return await supabase.auth.getUser();
+}
+
+// Demo profile data
+export const DEMO_PROFILE = {
+  id: 'demo-user-123',
+  username: 'DemoGamer',
+  email: 'demo@pixelpulse.com',
+  level: 12,
+  tier: 12,
+  xp: 12500,
+  xp_season: 12500,
+  xp_today: 350,
+  xp_lifetime: 45200,
+  daily_streak: 7,
+  bio: 'Gaming enthusiast and esports fan! 🎮',
+  avatar_url: null,
+  banner_url: null,
+  nameplate_url: null,
+  preferences: { theme: 'dark', notifications: true },
+  privacy_settings: { show_email: false, show_activity: true },
+  game_nickname: 'DemoKing',
+  featured_game: 'Valorant',
+  gaming_aliases: ['DemoSlayer', 'PixelMaster'],
+  is_admin: false,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
