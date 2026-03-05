@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import Esports from "./pages/Esports";
+import GameCatalog from "./pages/GameCatalog";
 import GameReview from "./pages/GameReview";
 import NotFound from "./pages/NotFound";
 
@@ -21,7 +22,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/esports" element={<Esports />} />
-            <Route path="/reviews" element={<GameReview />} />
+            <Route path="/reviews" element={<GameCatalog />} />
+            <Route path="/reviews/:gameId" element={<GameReview />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
