@@ -10,6 +10,7 @@ export interface NewsItem {
   author: string;
   tags: string[];
   likes?: number;
+  comments?: number;
 }
 
 export const LIVE_MATCH = {

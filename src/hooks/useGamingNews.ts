@@ -1,6 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { INITIAL_NEWS, NewsItem } from "@/data/mockNews";
 import { supabase } from "@/integrations/supabase/client";
+import { 
+  getCachedArticles, 
+  saveArticlesToCache, 
+  updateArticlesWithAI,
+  getAllCachedArticles,
+  shouldRefreshCache 
+} from "@/lib/newsCache";
+import { mergeTags } from "@/lib/smartTagGenerator";
 
 interface RssItem {
   title: string;
@@ -193,116 +201,240 @@ async function fetchFeed(feedConfig: { url: string; source: string }): Promise<N
   }
 }
 
+/**
+ * Process only new articles with AI (not cached)
+ */
+async function processNewArticlesWithAI(articles: NewsItem[]): Promise<NewsItem[]> {
+  if (articles.length === 0) return [];
+
+  console.log(`Processing ${articles.length} NEW articles with AI...`);
+
+  try {
+    const articlesToProcess = articles.map(article => ({
+      title: article.title,
+      content: article.summary,
+      source: article.source,
+      sourceUrl: article.sourceUrl,
+      originalTags: article.tags,
+    }));
+
+    const { data, error: fnError } = await supabase.functions.invoke('process-article', {
+      body: { articles: articlesToProcess }
+    });
+
+    if (fnError) {
+      console.error("Edge function error:", fnError);
+      // Fall back to smart tag generation
+      return articles.map(article => ({
+        ...article,
+        tags: mergeTags([], article.tags, article.title, article.summary)
+      }));
+    }
+
+    if (data?.processedArticles) {
+      const processedArticles: NewsItem[] = [];
+      const aiUpdates: { sourceUrl: string; aiTitle?: string; aiSummary?: string; tags: string[] }[] = [];
+
+      articles.forEach((article, index) => {
+        if (index < data.processedArticles.length) {
+          const processed = data.processedArticles[index];
+          const aiTags = processed.processedTags || [];
+          
+          // Merge AI tags with smart tags
+          const mergedTags = mergeTags(aiTags, article.originalTags || article.tags, article.title, article.summary);
+
+          const processedArticle: NewsItem = {
+            ...article,
+            title: processed.processedTitle || article.title,
+            summary: processed.processedSummary || article.summary,
+            tags: mergedTags,
+          };
+
+          processedArticles.push(processedArticle);
+
+          // Track for cache update
+          aiUpdates.push({
+            sourceUrl: article.sourceUrl,
+            aiTitle: processed.processedTitle,
+            aiSummary: processed.processedSummary,
+            tags: mergedTags,
+          });
+        } else {
+          processedArticles.push(article);
+        }
+      });
+
+      // Update cache with AI data in background
+      updateArticlesWithAI(aiUpdates).catch(console.error);
+
+      return processedArticles;
+    }
+
+    return articles;
+  } catch (err) {
+    console.error("AI processing error:", err);
+    // Fall back to smart tag generation
+    return articles.map(article => ({
+      ...article,
+      tags: mergeTags([], article.tags, article.title, article.summary)
+    }));
+  }
+}
+
 export function useGamingNews() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUsingFallback, setIsUsingFallback] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  
+  // Track if initial load is complete
+  const initialLoadComplete = useRef(false);
 
-  const processArticlesWithAI = useCallback(async (articles: NewsItem[]): Promise<NewsItem[]> => {
-    try {
-      console.log("Processing articles with Gemini AI...");
-
-      // Process first 10 articles to avoid rate limits
-      const articlesToProcess = articles.slice(0, 10).map(article => ({
-        title: article.title,
-        content: article.summary,
-        source: article.source,
-      }));
-
-      const { data, error: fnError } = await supabase.functions.invoke('process-article', {
-        body: { articles: articlesToProcess }
-      });
-
-      if (fnError) {
-        console.error("Edge function error:", fnError);
-        return articles;
-      }
-
-      if (data?.processedArticles) {
-        console.log("AI processing complete, updating articles...");
-        return articles.map((article, index) => {
-          if (index < data.processedArticles.length) {
-            const processed = data.processedArticles[index];
-
-            // Merge existing tags with AI tags, avoiding duplicates
-            const aiTags = processed.processedTags || [];
-            const uniqueTags = Array.from(new Set([...article.tags, ...aiTags]));
-
-            // Re-apply the "Gaming" vs "Entertainment" rule just in case AI added "Entertainment"
-            if (uniqueTags.some(tag =>
-              ["PlayStation", "Xbox", "Nintendo", "PCGaming", "FPS", "RPG", "Indie", "MOBA", "Overwatch", "Esports", "Ranked", "Steam", "Switch", "PS5"].includes(tag)
-              || uniqueTags.includes("Gaming")
-            )) {
-              if (!uniqueTags.includes("Gaming")) uniqueTags.push("Gaming");
-              const entIndex = uniqueTags.indexOf("Entertainment");
-              if (entIndex > -1) uniqueTags.splice(entIndex, 1);
-            }
-
-            return {
-              ...article,
-              title: processed.processedTitle || article.title,
-              summary: processed.processedSummary || article.summary,
-              tags: uniqueTags.slice(0, 8) // Limit to 8 tags max
-            };
-          }
-          return article;
-        });
-      }
-
-      return articles;
-    } catch (err) {
-      console.error("AI processing error:", err);
-      return articles;
+  /**
+   * Main fetch function - uses cache first, then updates in background
+   */
+  const fetchAllFeeds = useCallback(async (forceRefresh = false) => {
+    // Show loading state on first load or force refresh
+    if (!initialLoadComplete.current || forceRefresh) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
     }
-  }, []);
-
-  const fetchAllFeeds = useCallback(async (enableAI: boolean = true) => {
-    setIsLoading(true);
+    
     setError(null);
 
     try {
-      const results = await Promise.all(RSS_FEEDS.map(fetchFeed));
-      let allNews = results.flat();
+      // Step 1: Try to load from cache immediately (fast!)
+      if (!forceRefresh && initialLoadComplete.current) {
+        const cached = await getAllCachedArticles();
+        if (cached.length > 0) {
+          console.log(`Loaded ${cached.length} articles from cache instantly`);
+          setNews(cached);
+          setIsLoading(false);
+          // Continue to check for updates in background
+        }
+      }
 
-      if (allNews.length === 0) {
+      // Step 2: Fetch fresh RSS feeds
+      console.log("Fetching fresh RSS feeds...");
+      const results = await Promise.all(RSS_FEEDS.map(fetchFeed));
+      let freshArticles = results.flat();
+
+      if (freshArticles.length === 0) {
         throw new Error("No articles fetched from any feed");
       }
 
-      // Sort by date (newest first)
-      allNews.sort((a, b) => {
+      // Step 3: Check cache to find which articles are new
+      const articleUrls = freshArticles.map(a => a.sourceUrl);
+      const { cached, uncachedUrls } = await getCachedArticles(articleUrls);
+
+      console.log(`Cache status: ${cached.length} cached, ${uncachedUrls.length} new articles`);
+
+      // Step 4: Process only NEW articles with AI
+      const newArticles = freshArticles.filter(a => uncachedUrls.includes(a.sourceUrl));
+      const processedNewArticles = await processNewArticlesWithAI(newArticles);
+
+      // Step 5: Merge cached + processed new articles
+      const cachedMap = new Map(cached.map(a => [a.sourceUrl, a]));
+      const processedMap = new Map(processedNewArticles.map(a => [a.sourceUrl, a]));
+
+      const mergedArticles = freshArticles.map(article => {
+        // Prefer processed new article, then cached, then original
+        return processedMap.get(article.sourceUrl) || 
+               cachedMap.get(article.sourceUrl) || 
+               article;
+      });
+
+      // Step 6: Save new articles to cache
+      const articlesToCache = processedNewArticles.length > 0 
+        ? processedNewArticles 
+        : newArticles.map(a => ({
+            ...a,
+            tags: mergeTags([], a.tags, a.title, a.summary)
+          }));
+      
+      if (articlesToCache.length > 0) {
+        saveArticlesToCache(articlesToCache).catch(console.error);
+      }
+
+      // Step 7: Sort and update UI
+      mergedArticles.sort((a, b) => {
         const ta = new Date(a.timestamp).getTime();
         const tb = new Date(b.timestamp).getTime();
         return (isNaN(tb) ? 0 : tb) - (isNaN(ta) ? 0 : ta);
       });
 
-      // Process with AI if enabled
-      if (enableAI) {
-        allNews = await processArticlesWithAI(allNews);
-      }
-
-      setNews(allNews);
-
-
-
+      setNews(mergedArticles);
+      setLastUpdated(new Date());
       setIsUsingFallback(false);
+      initialLoadComplete.current = true;
+
     } catch (err) {
       console.error("Failed to fetch news feeds:", err);
-      setError("Could not load live news. Showing offline archives.");
-      setNews(INITIAL_NEWS);
-      setIsUsingFallback(true);
+      
+      // Try to load from cache as fallback
+      const cached = await getAllCachedArticles();
+      if (cached.length > 0) {
+        console.log("Using cached articles due to fetch error");
+        setNews(cached);
+        setError("Using cached articles. Some content may be outdated.");
+      } else {
+        // Ultimate fallback: mock data
+        setError("Could not load live news. Showing offline archives.");
+        setNews(INITIAL_NEWS);
+        setIsUsingFallback(true);
+      }
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
-  }, [processArticlesWithAI]);
+  }, []);
 
+  /**
+   * Initial load - check cache first
+   */
   useEffect(() => {
-    fetchAllFeeds(true);
+    const init = async () => {
+      // Try to load from cache immediately
+      const shouldRefresh = await shouldRefreshCache();
+      
+      if (!shouldRefresh) {
+        const cached = await getAllCachedArticles();
+        if (cached.length > 0) {
+          console.log(`Initial load: ${cached.length} articles from cache`);
+          setNews(cached);
+          setIsLoading(false);
+          initialLoadComplete.current = true;
+          
+          // Check for updates in background after a delay
+          setTimeout(() => fetchAllFeeds(false), 2000);
+          return;
+        }
+      }
+      
+      // No cache or expired, fetch fresh
+      fetchAllFeeds(false);
+    };
+    
+    init();
   }, [fetchAllFeeds]);
 
+  /**
+   * Manual refresh
+   */
   const refresh = useCallback(async () => {
     await fetchAllFeeds(true);
   }, [fetchAllFeeds]);
 
-  return { news, isLoading, error, isUsingFallback, refresh };
+  return { 
+    news, 
+    isLoading, 
+    isRefreshing,
+    error, 
+    isUsingFallback, 
+    lastUpdated,
+    refresh 
+  };
 }

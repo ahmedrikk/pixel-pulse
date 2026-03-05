@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ExternalLink, Share2, Bookmark, MessageCircle, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NewsItem } from "@/data/mockNews";
 import { useTagFilter } from "@/contexts/TagFilterContext";
+import { trackArticleRead, trackReadMore, trackArticleCombo } from "@/lib/xpService";
+import { ReactionBar } from "./ReactionBar";
+import { CommentSection } from "./CommentSection";
+import { toast } from "sonner";
+import { ARTICLE_DWELL_TIME } from "@/lib/xpConstants";
 
 interface NewsCardProps {
   news: NewsItem;
+  articleNumber?: number; // For tracking combo (3+ articles)
 }
 
 function formatDate(dateString: string): string {
@@ -19,10 +25,17 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function NewsCard({ news }: NewsCardProps) {
+export function NewsCard({ news, articleNumber = 0 }: NewsCardProps) {
   const { setActiveTag } = useTagFilter();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(news.likes || 0);
+  const [showComments, setShowComments] = useState(false);
+  const [hasAwardedRead, setHasAwardedRead] = useState(false);
+  const [hasAwardedCombo, setHasAwardedCombo] = useState(false);
+  
+  const cardRef = useRef<HTMLElement>(null);
+  const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isVisibleRef = useRef(false);
 
   const handleLike = () => {
     setLiked(!liked);
@@ -33,11 +46,98 @@ export function NewsCard({ news }: NewsCardProps) {
     setActiveTag(tag);
   };
 
+  // Track article read (dwell time)
+  const awardReadXP = useCallback(async () => {
+    if (hasAwardedRead) return;
+    
+    const result = await trackArticleRead(news.sourceUrl);
+    if (result?.awarded) {
+      setHasAwardedRead(true);
+      toast.success(`+${result.awarded} XP!`, {
+        description: "Thanks for reading!",
+        duration: 1500,
+      });
+    }
+  }, [hasAwardedRead, news.sourceUrl]);
+
+  // Track combo bonus (3+ articles)
+  const awardComboXP = useCallback(async () => {
+    if (hasAwardedCombo || articleNumber < 3) return;
+    
+    const result = await trackArticleCombo();
+    if (result?.awarded) {
+      setHasAwardedCombo(true);
+      toast.success(`+${result.awarded} XP Combo Bonus!`, {
+        description: "3+ articles read!",
+        duration: 2000,
+      });
+    }
+  }, [hasAwardedCombo, articleNumber]);
+
+  // Handle Read More click
+  const handleReadMore = async (e: React.MouseEvent) => {
+    // Award Read More XP
+    const result = await trackReadMore(news.sourceUrl);
+    if (result?.awarded) {
+      toast.success(`+${result.awarded} XP!`, {
+        description: "Enjoy the full article!",
+        duration: 1500,
+      });
+    }
+    
+    // Award combo if applicable
+    await awardComboXP();
+  };
+
+  // Intersection Observer for dwell time tracking
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Card is visible - start dwell timer
+            if (!isVisibleRef.current && !hasAwardedRead) {
+              isVisibleRef.current = true;
+              dwellTimerRef.current = setTimeout(() => {
+                awardReadXP();
+              }, ARTICLE_DWELL_TIME);
+            }
+          } else {
+            // Card is not visible - cancel timer
+            isVisibleRef.current = false;
+            if (dwellTimerRef.current) {
+              clearTimeout(dwellTimerRef.current);
+              dwellTimerRef.current = null;
+            }
+          }
+        });
+      },
+      {
+        threshold: 0.5, // 50% of card must be visible
+      }
+    );
+
+    observer.observe(card);
+
+    return () => {
+      observer.disconnect();
+      if (dwellTimerRef.current) {
+        clearTimeout(dwellTimerRef.current);
+      }
+    };
+  }, [awardReadXP, hasAwardedRead]);
+
   // Show top 4 tags
   const displayTags = news.tags.slice(0, 4);
 
   return (
-    <article className="bg-card rounded-lg border overflow-hidden card-shadow hover:card-shadow-hover transition-all duration-200 group">
+    <article
+      ref={cardRef}
+      className="bg-card rounded-lg border overflow-hidden card-shadow hover:card-shadow-hover transition-all duration-200 group"
+    >
       {/* Cover Image */}
       <div className="relative aspect-video overflow-hidden">
         <img
@@ -96,9 +196,14 @@ export function NewsCard({ news }: NewsCardProps) {
               <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
               <span className="text-xs">{likeCount}</span>
             </Button>
-            <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-primary">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="gap-1 text-muted-foreground hover:text-primary"
+              onClick={() => setShowComments(!showComments)}
+            >
               <MessageCircle className="h-4 w-4" />
-              <span className="text-xs">24</span>
+              <span className="text-xs">{news.comments || 0}</span>
             </Button>
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
               <Bookmark className="h-4 w-4" />
@@ -108,13 +213,30 @@ export function NewsCard({ news }: NewsCardProps) {
             </Button>
           </div>
 
-          <Button asChild size="sm" className="gap-2">
+          <Button asChild size="sm" className="gap-2" onClick={handleReadMore}>
             <a href={news.sourceUrl} target="_blank" rel="noopener noreferrer">
               Read Full Article
               <ExternalLink className="h-3 w-3" />
             </a>
           </Button>
         </div>
+
+        {/* Reaction Bar */}
+        <div className="pt-3 mt-3 border-t">
+          <ReactionBar
+            contentId={news.id}
+            contentType="article"
+            compact
+          />
+        </div>
+
+        {/* Comments Section */}
+        {showComments && (
+          <CommentSection
+            articleId={news.id}
+            className="mt-4"
+          />
+        )}
       </div>
     </article>
   );
