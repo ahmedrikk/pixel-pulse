@@ -1,0 +1,146 @@
+export interface CatalogGame {
+  id: string;
+  name: string;
+  genre: string;
+  coverImage: string;
+  rating: number;
+  totalRatings: number;
+  releaseDate: string;
+  platforms: string[];
+  trending: boolean;
+  description: string;
+}
+
+export const GENRES = [
+  { id: "all", label: "All Games", icon: "🎮" },
+  { id: "action-rpg", label: "Action RPG", icon: "⚔️" },
+  { id: "fps", label: "FPS", icon: "🔫" },
+  { id: "adventure", label: "Adventure", icon: "🗺️" },
+  { id: "strategy", label: "Strategy", icon: "♟️" },
+  { id: "horror", label: "Horror", icon: "👻" },
+  { id: "racing", label: "Racing", icon: "🏎️" },
+  { id: "sports", label: "Sports", icon: "⚽" },
+];
+
+export const CATALOG_GAMES: CatalogGame[] = [
+  {
+    id: "elden-ring-dlc",
+    name: "Elden Ring: Shadow of the Erdtree",
+    genre: "action-rpg",
+    coverImage: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80",
+    rating: 4.7,
+    totalRatings: 12847,
+    releaseDate: "June 21, 2024",
+    platforms: ["PC", "PS5", "Xbox"],
+    trending: true,
+    description: "FromSoftware's massive DLC expansion introduces the Land of Shadow with new weapons, bosses, and lore.",
+  },
+  {
+    id: "gta-vi",
+    name: "Grand Theft Auto VI",
+    genre: "adventure",
+    coverImage: "https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=600&q=80",
+    rating: 4.9,
+    totalRatings: 54210,
+    releaseDate: "Fall 2025",
+    platforms: ["PS5", "Xbox"],
+    trending: true,
+    description: "Return to Vice City in Rockstar's most ambitious open-world game to date.",
+  },
+  {
+    id: "valorant-2",
+    name: "Valorant: Episode 9",
+    genre: "fps",
+    coverImage: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=600&q=80",
+    rating: 4.3,
+    totalRatings: 31520,
+    releaseDate: "Jan 2025",
+    platforms: ["PC"],
+    trending: true,
+    description: "The latest episode brings new agents, maps, and a revamped competitive system.",
+  },
+  {
+    id: "zelda-echoes",
+    name: "Zelda: Echoes of Wisdom",
+    genre: "adventure",
+    coverImage: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&q=80",
+    rating: 4.6,
+    totalRatings: 18340,
+    releaseDate: "Sept 2024",
+    platforms: ["Switch"],
+    trending: false,
+    description: "Play as Zelda for the first time in a mainline entry, using the power of echoes to save Hyrule.",
+  },
+  {
+    id: "silent-hill-2",
+    name: "Silent Hill 2 Remake",
+    genre: "horror",
+    coverImage: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&q=80",
+    rating: 4.4,
+    totalRatings: 9870,
+    releaseDate: "Oct 2024",
+    platforms: ["PC", "PS5"],
+    trending: false,
+    description: "Bloober Team's reimagining of the survival horror classic with stunning Unreal Engine 5 visuals.",
+  },
+  {
+    id: "cs2-s2",
+    name: "Counter-Strike 2: Season 2",
+    genre: "fps",
+    coverImage: "https://images.unsplash.com/photo-1552820728-8b83bb6b2b28?w=600&q=80",
+    rating: 4.1,
+    totalRatings: 42100,
+    releaseDate: "March 2025",
+    platforms: ["PC"],
+    trending: true,
+    description: "New maps, updated smoke physics, and the return of fan-favorite operations.",
+  },
+  {
+    id: "civ-7",
+    name: "Civilization VII",
+    genre: "strategy",
+    coverImage: "https://images.unsplash.com/photo-1606663889134-b1dedb5ed8b7?w=600&q=80",
+    rating: 4.5,
+    totalRatings: 15200,
+    releaseDate: "Feb 2025",
+    platforms: ["PC", "PS5", "Xbox", "Switch"],
+    trending: true,
+    description: "Build your empire across ages with a revolutionary new progression system.",
+  },
+  {
+    id: "forza-horizon-6",
+    name: "Forza Horizon 6",
+    genre: "racing",
+    coverImage: "https://images.unsplash.com/photo-1511882150382-421056c89033?w=600&q=80",
+    rating: 4.6,
+    totalRatings: 22300,
+    releaseDate: "Nov 2025",
+    platforms: ["PC", "Xbox"],
+    trending: false,
+    description: "The open-world racing series heads to Japan with next-gen graphics and dynamic weather.",
+  },
+  {
+    id: "ea-fc-26",
+    name: "EA Sports FC 26",
+    genre: "sports",
+    coverImage: "https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=600&q=80",
+    rating: 3.8,
+    totalRatings: 38400,
+    releaseDate: "Sept 2025",
+    platforms: ["PC", "PS5", "Xbox", "Switch"],
+    trending: false,
+    description: "The next iteration of the world's most popular football simulation with HyperMotion V.",
+  },
+  {
+    id: "monster-hunter-wilds",
+    name: "Monster Hunter Wilds",
+    genre: "action-rpg",
+    coverImage: "https://images.unsplash.com/photo-1535223289827-42f1e9919769?w=600&q=80",
+    rating: 4.8,
+    totalRatings: 27600,
+    releaseDate: "Feb 2025",
+    platforms: ["PC", "PS5", "Xbox"],
+    trending: true,
+    description: "Capcom's next mainline Monster Hunter features seamless open zones and dynamic ecosystems.",
+  },
+];
