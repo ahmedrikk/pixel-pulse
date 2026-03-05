@@ -166,9 +166,11 @@ export default function GameReview() {
 
   const overallScore = Object.values(game.scores).reduce((a, b) => a + b, 0) / Object.values(game.scores).length;
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      <Navbar onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} isMobileMenuOpen={mobileMenuOpen} />
 
       {/* Hero */}
       <div className="relative h-[420px] md:h-[480px] overflow-hidden">
