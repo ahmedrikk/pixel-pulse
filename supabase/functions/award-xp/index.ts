@@ -75,7 +75,22 @@ serve(async (req) => {
     let effectiveUserId: string;
 
     if (_user_override) {
-      // Internal service-role call (e.g. resolve-predictions awarding XP for another user)
+      // Internal service-role call — verify the JWT is actually service_role before trusting
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      const [, payloadB64] = token.split(".");
+      let jwtPayload: Record<string, unknown>;
+      try {
+        jwtPayload = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")));
+      } catch {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: corsHeaders,
+        });
+      }
+      if (jwtPayload.role !== "service_role") {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: corsHeaders,
+        });
+      }
       effectiveUserId = _user_override;
     } else {
       // Normal JWT call
