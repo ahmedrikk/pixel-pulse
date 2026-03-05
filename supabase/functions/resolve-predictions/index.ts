@@ -35,6 +35,13 @@ serve(async (req) => {
       );
     }
 
+    if (cancelled && winning_team) {
+      return new Response(
+        JSON.stringify({ error: "winning_team and cancelled are mutually exclusive" }),
+        { status: 400, headers: JSON_HEADERS }
+      );
+    }
+
     // Service-role client for all DB operations (bypasses RLS)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -43,7 +50,7 @@ serve(async (req) => {
     // 1. Fetch all unresolved predictions for this match
     const { data: predictions, error: fetchError } = await supabase
       .from("predictions")
-      .select("id, user_id, predicted_team, xp_participation, xp_bonus")
+      .select("id, user_id, predicted_team, xp_participation")
       .eq("match_id", match_id)
       .is("resolved_at", null);
 
