@@ -75,18 +75,10 @@ serve(async (req) => {
     let effectiveUserId: string;
 
     if (_user_override) {
-      // Internal service-role call — verify the JWT is actually service_role before trusting
+      // Internal service-role call — compare the full Bearer token against the known
+      // service role key. This avoids JWT payload spoofing (unverified decode is insecure).
       const token = authHeader.replace(/^Bearer\s+/i, "");
-      const [, payloadB64] = token.split(".");
-      let jwtPayload: Record<string, unknown>;
-      try {
-        jwtPayload = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")));
-      } catch {
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-          status: 403, headers: corsHeaders,
-        });
-      }
-      if (jwtPayload.role !== "service_role") {
+      if (token !== Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403, headers: corsHeaders,
         });
@@ -112,6 +104,18 @@ serve(async (req) => {
     const baseXp = XP_TABLE[action_type];
     if (baseXp === undefined) {
       return new Response(JSON.stringify({ error: `Unknown action: ${action_type}` }), {
+        status: 400, headers: corsHeaders,
+      });
+    }
+
+    // Actions that dedup per-article/match must carry a ref_id
+    const REF_ID_REQUIRED = new Set([
+      "read_summary", "read_more", "article_combo",
+      "react", "comment", "receive_upvotes",
+      "predict_submit", "predict_correct",
+    ]);
+    if (REF_ID_REQUIRED.has(action_type) && !rawRefId) {
+      return new Response(JSON.stringify({ error: `ref_id required for action: ${action_type}` }), {
         status: 400, headers: corsHeaders,
       });
     }
@@ -246,7 +250,12 @@ serve(async (req) => {
       last_active_day:      newLastActive,
     }).eq("id", effectiveUserId);
 
-    // Tier-up: grant reward
+    // Tier-up: grant reward.
+    // Note: push notifications for tier-up are fired by a Postgres trigger on the
+    // user_rewards table (supabase/functions/notify-tier-up), not from here.
+    // Note: xp_season and tier reset at season end is handled by a separate admin
+    // migration/function, not in award-xp. The season_start action re-initialises
+    // the user's season when they claim their first XP of a new season.
     if (tierUp) {
       const reward = TIER_REWARD_MAP[newTier];
       if (reward) {
