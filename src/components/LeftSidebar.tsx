@@ -47,14 +47,14 @@ export function LeftSidebar() {
       {/* Main Navigation */}
       <nav className="bg-card rounded-lg border card-shadow overflow-hidden">
         {NAV_ITEMS.map((item) => (
-          <a
+          <Link
             key={item.label}
-            href={item.href}
+            to={item.href}
             className="flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-foreground hover:text-primary"
           >
             <item.icon className="h-5 w-5" />
             <span className="font-medium">{item.label}</span>
-          </a>
+          </Link>
         ))}
       </nav>
 
