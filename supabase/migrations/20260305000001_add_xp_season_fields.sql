@@ -3,6 +3,10 @@
 
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS xp_today           INTEGER NOT NULL DEFAULT 0
+                                                -- DB ceiling (500) is intentionally higher than the software DAILY_CAP (400).
+                                                -- Bypass actions (streak_7/streak_30) do NOT add to xp_today, so the
+                                                -- effective max from the edge function is 400. The extra headroom guards
+                                                -- against future changes or admin overrides without requiring a schema migration.
                                                 CONSTRAINT xp_today_cap CHECK (xp_today >= 0 AND xp_today <= 500),
   ADD COLUMN IF NOT EXISTS xp_today_reset_date DATE,
   ADD COLUMN IF NOT EXISTS xp_season          INTEGER NOT NULL DEFAULT 0,
