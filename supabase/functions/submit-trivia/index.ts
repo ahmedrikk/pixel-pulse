@@ -47,8 +47,13 @@ async function callAwardXp(
     return 0;
   }
 
-  const result: AwardXpResult = await resp.json();
-  return result.awarded ?? 0;
+  try {
+    const result: AwardXpResult = await resp.json();
+    return result.awarded ?? 0;
+  } catch {
+    console.error(`award-xp returned non-JSON body for ${actionType}`);
+    return 0;
+  }
 }
 
 serve(async (req) => {
@@ -100,7 +105,6 @@ serve(async (req) => {
       );
     }
 
-    // Fix 8: Validate that each answer is in the range 0-3
     if (!answers.every((a: number) => Number.isInteger(a) && a >= 0 && a <= 3)) {
       return new Response(JSON.stringify({ error: "Each answer must be an integer 0-3" }), {
         status: 400, headers: JSON_HEADERS,
@@ -160,7 +164,7 @@ serve(async (req) => {
     const score = results.filter((r) => r.correct).length;
     const isPerfect = score === questions.length;
 
-    // Fix 6: Update attempt BEFORE awarding XP to prevent double-XP if DB update fails after XP is granted
+    // Mark attempt complete BEFORE awarding XP — prevents double-XP if the process restarts mid-flight
     const { error: updateError } = await supabase
       .from("trivia_attempts")
       .update({
@@ -174,8 +178,7 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Step 3: Call award-xp for trivia actions
-    // Fix 7: Parallelize award-xp calls using Promise.all instead of sequential awaits
+    // Step 3: Award XP for trivia performance — calls are parallelized via Promise.all
     const xpCalls: Promise<number>[] = [callAwardXp(supabaseUrl, authHeader, "trivia_participate", todayUtc)];
 
     for (let i = 0; i < questions.length; i++) {
@@ -191,7 +194,7 @@ serve(async (req) => {
     const xpResults = await Promise.all(xpCalls);
     const totalXpAwarded = xpResults.reduce((a, b) => a + b, 0);
 
-    // Fix 6: Update xp_awarded after collecting results from parallel XP calls
+    // Step 4: Persist xp_awarded total after collecting results from parallel XP calls
     const { error: xpUpdateError } = await supabase
       .from("trivia_attempts")
       .update({ xp_awarded: totalXpAwarded })
@@ -201,7 +204,7 @@ serve(async (req) => {
       throw xpUpdateError;
     }
 
-    // Step 5: Return results
+    // Step 5: Return score, results, and XP summary
     return new Response(
       JSON.stringify({
         score,

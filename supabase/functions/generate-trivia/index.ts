@@ -9,6 +9,8 @@ const corsHeaders = {
 const JSON_HEADERS = { ...corsHeaders, "Content-Type": "application/json" };
 
 const TRIVIA_QUESTION_COUNT = 5;
+// Fetch a larger pool before shuffling so selection is random, not insertion-order biased
+const POOL_FETCH_MULTIPLIER = 3;
 
 interface TriviaQuestion {
   id?: string;
@@ -26,7 +28,6 @@ interface ClientQuestion {
   topic: string;
 }
 
-// Fix 2: Shuffle helper for randomizing question pool selection
 function shuffleArray<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -35,14 +36,17 @@ function shuffleArray<T>(arr: T[]): T[] {
   return arr;
 }
 
-async function generateQuestionsFromOpenRouter(): Promise<TriviaQuestion[]> {
+// `needed` tells the generator how many questions are required so validation is accurate
+// when the pool already has some questions (e.g. 3 pool + 2 AI = 5 total).
+async function generateQuestionsFromOpenRouter(needed: number): Promise<TriviaQuestion[]> {
   const apiKey = Deno.env.get("OPENROUTER_API_KEY");
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not configured");
   }
 
-  // Fix 1: Prompt now asks for correct_answer (text) instead of correct_index (integer)
-  const prompt = `Generate exactly 5 gaming trivia questions. Return ONLY a valid JSON array with no extra text, markdown, or code fences.
+  // Prompt requests correct_answer as text so the server derives correct_index via indexOf.
+  // This prevents correct_index from appearing in the LLM wire response.
+  const prompt = `Generate exactly ${needed} gaming trivia questions. Return ONLY a valid JSON array with no extra text, markdown, or code fences.
 Each element must have exactly these fields:
 - "question": a trivia question string about video games, esports, or gaming culture
 - "options": an array of exactly 4 string answer choices
@@ -61,9 +65,7 @@ Example format:
     body: JSON.stringify({
       model: "openai/gpt-4o-mini",
       temperature: 0.8,
-      messages: [
-        { role: "user", content: prompt },
-      ],
+      messages: [{ role: "user", content: prompt }],
     }),
   });
 
@@ -89,7 +91,6 @@ Example format:
     throw new Error(`OpenRouter returned unexpected structure: ${content}`);
   }
 
-  // Validate each question has required fields
   for (const q of rawQuestions) {
     if (
       typeof q.question !== "string" ||
@@ -102,21 +103,20 @@ Example format:
     }
   }
 
-  // Fix 1: Derive correct_index server-side by finding correct_answer in options
+  // Derive correct_index server-side from the answer text — never trust an index from the LLM
   const withIndex = rawQuestions.map((q) => ({
     ...q,
     correct_index: q.options.indexOf(q.correct_answer),
   }));
 
-  // Reject questions where correct_answer doesn't match any option
+  // Filter out questions where correct_answer didn't match any option
   const valid = withIndex.filter((q) => q.correct_index !== -1);
 
-  // Fix 5: Validate that OpenRouter returned enough questions
-  if (valid.length < TRIVIA_QUESTION_COUNT) {
-    throw new Error(`OpenRouter returned only ${valid.length} questions, expected ${TRIVIA_QUESTION_COUNT}`);
+  if (valid.length < needed) {
+    throw new Error(`OpenRouter returned only ${valid.length} valid questions, need ${needed}`);
   }
 
-  return valid as TriviaQuestion[];
+  return valid.slice(0, needed) as TriviaQuestion[];
 }
 
 serve(async (req) => {
@@ -125,7 +125,6 @@ serve(async (req) => {
   }
 
   try {
-    // Auth: require user JWT
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -137,7 +136,7 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Validate user JWT via anon client
+    // Validate user JWT via anon client (server-side signature verification)
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -149,26 +148,20 @@ serve(async (req) => {
     }
 
     const userId = user.id;
-
-    // Service-role client for DB writes (bypasses RLS)
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-
     const todayUtc = new Date().toISOString().slice(0, 10);
 
-    // Step 1: Check if trivia_attempts already exists for today
+    // Step 1: Return existing attempt for today if present (questions stripped of correct_index)
     const { data: existingAttempt, error: attemptCheckError } = await supabase
       .from("trivia_attempts")
-      .select("id, questions_json, answers_json, score, xp_awarded, completed_at")
+      .select("id, questions_json, completed_at")
       .eq("user_id", userId)
       .eq("quiz_date", todayUtc)
       .maybeSingle();
 
-    if (attemptCheckError) {
-      throw attemptCheckError;
-    }
+    if (attemptCheckError) throw attemptCheckError;
 
     if (existingAttempt) {
-      // Strip correct_index before returning to client
       const questions: ClientQuestion[] = (existingAttempt.questions_json as TriviaQuestion[]).map(
         (q: TriviaQuestion) => ({
           id: q.id!,
@@ -177,56 +170,44 @@ serve(async (req) => {
           topic: q.topic,
         })
       );
-
       return new Response(
-        JSON.stringify({
-          questions,
-          already_completed: existingAttempt.completed_at !== null,
-        }),
+        JSON.stringify({ questions, already_completed: existingAttempt.completed_at !== null }),
         { headers: JSON_HEADERS }
       );
     }
 
     // Step 2: Find questions not seen by user in last 14 days
     const fourteenDaysAgo = new Date(Date.now() - 14 * 86_400_000).toISOString();
-
     const { data: seenRows, error: seenError } = await supabase
       .from("trivia_user_seen")
       .select("question_id")
       .eq("user_id", userId)
       .gte("seen_at", fourteenDaysAgo);
 
-    if (seenError) {
-      throw seenError;
-    }
+    if (seenError) throw seenError;
 
     const seenIds = (seenRows ?? []).map((r: { question_id: string }) => r.question_id);
 
-    // Fix 3: Only add .not() filter when there are actually seen IDs
-    // Fix 2: Fetch TRIVIA_QUESTION_COUNT * 3 rows to allow shuffling
+    // Fetch a larger pool then shuffle to avoid always returning the same first N questions.
+    // seenIds come from a prior DB query so string interpolation into NOT IN is safe here.
     const baseQuery = supabase
       .from("trivia_questions")
       .select("id, question, options, correct_index, topic");
-
     const poolQuery = seenIds.length > 0
       ? baseQuery.not("id", "in", `(${seenIds.join(",")})`)
       : baseQuery;
+    const { data: pool, error: poolError } = await poolQuery.limit(TRIVIA_QUESTION_COUNT * POOL_FETCH_MULTIPLIER);
 
-    const { data: pool, error: questionsError } = await poolQuery.limit(TRIVIA_QUESTION_COUNT * 3);
+    if (poolError) throw poolError;
 
-    if (questionsError) {
-      throw questionsError;
-    }
+    let availableQuestions: TriviaQuestion[] = shuffleArray(pool ?? []).slice(0, TRIVIA_QUESTION_COUNT);
 
-    // Fix 2: Shuffle the fetched pool before slicing
-    const shuffled = shuffleArray(pool ?? []);
-    let availableQuestions = shuffled.slice(0, TRIVIA_QUESTION_COUNT);
-
-    // Step 3: If fewer than 5 available, generate new ones from OpenRouter
-    let generatedQuestions: TriviaQuestion[] = [];
+    // Step 3: If pool is short, generate the missing questions from OpenRouter
     if (availableQuestions.length < TRIVIA_QUESTION_COUNT) {
+      const needed = TRIVIA_QUESTION_COUNT - availableQuestions.length;
+      let aiQuestions: TriviaQuestion[];
       try {
-        generatedQuestions = await generateQuestionsFromOpenRouter();
+        aiQuestions = await generateQuestionsFromOpenRouter(needed);
       } catch (genErr) {
         console.error("OpenRouter generation error:", genErr);
         return new Response(
@@ -235,31 +216,27 @@ serve(async (req) => {
         );
       }
 
-      // Step 4: Insert new questions to trivia_questions
-      const toInsert = generatedQuestions.map((q) => ({
+      // Step 4: Persist generated questions so they enter the rotation pool
+      const toInsert = aiQuestions.map((q) => ({
         question: q.question,
         options: q.options,
         correct_index: q.correct_index,
         topic: q.topic,
         generated_at: new Date().toISOString(),
       }));
-
       const { data: insertedQuestions, error: insertError } = await supabase
         .from("trivia_questions")
         .insert(toInsert)
         .select("id, question, options, correct_index, topic");
 
-      if (insertError) {
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
       availableQuestions = [...availableQuestions, ...(insertedQuestions ?? [])];
     }
 
-    // Take exactly TRIVIA_QUESTION_COUNT questions
     const selectedQuestions = availableQuestions.slice(0, TRIVIA_QUESTION_COUNT);
 
-    // Step 5: Create trivia_attempts row with questions_json (including correct_index, server-side only)
+    // Step 5: Store attempt with full questions_json (correct_index kept server-side)
     const questionsJson = selectedQuestions.map((q: TriviaQuestion & { id: string }) => ({
       id: q.id,
       question: q.question,
@@ -283,16 +260,13 @@ serve(async (req) => {
     if (createAttemptError) {
       // 23505 = unique_violation: concurrent request already created the attempt
       if (createAttemptError.code === "23505") {
-        // Fetch the concurrently-created attempt and return it
         const { data: racedAttempt, error: raceFetchError } = await supabase
           .from("trivia_attempts")
           .select("questions_json, completed_at")
           .eq("user_id", userId)
           .eq("quiz_date", todayUtc)
           .single();
-
         if (raceFetchError) throw raceFetchError;
-
         const questions: ClientQuestion[] = (racedAttempt.questions_json as TriviaQuestion[]).map(
           (q: TriviaQuestion) => ({
             id: q.id!,
@@ -301,33 +275,26 @@ serve(async (req) => {
             topic: q.topic,
           })
         );
-
         return new Response(
-          JSON.stringify({
-            questions,
-            already_completed: racedAttempt.completed_at !== null,
-          }),
+          JSON.stringify({ questions, already_completed: racedAttempt.completed_at !== null }),
           { headers: JSON_HEADERS }
         );
       }
       throw createAttemptError;
     }
 
-    // Step 6: Track question IDs in trivia_user_seen
+    // Step 6: Track which questions the user has seen (for 14-day rotation)
     const seenInserts = selectedQuestions.map((q: { id: string }) => ({
       user_id: userId,
       question_id: q.id,
       seen_at: new Date().toISOString(),
     }));
-
-    // Fix 4: Make trivia_user_seen insert failure non-silent (throw instead of log)
     const { error: seenInsertError } = await supabase
       .from("trivia_user_seen")
       .upsert(seenInserts, { onConflict: "user_id,question_id" });
-
     if (seenInsertError) throw seenInsertError;
 
-    // Step 7: Return questions without correct_index
+    // Step 7: Return questions to client — correct_index is never included
     const clientQuestions: ClientQuestion[] = selectedQuestions.map(
       (q: TriviaQuestion & { id: string }) => ({
         id: q.id,
@@ -338,10 +305,7 @@ serve(async (req) => {
     );
 
     return new Response(
-      JSON.stringify({
-        questions: clientQuestions,
-        already_completed: false,
-      }),
+      JSON.stringify({ questions: clientQuestions, already_completed: false }),
       { headers: JSON_HEADERS }
     );
 
