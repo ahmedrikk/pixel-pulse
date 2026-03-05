@@ -1,12 +1,13 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight } from "lucide-react";
+import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Sun, Moon } from "lucide-react";
-import { GAME_FILTERS, ESPORTS_MATCHES, type EsportsMatch } from "@/data/esportsData";
-import { format, isToday, isTomorrow, isYesterday, parseISO } from "date-fns";
+import { GAME_FILTERS, ESPORTS_MATCHES, type EsportsMatch, type EsportsTeam } from "@/data/esportsData";
+import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 
 type TabType = "live" | "upcoming" | "results";
 
@@ -28,86 +29,188 @@ function groupByDate(matches: EsportsMatch[]): Record<string, EsportsMatch[]> {
   return groups;
 }
 
+/* ── Form Dots ── */
+function FormDots({ form }: { form: ("W" | "L" | "D")[] }) {
+  return (
+    <div className="flex gap-1">
+      {form.map((r, i) => (
+        <span
+          key={i}
+          className={`h-2 w-2 rounded-full ${
+            r === "W" ? "bg-[hsl(var(--win-color))]" : r === "L" ? "bg-[hsl(var(--live-glow))]" : "bg-muted-foreground"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ── Win Probability Bar ── */
+function ProbabilityBar({ teamA, teamB }: { teamA: EsportsTeam; teamB: EsportsTeam }) {
+  return (
+    <div className="w-full flex items-center gap-2 text-[10px] font-semibold">
+      <span className="text-primary w-8 text-right">{teamA.probability}%</span>
+      <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-secondary flex">
+        <div
+          className="h-full bg-primary transition-all duration-500"
+          style={{ width: `${teamA.probability}%` }}
+        />
+        <div
+          className="h-full bg-accent transition-all duration-500"
+          style={{ width: `${teamB.probability}%` }}
+        />
+      </div>
+      <span className="text-accent w-8">{teamB.probability}%</span>
+    </div>
+  );
+}
+
+/* ── Countdown ── */
+function Countdown({ timestamp }: { timestamp: string }) {
+  const diff = differenceInSeconds(parseISO(timestamp), new Date());
+  if (diff <= 0) return <span className="text-sm text-muted-foreground">Starting soon</span>;
+  const h = Math.floor(diff / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  return (
+    <span className="text-sm font-mono font-bold text-primary tabular-nums">
+      {h > 0 && `${h}h `}{m}m
+    </span>
+  );
+}
+
+/* ── Team Block ── */
+function TeamBlock({ team, score, isWinner, side }: { team: EsportsTeam; score: number | null; isWinner: boolean; side: "left" | "right" }) {
+  const align = side === "left" ? "text-right items-end" : "text-left items-start";
+  return (
+    <div className={`flex flex-col gap-1 flex-1 min-w-0 ${align}`}>
+      <div className={`flex items-center gap-2 ${side === "left" ? "flex-row-reverse" : ""}`}>
+        <span className="text-2xl flex-shrink-0">{team.logo}</span>
+        <div className={`min-w-0 ${align}`}>
+          <div className={`flex items-center gap-1.5 ${side === "left" ? "flex-row-reverse" : ""}`}>
+            <span className={`text-sm font-bold truncate ${isWinner ? "text-[hsl(var(--gold))]" : "text-foreground"}`}>
+              {team.name}
+            </span>
+            <span className="text-xs flex-shrink-0">{team.flag}</span>
+          </div>
+          <FormDots form={team.form} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Match Card ── */
 function MatchCard({ match }: { match: EsportsMatch }) {
   const gameFilter = GAME_FILTERS.find((g) => g.id === match.gameTitle);
+  const isWinnerA = match.status === "completed" && (match.scoreA ?? 0) > (match.scoreB ?? 0);
+  const isWinnerB = match.status === "completed" && (match.scoreB ?? 0) > (match.scoreA ?? 0);
 
   return (
-    <div className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 bg-card border border-border rounded-lg hover:border-primary/40 transition-all duration-200 cursor-pointer">
-      {/* Game icon */}
-      <div className="hidden sm:flex items-center justify-center w-10 h-10 rounded-lg bg-secondary text-lg flex-shrink-0">
-        {gameFilter?.icon || "🎮"}
-      </div>
-
-      {/* Tournament info */}
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-muted-foreground truncate mb-1">
-          {match.leagueName} · {match.format}
-        </p>
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Team A */}
-          <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
-            <span className="text-sm font-semibold truncate">{match.teamA.name}</span>
-            <span className="text-lg flex-shrink-0">{match.teamA.logo}</span>
-          </div>
-
-          {/* Score / Time */}
-          <div className="flex-shrink-0 w-20 text-center">
-            {match.status === "live" && (
-              <div className="flex items-center justify-center gap-1">
-                <span className="text-lg font-bold text-primary">{match.scoreA}</span>
-                <span className="text-xs text-muted-foreground">-</span>
-                <span className="text-lg font-bold text-primary">{match.scoreB}</span>
-              </div>
-            )}
-            {match.status === "completed" && (
-              <div className="flex items-center justify-center gap-1">
-                <span className={`text-lg font-bold ${(match.scoreA ?? 0) > (match.scoreB ?? 0) ? "text-foreground" : "text-muted-foreground"}`}>
-                  {match.scoreA}
-                </span>
-                <span className="text-xs text-muted-foreground">-</span>
-                <span className={`text-lg font-bold ${(match.scoreB ?? 0) > (match.scoreA ?? 0) ? "text-foreground" : "text-muted-foreground"}`}>
-                  {match.scoreB}
-                </span>
-              </div>
-            )}
-            {match.status === "upcoming" && (
-              <span className="text-sm font-medium text-muted-foreground">
-                {format(parseISO(match.timestamp), "HH:mm")}
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      transition={{ duration: 0.25 }}
+      className={`group relative p-4 bg-card border rounded-xl transition-all duration-200 cursor-pointer hover:shadow-lg ${
+        match.status === "live" ? "border-[hsl(var(--live-glow)/0.4)] neon-border" : "border-border hover:border-primary/30"
+      }`}
+    >
+      {/* Header row: game icon + tournament + status */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-lg flex-shrink-0">{gameFilter?.icon || "🎮"}</span>
+          <span className="text-xs text-muted-foreground truncate">
+            {match.leagueName} · {match.format}
+          </span>
+        </div>
+        <div className="flex-shrink-0 flex items-center gap-2">
+          {match.status === "live" && (
+            <Badge className="bg-[hsl(var(--live-glow)/0.15)] text-[hsl(var(--live-glow))] border-[hsl(var(--live-glow)/0.3)] gap-1 text-xs">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--live-glow))] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(var(--live-glow))]" />
               </span>
-            )}
-          </div>
-
-          {/* Team B */}
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            <span className="text-lg flex-shrink-0">{match.teamB.logo}</span>
-            <span className="text-sm font-semibold truncate">{match.teamB.name}</span>
-          </div>
+              LIVE
+            </Badge>
+          )}
+          {match.status === "completed" && (
+            <Badge variant="secondary" className="text-muted-foreground text-xs">FT</Badge>
+          )}
+          {match.status === "upcoming" && (
+            <Badge variant="outline" className="text-muted-foreground text-xs">
+              {format(parseISO(match.timestamp), "MMM d")}
+            </Badge>
+          )}
         </div>
       </div>
 
-      {/* Status badge */}
-      <div className="flex-shrink-0 hidden sm:block">
-        {match.status === "live" && (
-          <Badge className="bg-destructive/20 text-destructive border-destructive/30 gap-1">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
-            </span>
-            LIVE
-          </Badge>
-        )}
-        {match.status === "completed" && (
-          <Badge variant="secondary" className="text-muted-foreground">FT</Badge>
-        )}
-        {match.status === "upcoming" && (
-          <Badge variant="outline" className="text-muted-foreground">
-            {format(parseISO(match.timestamp), "MMM d")}
-          </Badge>
-        )}
+      {/* Face-off row */}
+      <div className="flex items-center gap-3">
+        <TeamBlock team={match.teamA} score={match.scoreA} isWinner={isWinnerA} side="left" />
+
+        {/* Score / Countdown center */}
+        <div className="flex-shrink-0 w-24 flex flex-col items-center gap-1">
+          {match.status === "live" && (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="text-2xl font-black text-primary">{match.scoreA}</span>
+                <span className="text-sm text-muted-foreground font-bold">:</span>
+                <span className="text-2xl font-black text-primary">{match.scoreB}</span>
+              </div>
+            </>
+          )}
+          {match.status === "completed" && (
+            <div className="flex items-center gap-1.5">
+              <span className={`text-2xl font-black ${isWinnerA ? "text-[hsl(var(--gold))]" : "text-muted-foreground"}`}>
+                {match.scoreA}
+              </span>
+              <span className="text-sm text-muted-foreground font-bold">:</span>
+              <span className={`text-2xl font-black ${isWinnerB ? "text-[hsl(var(--gold))]" : "text-muted-foreground"}`}>
+                {match.scoreB}
+              </span>
+            </div>
+          )}
+          {match.status === "upcoming" && (
+            <Countdown timestamp={match.timestamp} />
+          )}
+        </div>
+
+        <TeamBlock team={match.teamB} score={match.scoreB} isWinner={isWinnerB} side="right" />
       </div>
 
-      <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-    </div>
+      {/* Probability bar */}
+      <div className="mt-3">
+        <ProbabilityBar teamA={match.teamA} teamB={match.teamB} />
+      </div>
+
+      {/* Action row */}
+      <div className="mt-3 flex items-center justify-between">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span>{format(parseISO(match.timestamp), "HH:mm")} UTC</span>
+        </div>
+        {match.status === "live" && match.streamUrl && (
+          <a href={match.streamUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+            <Button size="sm" className="h-7 text-xs gap-1">
+              <ExternalLink className="h-3 w-3" />
+              Watch Live
+            </Button>
+          </a>
+        )}
+        {match.status === "upcoming" && (
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+            <Clock className="h-3 w-3" />
+            Set Reminder
+          </Button>
+        )}
+        {match.status === "completed" && (
+          <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-muted-foreground">
+            Match Details
+            <ChevronRight className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
@@ -140,7 +243,7 @@ export default function Esports() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-nav backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-border bg-[hsl(var(--nav-bg))] backdrop-blur-sm">
         <div className="container flex h-14 items-center gap-4">
           <Link to="/">
             <Button variant="ghost" size="icon">
@@ -166,8 +269,9 @@ export default function Esports() {
         {/* Game Filter Bar */}
         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-thin mb-2">
           {GAME_FILTERS.map((game) => (
-            <button
+            <motion.button
               key={game.id}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setActiveGame(game.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all border ${
                 activeGame === game.id
@@ -177,7 +281,7 @@ export default function Esports() {
             >
               <span>{game.icon}</span>
               <span>{game.label}</span>
-            </button>
+            </motion.button>
           ))}
         </div>
 
@@ -196,10 +300,10 @@ export default function Esports() {
               {tab.icon}
               {tab.label}
               {tab.id === "live" && liveCount > 0 && (
-                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-destructive/20 text-destructive text-xs font-bold">
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[hsl(var(--live-glow)/0.15)] text-[hsl(var(--live-glow))] text-xs font-bold">
                   <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-destructive" />
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--live-glow))] opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[hsl(var(--live-glow))]" />
                   </span>
                   {liveCount}
                 </span>
@@ -209,27 +313,43 @@ export default function Esports() {
         </div>
 
         {/* Match List */}
-        {Object.keys(grouped).length === 0 || filteredMatches.length === 0 ? (
-          <div className="text-center py-16 text-muted-foreground">
-            <p className="text-lg font-medium">No matches found</p>
-            <p className="text-sm mt-1">Try selecting a different game or tab.</p>
-          </div>
-        ) : (
-          Object.entries(grouped).map(([dateLabel, matches]) => (
-            <div key={dateLabel} className="mb-6">
-              {dateLabel && (
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
-                  {dateLabel}
-                </h3>
-              )}
-              <div className="space-y-2">
-                {matches.map((match) => (
-                  <MatchCard key={match.id} match={match} />
-                ))}
-              </div>
-            </div>
-          ))
-        )}
+        <AnimatePresence mode="wait">
+          {filteredMatches.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center py-16 text-muted-foreground"
+            >
+              <p className="text-lg font-medium">No matches found</p>
+              <p className="text-sm mt-1">Try selecting a different game or tab.</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`${activeTab}-${activeGame}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              {Object.entries(grouped).map(([dateLabel, matches]) => (
+                <div key={dateLabel} className="mb-6">
+                  {dateLabel && (
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
+                      {dateLabel}
+                    </h3>
+                  )}
+                  <div className="grid gap-3">
+                    {matches.map((match) => (
+                      <MatchCard key={match.id} match={match} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
