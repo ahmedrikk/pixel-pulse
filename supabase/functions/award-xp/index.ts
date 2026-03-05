@@ -61,6 +61,14 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Resolve active season (used for user_rewards inserts)
+    const { data: activeSeason } = await supabase
+      .from("seasons")
+      .select("id")
+      .eq("is_active", true)
+      .maybeSingle();
+    const activeSeasonId: number = activeSeason?.id ?? 1;
+
     // Resolve the user — either from JWT or from _user_override (service-role internal calls)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -261,7 +269,7 @@ serve(async (req) => {
       if (reward) {
         await supabase.from("user_rewards").insert({
           user_id:      effectiveUserId,
-          season_id:    1,
+          season_id:    activeSeasonId,
           tier:         newTier,
           reward_type:  reward.type,
           reward_value: reward.value,
