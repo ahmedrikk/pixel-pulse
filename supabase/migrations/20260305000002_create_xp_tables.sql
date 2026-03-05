@@ -22,10 +22,11 @@ CREATE TABLE IF NOT EXISTS public.xp_events (
   ref_id             TEXT NOT NULL DEFAULT '',
   xp_awarded         INTEGER NOT NULL,
   multiplier_applied NUMERIC(4,2) DEFAULT 1.0,
+  event_date         DATE NOT NULL DEFAULT CURRENT_DATE,
   created_at         TIMESTAMPTZ DEFAULT now()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS xp_events_dedup
-  ON public.xp_events (user_id, action_type, ref_id, (created_at::date));
+  ON public.xp_events (user_id, action_type, ref_id, event_date);
 
 -- Trivia question pool
 CREATE TABLE IF NOT EXISTS public.trivia_questions (
