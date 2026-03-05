@@ -5,9 +5,12 @@ import { NewsFeed } from "@/components/NewsFeed";
 import { RightSidebar } from "@/components/RightSidebar";
 import { MobileMenu } from "@/components/MobileMenu";
 import { TagFilterProvider } from "@/contexts/TagFilterContext";
+import { useScrollDepth } from "@/hooks/useScrollDepth";
+import { trackScroll } from "@/lib/xpService";
 
 const Index = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  useScrollDepth("index", (depth) => trackScroll("index", depth));
 
   return (
     <TagFilterProvider>
