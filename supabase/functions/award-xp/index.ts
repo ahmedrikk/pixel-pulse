@@ -213,6 +213,7 @@ serve(async (req) => {
       ref_id,
       xp_awarded:         awarded,
       multiplier_applied: streakMult * onboardMult,
+      event_date:         todayUtc,
     });
     if (insertError) {
       // 23505 = unique_violation: a concurrent request already won the race

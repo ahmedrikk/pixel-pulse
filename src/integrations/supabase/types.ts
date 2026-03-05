@@ -121,6 +121,7 @@ export type Database = {
           ref_id: string
           xp_awarded: number
           multiplier_applied: number | null
+          event_date: string
           created_at: string
         }
         Insert: {
@@ -130,6 +131,7 @@ export type Database = {
           ref_id?: string
           xp_awarded: number
           multiplier_applied?: number | null
+          event_date?: string
           created_at?: string
         }
         Update: {
@@ -139,6 +141,7 @@ export type Database = {
           ref_id?: string
           xp_awarded?: number
           multiplier_applied?: number | null
+          event_date?: string
           created_at?: string
         }
         Relationships: [{ foreignKeyName: "xp_events_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] }]
