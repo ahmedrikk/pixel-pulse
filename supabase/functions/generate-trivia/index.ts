@@ -26,21 +26,31 @@ interface ClientQuestion {
   topic: string;
 }
 
+// Fix 2: Shuffle helper for randomizing question pool selection
+function shuffleArray<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 async function generateQuestionsFromOpenRouter(): Promise<TriviaQuestion[]> {
   const apiKey = Deno.env.get("OPENROUTER_API_KEY");
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not configured");
   }
 
+  // Fix 1: Prompt now asks for correct_answer (text) instead of correct_index (integer)
   const prompt = `Generate exactly 5 gaming trivia questions. Return ONLY a valid JSON array with no extra text, markdown, or code fences.
 Each element must have exactly these fields:
 - "question": a trivia question string about video games, esports, or gaming culture
 - "options": an array of exactly 4 string answer choices
-- "correct_index": an integer 0-3 indicating which option is correct
+- "correct_answer": string (must be exactly one of the option strings)
 - "topic": a short topic label (e.g. "FPS Games", "Esports History", "RPG", "Strategy Games")
 
 Example format:
-[{"question":"...","options":["a","b","c","d"],"correct_index":2,"topic":"FPS Games"}]`;
+[{"question":"...","options":["a","b","c","d"],"correct_answer":"b","topic":"FPS Games"}]`;
 
   const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -68,33 +78,45 @@ Example format:
   // Strip any accidental markdown code fences
   const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 
-  let questions: TriviaQuestion[];
+  let rawQuestions: Array<{ question: string; options: string[]; correct_answer: string; topic: string }>;
   try {
-    questions = JSON.parse(cleaned);
+    rawQuestions = JSON.parse(cleaned);
   } catch {
     throw new Error(`OpenRouter returned malformed JSON: ${content}`);
   }
 
-  if (!Array.isArray(questions) || questions.length === 0) {
+  if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
     throw new Error(`OpenRouter returned unexpected structure: ${content}`);
   }
 
   // Validate each question has required fields
-  for (const q of questions) {
+  for (const q of rawQuestions) {
     if (
       typeof q.question !== "string" ||
       !Array.isArray(q.options) ||
       q.options.length !== 4 ||
-      typeof q.correct_index !== "number" ||
-      q.correct_index < 0 ||
-      q.correct_index > 3 ||
+      typeof q.correct_answer !== "string" ||
       typeof q.topic !== "string"
     ) {
       throw new Error(`OpenRouter returned a malformed question: ${JSON.stringify(q)}`);
     }
   }
 
-  return questions;
+  // Fix 1: Derive correct_index server-side by finding correct_answer in options
+  const withIndex = rawQuestions.map((q) => ({
+    ...q,
+    correct_index: q.options.indexOf(q.correct_answer),
+  }));
+
+  // Reject questions where correct_answer doesn't match any option
+  const valid = withIndex.filter((q) => q.correct_index !== -1);
+
+  // Fix 5: Validate that OpenRouter returned enough questions
+  if (valid.length < TRIVIA_QUESTION_COUNT) {
+    throw new Error(`OpenRouter returned only ${valid.length} questions, expected ${TRIVIA_QUESTION_COUNT}`);
+  }
+
+  return valid as TriviaQuestion[];
 }
 
 serve(async (req) => {
@@ -180,22 +202,25 @@ serve(async (req) => {
 
     const seenIds = (seenRows ?? []).map((r: { question_id: string }) => r.question_id);
 
-    let { data: availableQuestions, error: questionsError } = seenIds.length > 0
-      ? await supabase
-          .from("trivia_questions")
-          .select("id, question, options, correct_index, topic")
-          .not("id", "in", `(${seenIds.join(",")})`)
-          .limit(TRIVIA_QUESTION_COUNT)
-      : await supabase
-          .from("trivia_questions")
-          .select("id, question, options, correct_index, topic")
-          .limit(TRIVIA_QUESTION_COUNT);
+    // Fix 3: Only add .not() filter when there are actually seen IDs
+    // Fix 2: Fetch TRIVIA_QUESTION_COUNT * 3 rows to allow shuffling
+    const baseQuery = supabase
+      .from("trivia_questions")
+      .select("id, question, options, correct_index, topic");
+
+    const poolQuery = seenIds.length > 0
+      ? baseQuery.not("id", "in", `(${seenIds.join(",")})`)
+      : baseQuery;
+
+    const { data: pool, error: questionsError } = await poolQuery.limit(TRIVIA_QUESTION_COUNT * 3);
 
     if (questionsError) {
       throw questionsError;
     }
 
-    availableQuestions = availableQuestions ?? [];
+    // Fix 2: Shuffle the fetched pool before slicing
+    const shuffled = shuffleArray(pool ?? []);
+    let availableQuestions = shuffled.slice(0, TRIVIA_QUESTION_COUNT);
 
     // Step 3: If fewer than 5 available, generate new ones from OpenRouter
     let generatedQuestions: TriviaQuestion[] = [];
@@ -295,14 +320,12 @@ serve(async (req) => {
       seen_at: new Date().toISOString(),
     }));
 
+    // Fix 4: Make trivia_user_seen insert failure non-silent (throw instead of log)
     const { error: seenInsertError } = await supabase
       .from("trivia_user_seen")
       .upsert(seenInserts, { onConflict: "user_id,question_id" });
 
-    if (seenInsertError) {
-      // Non-fatal: log but do not block the response
-      console.error("trivia_user_seen upsert error:", seenInsertError);
-    }
+    if (seenInsertError) throw seenInsertError;
 
     // Step 7: Return questions without correct_index
     const clientQuestions: ClientQuestion[] = selectedQuestions.map(

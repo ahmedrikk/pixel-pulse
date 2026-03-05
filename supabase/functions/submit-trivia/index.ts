@@ -100,6 +100,13 @@ serve(async (req) => {
       );
     }
 
+    // Fix 8: Validate that each answer is in the range 0-3
+    if (!answers.every((a: number) => Number.isInteger(a) && a >= 0 && a <= 3)) {
+      return new Response(JSON.stringify({ error: "Each answer must be an integer 0-3" }), {
+        status: 400, headers: JSON_HEADERS,
+      });
+    }
+
     const answersList = answers as number[];
 
     // Service-role client for DB writes (bypasses RLS)
@@ -153,55 +160,45 @@ serve(async (req) => {
     const score = results.filter((r) => r.correct).length;
     const isPerfect = score === questions.length;
 
-    // Step 3: Call award-xp for trivia actions
-    let totalXpAwarded = 0;
-
-    // Always award trivia_participate (ref_id = today's date)
-    const participateXp = await callAwardXp(
-      supabaseUrl,
-      authHeader,
-      "trivia_participate",
-      todayUtc
-    );
-    totalXpAwarded += participateXp;
-
-    // Award trivia_correct for each correct answer
-    for (let i = 0; i < questions.length; i++) {
-      if (results[i].correct) {
-        const correctXp = await callAwardXp(
-          supabaseUrl,
-          authHeader,
-          "trivia_correct",
-          `${todayUtc}-q${i}`
-        );
-        totalXpAwarded += correctXp;
-      }
-    }
-
-    // Award trivia_perfect if all correct
-    if (isPerfect) {
-      const perfectXp = await callAwardXp(
-        supabaseUrl,
-        authHeader,
-        "trivia_perfect",
-        todayUtc
-      );
-      totalXpAwarded += perfectXp;
-    }
-
-    // Step 4: Update trivia_attempts with answers_json, score, xp_awarded, completed_at
+    // Fix 6: Update attempt BEFORE awarding XP to prevent double-XP if DB update fails after XP is granted
     const { error: updateError } = await supabase
       .from("trivia_attempts")
       .update({
         answers_json: answersList,
         score,
-        xp_awarded: totalXpAwarded,
         completed_at: new Date().toISOString(),
       })
       .eq("id", attempt.id);
 
     if (updateError) {
       throw updateError;
+    }
+
+    // Step 3: Call award-xp for trivia actions
+    // Fix 7: Parallelize award-xp calls using Promise.all instead of sequential awaits
+    const xpCalls: Promise<number>[] = [callAwardXp(supabaseUrl, authHeader, "trivia_participate", todayUtc)];
+
+    for (let i = 0; i < questions.length; i++) {
+      if (results[i].correct) {
+        xpCalls.push(callAwardXp(supabaseUrl, authHeader, "trivia_correct", `${todayUtc}-q${i}`));
+      }
+    }
+
+    if (isPerfect) {
+      xpCalls.push(callAwardXp(supabaseUrl, authHeader, "trivia_perfect", todayUtc));
+    }
+
+    const xpResults = await Promise.all(xpCalls);
+    const totalXpAwarded = xpResults.reduce((a, b) => a + b, 0);
+
+    // Fix 6: Update xp_awarded after collecting results from parallel XP calls
+    const { error: xpUpdateError } = await supabase
+      .from("trivia_attempts")
+      .update({ xp_awarded: totalXpAwarded })
+      .eq("id", attempt.id);
+
+    if (xpUpdateError) {
+      throw xpUpdateError;
     }
 
     // Step 5: Return results
