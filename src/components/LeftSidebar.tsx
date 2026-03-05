@@ -1,4 +1,5 @@
 import { Home, Star, Trophy, BookOpen, Cpu } from "lucide-react";
+import { Link } from "react-router-dom";
 import { CATEGORIES } from "@/data/mockNews";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 
