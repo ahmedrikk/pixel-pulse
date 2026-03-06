@@ -160,6 +160,6 @@ CREATE POLICY "Anyone can read titles" ON public.user_titles FOR SELECT USING (T
 -- Additional Indexes
 -- ============================================
 
-CREATE INDEX IF NOT EXISTS idx_xp_events_user_date ON public.xp_events (user_id, (created_at::date));
+CREATE INDEX IF NOT EXISTS idx_xp_events_user_date ON public.xp_events (user_id, event_date);
 CREATE INDEX IF NOT EXISTS idx_trivia_user_seen_user ON public.trivia_user_seen (user_id);
 CREATE INDEX IF NOT EXISTS idx_predictions_match ON public.predictions (match_id);

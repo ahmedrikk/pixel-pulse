@@ -105,29 +105,44 @@ async function awardXpDemo(action_type: string, ref_id?: string): Promise<XpResu
   };
 }
 
-async function awardXp(action_type: string, ref_id?: string): Promise<XpResult | null> {
-  if (isDemoMode()) {
-    return awardXpDemo(action_type, ref_id);
+function dispatchXPGained(result: XpResult, label?: string) {
+  if (result.awarded > 0) {
+    window.dispatchEvent(
+      new CustomEvent("xp-gained", {
+        detail: { awarded: result.awarded, label, tier_up: result.tier_up ?? false },
+      })
+    );
   }
-  
-  const { data, error } = await supabase.functions.invoke("award-xp", {
-    body: { action_type, ref_id },
-  });
-  if (error) {
-    console.error(`XP award failed (${action_type}):`, error);
-    return null;
-  }
-  return data as XpResult;
 }
 
-export const trackArticleRead  = (url: string) => awardXp("read_summary", url);
-export const trackReadMore     = (url: string) => awardXp("read_more", url);
-export const trackArticleCombo = ()            => awardXp("article_combo");
-export const claimDailyLogin   = ()            => awardXp("daily_login");
-export const trackComment      = (url: string) => awardXp("comment", url);
-export const trackReaction     = (url: string, emoji: string) => awardXp("react", `${url}:${emoji}`);
+async function awardXp(action_type: string, ref_id?: string, label?: string): Promise<XpResult | null> {
+  let result: XpResult | null = null;
+
+  if (isDemoMode()) {
+    result = await awardXpDemo(action_type, ref_id);
+  } else {
+    const { data, error } = await supabase.functions.invoke("award-xp", {
+      body: { action_type, ref_id },
+    });
+    if (error) {
+      console.error(`XP award failed (${action_type}):`, error);
+      return null;
+    }
+    result = data as XpResult;
+  }
+
+  if (result) dispatchXPGained(result, label);
+  return result;
+}
+
+export const trackArticleRead  = (url: string) => awardXp("read_summary", url, "Article Read");
+export const trackReadMore     = (url: string) => awardXp("read_more", url, "Read More");
+export const trackArticleCombo = ()            => awardXp("article_combo", undefined, "Article Combo!");
+export const claimDailyLogin   = ()            => awardXp("daily_login", undefined, "Daily Login");
+export const trackComment      = (url: string) => awardXp("comment", url, "Review Posted");
+export const trackReaction     = (url: string, emoji: string) => awardXp("react", `${url}:${emoji}`, "Reaction");
 export const trackScroll       = (page: string, depth: 50 | 90) =>
-  awardXp(depth === 50 ? "scroll_50" : "scroll_90", page);
+  awardXp(depth === 50 ? "scroll_50" : "scroll_90", page, `${depth}% Read`);
 
 export async function submitPrediction(matchId: number, team: string): Promise<XpResult | null> {
   if (isDemoMode()) {
@@ -151,7 +166,7 @@ export async function submitPrediction(matchId: number, team: string): Promise<X
     console.error("Prediction insert failed:", error);
     return null;
   }
-  return awardXp("predict_submit", String(matchId));
+  return awardXp("predict_submit", String(matchId), "Prediction Made");
 }
 
 // Demo trivia questions

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Star,
@@ -12,8 +13,9 @@ import {
   Send,
   Crown,
 } from "lucide-react";
-import { FEATURED_GAME, TOP_REVIEWERS, type GameReview as ReviewType } from "@/data/gameReviewData";
-import { Navbar } from "@/components/Navbar";
+import { GAME_DATABASE, TOP_REVIEWERS, type GameReview as ReviewType } from "@/data/gameReviewData";
+import { SiteLayout } from "@/components/SiteLayout";
+import { trackComment, trackReaction } from "@/lib/xpService";
 
 const platformIcons: Record<string, React.ReactNode> = {
   PC: <Monitor className="h-5 w-5" />,
@@ -126,7 +128,13 @@ function ReviewCard({
 }
 
 export default function GameReview() {
-  const game = FEATURED_GAME;
+  const { gameId } = useParams<{ gameId: string }>();
+  const game = gameId ? GAME_DATABASE[gameId] : null;
+
+  if (!game) {
+    return <Navigate to="/reviews" replace />;
+  }
+
   const [reviews, setReviews] = useState(game.reviews);
   const [newReviewText, setNewReviewText] = useState("");
   const [newRating, setNewRating] = useState(0);
@@ -144,6 +152,7 @@ export default function GameReview() {
           : r
       )
     );
+    if (type === "up") trackReaction(game.id, "helpful");
   };
 
   const handleSubmitReview = () => {
@@ -162,15 +171,13 @@ export default function GameReview() {
     setReviews((prev) => [review, ...prev]);
     setNewReviewText("");
     setNewRating(0);
+    trackComment(game.id);
   };
 
   const overallScore = Object.values(game.scores).reduce((a, b) => a + b, 0) / Object.values(game.scores).length;
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} isMobileMenuOpen={mobileMenuOpen} />
+    <SiteLayout>
 
       {/* Hero */}
       <div className="relative h-[420px] md:h-[480px] overflow-hidden">
@@ -403,6 +410,6 @@ export default function GameReview() {
           </AnimatePresence>
         </div>
       </div>
-    </div>
+    </SiteLayout>
   );
 }

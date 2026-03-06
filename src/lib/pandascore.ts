@@ -7,6 +7,7 @@ const FALLBACK_IMAGE =
 export interface PandaScoreMatch {
   id: number;
   name: string;
+  number_of_games: number | null;
   status: "running" | "not_started" | "finished";
   begin_at: string | null;
   videogame: { name: string; slug: string };
@@ -21,11 +22,15 @@ export interface EsportsMatch {
   id: number;
   team1: string;
   team2: string;
+  team1Image: string | null;
+  team2Image: string | null;
   score1: number;
   score2: number;
   game: string;
   gameLabel: string;
   tournament: string;
+  league: string;
+  numberOfGames: number | null;
   status: "running" | "not_started" | "finished";
   begin_at: string | null;
   streamUrl: string | null;
@@ -34,13 +39,16 @@ export interface EsportsMatch {
 // --- Helpers ---
 
 const GAME_LABELS: Record<string, string> = {
+  "Counter-Strike": "CS2",
   "Counter-Strike 2": "CS2",
   "League of Legends": "LoL",
   "Dota 2": "Dota 2",
   Valorant: "Valorant",
   Overwatch: "OW2",
+  "Overwatch 2": "OW2",
   "Rainbow Six Siege": "R6",
   "PUBG Mobile": "PUBG",
+  "Call of Duty": "CoD",
 };
 
 export function getGameLabel(gameName: string): string {
@@ -69,11 +77,15 @@ export function transformMatch(match: PandaScoreMatch): EsportsMatch {
     id: match.id,
     team1,
     team2,
+    team1Image: match.opponents[0]?.opponent.image_url ?? null,
+    team2Image: match.opponents[1]?.opponent.image_url ?? null,
     score1,
     score2,
     game: match.videogame.name,
     gameLabel: getGameLabel(match.videogame.name),
     tournament: match.tournament.name,
+    league: match.league.name,
+    numberOfGames: match.number_of_games,
     status: match.status,
     begin_at: match.begin_at,
     streamUrl: mainStream?.raw_url ?? null,
@@ -103,7 +115,19 @@ export async function fetchLiveMatches(): Promise<EsportsMatch[]> {
 
 export async function fetchUpcomingMatches(): Promise<EsportsMatch[]> {
   const res = await fetch(
-    `${BASE_URL}/matches/upcoming?sort=begin_at&page[size]=5`,
+    `${BASE_URL}/matches/upcoming?sort=begin_at&page[size]=10`,
+    { headers: getHeaders() }
+  );
+  if (!res.ok) throw new Error(`PandaScore error: ${res.status}`);
+  const data: PandaScoreMatch[] = await res.json();
+  return data
+    .filter((m) => m.opponents.length >= 2)
+    .map(transformMatch);
+}
+
+export async function fetchPastMatches(): Promise<EsportsMatch[]> {
+  const res = await fetch(
+    `${BASE_URL}/matches/past?sort=-begin_at&page[size]=10`,
     { headers: getHeaders() }
   );
   if (!res.ok) throw new Error(`PandaScore error: ${res.status}`);
