@@ -11,6 +11,9 @@ import SteamCallback from "./pages/SteamCallback";
 import PublicProfile from "./pages/PublicProfile";
 import DailyTrivia from "./pages/DailyTrivia";
 import Leaderboard from "./pages/Leaderboard";
+import Esports from "./pages/Esports";
+import GameCatalog from "./pages/GameCatalog";
+import GameReview from "./pages/GameReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +33,9 @@ const App = () => (
             <Route path="/trivia" element={<DailyTrivia />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/auth/steam/callback" element={<SteamCallback />} />
+            <Route path="/esports" element={<Esports />} />
+            <Route path="/reviews" element={<GameCatalog />} />
+            <Route path="/reviews/:gameId" element={<GameReview />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
