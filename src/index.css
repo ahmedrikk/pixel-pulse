@@ -105,6 +105,10 @@
     --tag-text: 186 100% 50%;
     --online-indicator: 142 71% 45%;
     --neon-glow: 186 100% 50%;
+    --live-glow: 0 84% 60%;
+    --win-color: 142 71% 45%;
+    --loss-color: 0 62% 50%;
+    --gold: 45 93% 58%;
   }
 }
 
