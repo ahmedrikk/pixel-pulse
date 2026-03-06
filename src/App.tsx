@@ -15,6 +15,8 @@ import Esports from "./pages/Esports";
 import GameCatalog from "./pages/GameCatalog";
 import GameReview from "./pages/GameReview";
 import NotFound from "./pages/NotFound";
+import ComingSoon from "./pages/ComingSoon";
+import { XPGainOverlay } from "./components/XPGainOverlay";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +26,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <XPGainOverlay />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -36,6 +39,8 @@ const App = () => (
             <Route path="/esports" element={<Esports />} />
             <Route path="/reviews" element={<GameCatalog />} />
             <Route path="/reviews/:gameId" element={<GameReview />} />
+            <Route path="/guides" element={<ComingSoon />} />
+            <Route path="/hardware" element={<ComingSoon />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

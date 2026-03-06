@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   User,
   Mail,
@@ -22,7 +22,9 @@ import {
   Zap,
   Shield,
   ChevronRight,
-  Settings
+  Settings,
+  ArrowLeft,
+  Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -414,6 +416,21 @@ export default function Profile() {
         <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px] pointer-events-none" />
 
         <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none" />
+
+        {/* Back to Home Button */}
+        <div className="absolute top-4 left-4 z-20">
+          <Link to="/">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-2 backdrop-blur-md bg-background/60 hover:bg-background/90 border border-border/50 shadow-md"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <Home className="h-4 w-4" />
+              <span className="hidden sm:inline">Back to Home</span>
+            </Button>
+          </Link>
+        </div>
 
         {/* Banner Upload Button (Always visible on hover for easier discovery) */}
         <div className="absolute top-4 right-4 z-20 opacity-0 group-hover/banner:opacity-100 transition-opacity">

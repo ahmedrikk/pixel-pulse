@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Star, TrendingUp, Monitor, Gamepad2, Search, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CATALOG_GAMES, GENRES, type CatalogGame } from "@/data/gameCatalogData";
-import { Navbar } from "@/components/Navbar";
+import { SiteLayout } from "@/components/SiteLayout";
 import { Input } from "@/components/ui/input";
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -87,7 +87,6 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
 export default function GameCatalog() {
   const [activeGenre, setActiveGenre] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const filteredGames = CATALOG_GAMES.filter((game) => {
     const matchesGenre = activeGenre === "all" || game.genre === activeGenre;
@@ -101,10 +100,8 @@ export default function GameCatalog() {
   const trendingGames = CATALOG_GAMES.filter((g) => g.trending);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} isMobileMenuOpen={mobileMenuOpen} />
-
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
+    <SiteLayout>
+      <div className="space-y-8">
         {/* Page Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-3xl md:text-4xl font-black text-foreground">
@@ -211,6 +208,6 @@ export default function GameCatalog() {
           )}
         </div>
       </div>
-    </div>
+    </SiteLayout>
   );
 }
