@@ -19,7 +19,7 @@ const PAGE_CONFIG: Record<string, { icon: React.ReactNode; title: string; descri
 
 export default function ComingSoon() {
   const location = useLocation();
-  const slug = location.pathname.replace("/", "");
+  const slug = location.pathname.split("/").filter(Boolean).pop() ?? "";
   const page = PAGE_CONFIG[slug] ?? {
     icon: <Clock className="h-16 w-16" />,
     title: slug.charAt(0).toUpperCase() + slug.slice(1),
