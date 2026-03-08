@@ -5,6 +5,8 @@ import { NewsFeed } from "@/components/NewsFeed";
 import { RightSidebar } from "@/components/RightSidebar";
 import { MobileMenu } from "@/components/MobileMenu";
 import { TagFilterProvider } from "@/contexts/TagFilterContext";
+import { SoftBlockAuthModal } from "@/components/SoftBlockAuthModal";
+import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 
 const Index = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
