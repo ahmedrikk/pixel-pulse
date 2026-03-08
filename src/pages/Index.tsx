@@ -10,6 +10,7 @@ import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 
 const Index = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { shouldShowModal, dismiss, trackCardView } = useEngagementTracker();
 
   return (
     <TagFilterProvider>
