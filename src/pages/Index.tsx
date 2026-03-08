@@ -36,7 +36,7 @@ const Index = () => {
 
             {/* Main Feed - Scrollable */}
             <div className="flex-1 min-w-0">
-              <NewsFeed />
+              <NewsFeed onCardView={trackCardView} />
             </div>
 
             {/* Right Sidebar - Fixed/Sticky with internal scroll */}
