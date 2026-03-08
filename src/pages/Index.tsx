@@ -5,9 +5,12 @@ import { NewsFeed } from "@/components/NewsFeed";
 import { RightSidebar } from "@/components/RightSidebar";
 import { MobileMenu } from "@/components/MobileMenu";
 import { TagFilterProvider } from "@/contexts/TagFilterContext";
+import { SoftBlockAuthModal } from "@/components/SoftBlockAuthModal";
+import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 
 const Index = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { shouldShowModal, dismiss, trackCardView } = useEngagementTracker();
 
   return (
     <TagFilterProvider>
@@ -33,7 +36,7 @@ const Index = () => {
 
             {/* Main Feed - Scrollable */}
             <div className="flex-1 min-w-0">
-              <NewsFeed />
+              <NewsFeed onCardView={trackCardView} />
             </div>
 
             {/* Right Sidebar - Fixed/Sticky with internal scroll */}
@@ -44,6 +47,8 @@ const Index = () => {
             </div>
           </div>
         </div>
+
+        <SoftBlockAuthModal isOpen={shouldShowModal} onDismiss={dismiss} />
       </div>
     </TagFilterProvider>
   );
