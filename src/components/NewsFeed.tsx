@@ -151,3 +151,32 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     </main>
   );
 }
+
+function CardViewTracker({
+  cardId,
+  onView,
+  children,
+}: {
+  cardId: string;
+  onView?: (id: string) => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!onView || !ref.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          onView(cardId);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [cardId, onView]);
+
+  return <div ref={ref}>{children}</div>;
+}
