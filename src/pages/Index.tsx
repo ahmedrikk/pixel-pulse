@@ -47,6 +47,8 @@ const Index = () => {
             </div>
           </div>
         </div>
+
+        <SoftBlockAuthModal isOpen={shouldShowModal} onDismiss={dismiss} />
       </div>
     </TagFilterProvider>
   );
