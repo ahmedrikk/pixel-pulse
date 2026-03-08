@@ -15,6 +15,9 @@ export function RightSidebar() {
 
   return (
     <aside className="w-full lg:w-72 space-y-4">
+      {/* User Profile Card */}
+      <UserProfileCard />
+
       {/* Live Match Widget */}
       <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
         <div className="bg-gradient-to-r from-destructive/20 to-primary/10 p-4 border-b">
