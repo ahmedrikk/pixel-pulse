@@ -6,7 +6,11 @@ import { NewsCardSkeleton } from "./NewsCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 
-export function NewsFeed() {
+interface NewsFeedProps {
+  onCardView?: (cardId: string) => void;
+}
+
+export function NewsFeed({ onCardView }: NewsFeedProps) {
   const { news, isLoading, error, isUsingFallback, refresh } = useGamingNews();
   const { activeTag, clearFilter } = useTagFilter();
   const [displayedCount, setDisplayedCount] = useState(6);
