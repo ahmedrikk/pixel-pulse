@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Zap, Users, HelpCircle, ExternalLink, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FRIENDS_ONLINE, TRIVIA_QUESTION, LIVE_MATCH } from "@/data/mockNews";
-import { UserProfileCard } from "@/components/UserProfileCard";
+
 
 export function RightSidebar() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -15,9 +15,6 @@ export function RightSidebar() {
 
   return (
     <aside className="w-full lg:w-72 space-y-4">
-      {/* User Profile Card */}
-      <UserProfileCard />
-
       {/* Live Match Widget */}
       <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
         <div className="bg-gradient-to-r from-destructive/20 to-primary/10 p-4 border-b">
