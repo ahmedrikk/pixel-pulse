@@ -25,6 +25,7 @@ const App = () => (
             <Route path="/esports" element={<Esports />} />
             <Route path="/reviews" element={<GameCatalog />} />
             <Route path="/reviews/:gameId" element={<GameReview />} />
+            <Route path="/profile" element={<UserProfile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
