@@ -121,7 +121,9 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
           ))
         ) : displayedNews.length > 0 ? (
           displayedNews.map((item) => (
-            <NewsCard key={item.id} news={item} />
+            <CardViewTracker key={item.id} cardId={item.id} onView={onCardView}>
+              <NewsCard news={item} />
+            </CardViewTracker>
           ))
         ) : (
           <div className="text-center py-12 text-muted-foreground">
