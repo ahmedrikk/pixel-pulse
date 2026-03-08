@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Esports from "./pages/Esports";
 import GameCatalog from "./pages/GameCatalog";
 import GameReview from "./pages/GameReview";
+import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
