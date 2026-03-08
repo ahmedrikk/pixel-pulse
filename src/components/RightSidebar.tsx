@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Zap, Users, HelpCircle, ExternalLink, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FRIENDS_ONLINE, TRIVIA_QUESTION, LIVE_MATCH } from "@/data/mockNews";
-import { UserProfileCard } from "@/components/UserProfileCard";
+
 
 export function RightSidebar() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
