@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useXP } from "@/contexts/XPContext";
 
 const SESSION_KEY = "levelupxp_softblock_dismissed";
 
@@ -15,7 +14,10 @@ const DEFAULT_CONFIG: EngagementConfig = {
   timeThreshold: 90,
 };
 
-export function useEngagementTracker(config: EngagementConfig = DEFAULT_CONFIG) {
+export function useEngagementTracker(
+  addXP?: (amount: number) => void,
+  config: EngagementConfig = DEFAULT_CONFIG
+) {
   const [shouldShowModal, setShouldShowModal] = useState(false);
   const isDismissedRef = useRef(sessionStorage.getItem(SESSION_KEY) === "true");
   const viewedCards = useRef(new Set<string>());
@@ -23,7 +25,6 @@ export function useEngagementTracker(config: EngagementConfig = DEFAULT_CONFIG) 
   const triggered = useRef(false);
   const scrollMilestones = useRef(0);
   const cardMilestones = useRef(0);
-  const { addXP } = useXP();
 
   const trigger = useCallback(() => {
     if (triggered.current || isDismissedRef.current) return;
@@ -36,11 +37,10 @@ export function useEngagementTracker(config: EngagementConfig = DEFAULT_CONFIG) 
     if (isDismissedRef.current) return;
     const handleScroll = () => {
       const scrolled = window.scrollY / window.innerHeight;
-      // XP milestone every 6 viewports
       const newMilestone = Math.floor(scrolled / 6);
       if (newMilestone > scrollMilestones.current) {
         scrollMilestones.current = newMilestone;
-        addXP(25);
+        addXP?.(25);
       }
       if (scrolled >= config.scrollThreshold) trigger();
     };
@@ -67,11 +67,10 @@ export function useEngagementTracker(config: EngagementConfig = DEFAULT_CONFIG) 
       if (isDismissedRef.current) return;
       viewedCards.current.add(cardId);
       const size = viewedCards.current.size;
-      // XP milestone every 10 cards
       const newMilestone = Math.floor(size / 10);
       if (newMilestone > cardMilestones.current) {
         cardMilestones.current = newMilestone;
-        addXP(50);
+        addXP?.(50);
       }
       if (size >= config.viewThreshold) trigger();
     },

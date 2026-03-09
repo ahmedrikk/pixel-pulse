@@ -7,10 +7,12 @@ import { MobileMenu } from "@/components/MobileMenu";
 import { TagFilterProvider } from "@/contexts/TagFilterContext";
 import { SoftBlockAuthModal } from "@/components/SoftBlockAuthModal";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
+import { useXP } from "@/contexts/XPContext";
 
 const Index = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { shouldShowModal, dismiss, trackCardView } = useEngagementTracker();
+  const { addXP } = useXP();
+  const { shouldShowModal, dismiss, trackCardView } = useEngagementTracker(addXP);
 
   return (
     <TagFilterProvider>
@@ -27,19 +29,16 @@ const Index = () => {
 
         <div className="container py-6">
           <div className="flex gap-6">
-            {/* Left Sidebar - Fixed/Sticky with internal scroll */}
             <div className="hidden lg:block flex-shrink-0">
               <div className="sticky top-20 w-64 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                 <LeftSidebar />
               </div>
             </div>
 
-            {/* Main Feed - Scrollable */}
             <div className="flex-1 min-w-0">
               <NewsFeed onCardView={trackCardView} />
             </div>
 
-            {/* Right Sidebar - Fixed/Sticky with internal scroll */}
             <div className="hidden xl:block flex-shrink-0">
               <div className="sticky top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                 <RightSidebar />
