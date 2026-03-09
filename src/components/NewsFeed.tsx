@@ -6,7 +6,11 @@ import { NewsCardSkeleton } from "./NewsCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 
-export function NewsFeed() {
+interface NewsFeedProps {
+  onCardView?: (cardId: string) => void;
+}
+
+export function NewsFeed({ onCardView }: NewsFeedProps) {
   const { news, isLoading, isRefreshing, error, isUsingFallback, lastUpdated, refresh } = useGamingNews();
   const { activeTag, clearFilter } = useTagFilter();
   const [displayedCount, setDisplayedCount] = useState(6);
@@ -129,7 +133,9 @@ export function NewsFeed() {
           ))
         ) : displayedNews.length > 0 ? (
           displayedNews.map((item) => (
-            <NewsCard key={item.id} news={item} />
+            <CardViewTracker key={item.id} cardId={item.id} onView={onCardView}>
+              <NewsCard news={item} />
+            </CardViewTracker>
           ))
         ) : (
           <div className="text-center py-12 text-muted-foreground">
@@ -156,4 +162,33 @@ export function NewsFeed() {
       )}
     </main>
   );
+}
+
+function CardViewTracker({
+  cardId,
+  onView,
+  children,
+}: {
+  cardId: string;
+  onView?: (id: string) => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!onView || !ref.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          onView(cardId);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [cardId, onView]);
+
+  return <div ref={ref}>{children}</div>;
 }
