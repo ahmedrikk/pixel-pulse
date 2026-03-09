@@ -9,7 +9,7 @@ import { Sun, Moon } from "lucide-react";
 import { GAME_FILTERS, ESPORTS_MATCHES, type EsportsMatch, type EsportsTeam } from "@/data/esportsData";
 import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import XPProgressBar from "@/components/XPProgressBar";
+import { XPProgressBar } from "@/components/XPProgressBar";
 
 type TabType = "live" | "upcoming" | "results";
 
