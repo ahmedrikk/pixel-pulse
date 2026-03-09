@@ -229,10 +229,25 @@ function MatchCard({ match, onWatchLive }: { match: EsportsMatch; onWatchLive?: 
 /* ═══════════════════════════════════════════════
    All Games View — grouped by game with "Full Schedule" links
    ═══════════════════════════════════════════════ */
-function AllGamesView({ onWatchLive }: { onWatchLive: () => void }) {
+function AllGamesView({ onWatchLive, activeTab, setActiveTab }: { onWatchLive: () => void; activeTab: TabType; setActiveTab: (t: TabType) => void }) {
   const navigate = useNavigate();
   const { addXP } = useXP();
-  const gameGroups = useMemo(() => groupByGame(ESPORTS_MATCHES), []);
+
+  const liveCount = ESPORTS_MATCHES.filter(m => m.status === "live").length;
+
+  const filteredByTab = useMemo(() => {
+    if (activeTab === "live") return ESPORTS_MATCHES.filter(m => m.status === "live");
+    if (activeTab === "upcoming") return ESPORTS_MATCHES.filter(m => m.status === "upcoming").sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    return ESPORTS_MATCHES.filter(m => m.status === "completed").sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [activeTab]);
+
+  const gameGroups = useMemo(() => groupByGame(filteredByTab), [filteredByTab]);
+
+  const tabs: { id: TabType; label: string; icon: React.ReactNode; count?: number }[] = [
+    { id: "live", label: "Live", icon: <Radio className="h-4 w-4" />, count: liveCount },
+    { id: "upcoming", label: "Upcoming", icon: <Clock className="h-4 w-4" /> },
+    { id: "results", label: "Results", icon: <Trophy className="h-4 w-4" /> },
+  ];
 
   return (
     <motion.div
@@ -241,42 +256,71 @@ function AllGamesView({ onWatchLive }: { onWatchLive: () => void }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.25 }}
-      className="space-y-8"
     >
-      {GAME_FILTERS.filter(g => g.id !== "all").map((game) => {
-        const matches = gameGroups[game.id];
-        if (!matches || matches.length === 0) return null;
-        // Show max 2 matches per game in all-games view
-        const preview = matches.slice(0, 2);
-        return (
-          <div key={game.id}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{game.icon}</span>
-                <h2 className="text-lg font-bold text-foreground">{game.label}</h2>
-                <Badge variant="secondary" className="text-xs">{matches.length}</Badge>
+      {/* Top-level tabs */}
+      <div className="flex gap-1 bg-secondary/50 p-1 rounded-xl mb-6">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              activeTab === tab.id
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+            {tab.id === "live" && liveCount > 0 && (
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[hsl(var(--live-glow)/0.15)] text-[hsl(var(--live-glow))] text-xs font-bold">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--live-glow))] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[hsl(var(--live-glow))]" />
+                </span>
+                {liveCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Game groups */}
+      <div className="space-y-8">
+        {GAME_FILTERS.filter(g => g.id !== "all").map((game) => {
+          const matches = gameGroups[game.id];
+          if (!matches || matches.length === 0) return null;
+          return (
+            <div key={game.id}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{game.icon}</span>
+                  <h2 className="text-xl font-bold text-foreground">{game.label}</h2>
+                </div>
+                <button
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                  onClick={() => {
+                    addXP(15);
+                    navigate(`/esports/${game.id}`);
+                  }}
+                >
+                  Full schedule
+                </button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1.5 rounded-lg font-medium"
-                onClick={() => {
-                  addXP(15);
-                  navigate(`/esports/${game.id}`);
-                }}
-              >
-                Full Schedule
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {matches.map((match) => (
+                  <MatchCard key={match.id} match={match} onWatchLive={onWatchLive} />
+                ))}
+              </div>
             </div>
-            <div className="grid gap-3">
-              {preview.map((match) => (
-                <MatchCard key={match.id} match={match} onWatchLive={onWatchLive} />
-              ))}
-            </div>
+          );
+        })}
+        {Object.keys(gameGroups).length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <p className="text-lg font-medium">No matches found</p>
+            <p className="text-sm mt-1">Try selecting a different tab.</p>
           </div>
-        );
-      })}
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -388,6 +432,7 @@ export default function Esports() {
   const { gameId } = useParams<{ gameId?: string }>();
   const navigate = useNavigate();
   const [activeGame, setActiveGame] = useState("all");
+  const [activeTab, setActiveTab] = useState<TabType>("live");
 
   // Sync activeGame with route param
   useEffect(() => {
@@ -464,7 +509,7 @@ export default function Esports() {
         {/* Content */}
         <AnimatePresence mode="wait">
           {activeGame === "all" ? (
-            <AllGamesView onWatchLive={handleWatchLive} />
+            <AllGamesView onWatchLive={handleWatchLive} activeTab={activeTab} setActiveTab={setActiveTab} />
           ) : (
             <GameView gameId={activeGame} onWatchLive={handleWatchLive} />
           )}
