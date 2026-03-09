@@ -236,12 +236,36 @@ function AllGamesView({ onWatchLive, activeTab, setActiveTab }: { onWatchLive: (
   const liveCount = ESPORTS_MATCHES.filter(m => m.status === "live").length;
 
   const filteredByTab = useMemo(() => {
-    if (activeTab === "live") return ESPORTS_MATCHES.filter(m => m.status === "live");
     if (activeTab === "upcoming") return ESPORTS_MATCHES.filter(m => m.status === "upcoming").sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    return ESPORTS_MATCHES.filter(m => m.status === "completed").sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    if (activeTab === "results") return ESPORTS_MATCHES.filter(m => m.status === "completed").sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    // "live" tab: handled per-game below
+    return ESPORTS_MATCHES.filter(m => m.status === "live");
   }, [activeTab]);
 
   const gameGroups = useMemo(() => groupByGame(filteredByTab), [filteredByTab]);
+
+  // For "live" tab: build groups that always show 2 cards per game,
+  // backfilling with recent completed matches when < 2 live
+  const liveGameGroups = useMemo(() => {
+    if (activeTab !== "live") return {};
+    const groups: Record<string, EsportsMatch[]> = {};
+    const completedByGame = groupByGame(
+      ESPORTS_MATCHES.filter(m => m.status === "completed").sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    );
+    for (const game of GAME_FILTERS.filter(g => g.id !== "all")) {
+      const live = ESPORTS_MATCHES.filter(m => m.status === "live" && m.gameTitle === game.id);
+      if (live.length === 0) continue; // skip games with zero live
+      const cards = [...live];
+      if (cards.length < 2) {
+        const backfill = (completedByGame[game.id] || []).slice(0, 2 - cards.length);
+        cards.push(...backfill);
+      }
+      groups[game.id] = cards.slice(0, 2);
+    }
+    return groups;
+  }, [activeTab]);
+
+  const displayGroups = activeTab === "live" ? liveGameGroups : gameGroups;
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode; count?: number }[] = [
     { id: "live", label: "Live", icon: <Radio className="h-4 w-4" />, count: liveCount },
