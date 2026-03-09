@@ -1,28 +1,55 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { GatedAction, PendingAction } from "@/types/feed";
+import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 interface AuthGateContextType {
   isAuthModalOpen: boolean;
   authModalContext: GatedAction | null;
   pendingAction: PendingAction | null;
   isAuthenticated: boolean;
+  user: User | null;
   openAuthModal: (action: GatedAction, pendingData?: Omit<PendingAction, "type">) => void;
   closeAuthModal: () => void;
-  setAuthenticated: (value: boolean) => void;
   executePendingAction: () => void;
   clearPendingAction: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthGateContext = createContext<AuthGateContextType | null>(null);
-
-// Mock auth state - in real app, this comes from Supabase Auth
-const MOCK_USER = null; // Set to null to simulate logged out state
 
 export function AuthGateProvider({ children }: { children: ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalContext, setAuthModalContext] = useState<GatedAction | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(MOCK_USER !== null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check auth state on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user || null);
+        setIsAuthenticated(!!session?.user);
+      } catch (err) {
+        console.error("Auth check error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      setIsAuthenticated(!!session?.user);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const openAuthModal = useCallback((action: GatedAction, pendingData?: Omit<PendingAction, "type">) => {
     setAuthModalContext(action);
@@ -35,22 +62,24 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     setAuthModalContext(null);
   }, []);
 
-  const setAuthenticated = useCallback((value: boolean) => {
-    setIsAuthenticated(value);
-    if (value) {
-      closeAuthModal();
-    }
-  }, [closeAuthModal]);
-
   const executePendingAction = useCallback(() => {
-    // In real implementation, this would execute the stored pending action
-    // For now, just clear it after successful auth
+    // In real implementation, execute the stored action
     setPendingAction(null);
   }, []);
 
   const clearPendingAction = useCallback(() => {
     setPendingAction(null);
   }, []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setIsAuthenticated(false);
+  }, []);
+
+  if (isLoading) {
+    return <>{children}</>; // Or show loading spinner
+  }
 
   return (
     <AuthGateContext.Provider
@@ -59,11 +88,12 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
         authModalContext,
         pendingAction,
         isAuthenticated,
+        user,
         openAuthModal,
         closeAuthModal,
-        setAuthenticated,
         executePendingAction,
         clearPendingAction,
+        signOut,
       }}
     >
       {children}
@@ -79,7 +109,7 @@ export function useAuthGate() {
 
 // Hook to check if action requires auth
 export function useGatedAction() {
-  const { isAuthenticated, openAuthModal } = useAuthGate();
+  const { isAuthenticated, openAuthModal, user } = useAuthGate();
 
   const requireAuth = useCallback(<T extends (...args: Parameters<T>) => ReturnType<T>>(
     action: GatedAction,
@@ -95,5 +125,5 @@ export function useGatedAction() {
     };
   }, [isAuthenticated, openAuthModal]);
 
-  return { requireAuth, isAuthenticated };
+  return { requireAuth, isAuthenticated, user };
 }

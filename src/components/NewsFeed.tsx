@@ -1,19 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { RefreshCw, AlertCircle, X, Clock, Sparkles } from "lucide-react";
-import { useSmartFeed } from "@/hooks/useSmartFeed";
+import { useState, useEffect, useRef } from "react";
+import { RefreshCw, AlertCircle, X, Sparkles } from "lucide-react";
+import { useSmartFeedReal } from "@/hooks/useSmartFeedReal";
 import { EnhancedNewsCard } from "./EnhancedNewsCard";
 import { NewsCardSkeleton } from "./NewsCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { useTagFilter } from "@/contexts/TagFilterContext";
-import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 
 interface NewsFeedProps {
   onCardView?: (cardId: string) => void;
 }
 
 export function NewsFeed({ onCardView }: NewsFeedProps) {
+  const { isAuthenticated, user } = useAuthGate();
+  
   const { 
     articles, 
     isLoading, 
@@ -26,7 +27,10 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     loadMore,
     checkForNewArticles,
     dismissNewBadge,
-  } = useSmartFeed();
+    trackImpression,
+  } = useSmartFeedReal({ 
+    userId: isAuthenticated ? user?.id : undefined 
+  });
   
   const { activeTag, clearFilter } = useTagFilter();
   const [displayedCount, setDisplayedCount] = useState(6);
@@ -56,43 +60,16 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     setDisplayedCount(6);
   }, [activeTag]);
 
-  // Scroll to top when filter is applied
-  useEffect(() => {
-    if (activeTag) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  }, [activeTag]);
-
-  // Show new articles toast
-  useEffect(() => {
-    if (newArticlesCount > 0) {
-      toast.success(
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-yellow-500" />
-          <span>{newArticlesCount} new articles available</span>
-        </div>,
-        {
-          action: {
-            label: "Load",
-            onClick: () => {
-              window.scrollTo({ top: 0, behavior: "smooth" });
-              dismissNewBadge();
-            },
-          },
-          duration: 5000,
-        }
-      );
-    }
-  }, [newArticlesCount, dismissNewBadge]);
-
   // Filter articles by active tag
   const filteredArticles = activeTag
-    ? articles.filter((item) => item.topicTags.includes(activeTag) || item.gameTags.includes(activeTag))
+    ? articles.filter((item) => 
+        item.topicTags.includes(activeTag) || item.gameTags.includes(activeTag)
+      )
     : articles;
 
   const displayedNews = filteredArticles.slice(0, displayedCount);
 
-  // Feed priority badge
+  // Get priority badge
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "personalized":
@@ -127,26 +104,51 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
           )}
         </div>
         
-        {/* Feed Stats (for debugging/visual feedback) */}
-        {!isLoading && !activeTag && (
+        {/* Feed Stats */}
+        {!isLoading && !activeTag && isAuthenticated && (
           <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
             {feedStats.personalized > 0 && (
               <span className="px-2 py-1 rounded-full bg-primary/10">
-                {feedStats.personalized} personalized
+                {feedStats.personalized} for you
               </span>
             )}
             <span className="px-2 py-1 rounded-full bg-secondary">
-              {feedStats.unseen} new
+              {articles.length} articles
             </span>
           </div>
         )}
         
         <select className="bg-secondary text-foreground text-sm px-3 py-1.5 rounded-md border-0 focus:ring-2 focus:ring-primary">
+          <option>Smart Feed</option>
           <option>Most Recent</option>
           <option>Most Popular</option>
-          <option>Trending</option>
         </select>
       </div>
+
+      {/* New Articles Banner */}
+      {newArticlesCount > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20"
+        >
+          <Sparkles className="h-4 w-4 text-green-500" />
+          <span className="text-sm font-medium">
+            {newArticlesCount} new article{newArticlesCount > 1 ? 's' : ''} available
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              dismissNewBadge();
+            }}
+            className="ml-auto gap-1 h-7"
+          >
+            View
+          </Button>
+        </motion.div>
+      )}
 
       {/* Active Filter Banner */}
       {activeTag && (
@@ -161,20 +163,23 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
             className="ml-auto gap-1 h-7"
           >
             <X className="h-3 w-3" />
-            Clear Filter
+            Clear
           </Button>
         </div>
       )}
 
-      {/* Error/Fallback Banner */}
+      {/* Error Banner */}
       {error && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-muted border border-border text-muted-foreground">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <span className="text-sm">{error}</span>
+          <Button variant="ghost" size="sm" onClick={loadFeed} className="ml-auto">
+            Retry
+          </Button>
         </div>
       )}
 
-      {/* Live indicator with last updated */}
+      {/* Live indicator */}
       {!isLoading && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
@@ -182,7 +187,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
-            <span>Live from {filteredArticles.length} articles across gaming sources</span>
+            <span>Live from {filteredArticles.length} articles</span>
           </div>
         </div>
       )}

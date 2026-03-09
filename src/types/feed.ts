@@ -153,7 +153,7 @@ export const DEFAULT_FEED_CONFIG: FeedConfig = {
   pageSize: 15,
 };
 
-// XP Constants
+// XP Constants - aligned with XPContext
 export const XP_VALUES = {
   VIEW_SUMMARY: 20,
   READ_FULL_ARTICLE: 35,
