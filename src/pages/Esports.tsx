@@ -432,6 +432,7 @@ export default function Esports() {
   const { gameId } = useParams<{ gameId?: string }>();
   const navigate = useNavigate();
   const [activeGame, setActiveGame] = useState("all");
+  const [activeTab, setActiveTab] = useState<TabType>("live");
 
   // Sync activeGame with route param
   useEffect(() => {
