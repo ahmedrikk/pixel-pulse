@@ -3,31 +3,31 @@
 
 const XP_TABLE_DATA = {
   // Priority 1: Core Reading Actions
-  read_summary:        10,  // Max 15/day = 150 XP
-  read_more:           35,  // Max 10/day = 350 XP
-  article_combo:       50,  // Max 2/day = 100 XP (3+ articles read)
-  
+  read_summary:        20,  // Max 10/day = 200 XP
+  read_more:           35,  // Max 8/day = 280 XP
+  article_combo:       40,  // Max 1/day = 40 XP (4+ articles in one session)
+
   // Priority 2: Loyalty
-  daily_login:         25,  // No limit
-  streak_7:            150, // Bonus (bypasses daily cap)
-  streak_30:           500, // Bonus (bypasses daily cap)
-  
+  daily_login:         50,  // 1x/day
+  streak_7:            200, // Bonus (bypasses daily cap)
+  streak_30:           600, // Bonus (bypasses daily cap)
+
   // Priority 3: Knowledge (Trivia)
-  trivia_correct:      10,  // Max 3 questions/day = 30 XP
-  trivia_perfect:      75,  // Max 1/day (all 3 correct)
+  trivia_correct:      15,  // Max 5 questions/day = 75 XP
+  trivia_perfect:      50,  // Max 1/day (all correct in one attempt)
   trivia_speed:        50,  // Max 1/day (under 30 seconds)
-  
+
   // Priority 4: Predictions
-  predict_submit:      20,  // Max 3/day = 60 XP
-  predict_correct:     65,  // Max 3/day = 195 XP
-  
+  predict_submit:      25,  // Max 3/day = 75 XP
+  predict_correct:     60,  // Max 3/day = 180 XP
+
   // Priority 5: Social
-  comment:             15,  // Max 5/day = 75 XP
-  react:               5,   // Max 10/day = 50 XP
-  
+  comment:             25,  // Max 5/day = 125 XP
+  react:               10,  // Max 1x per article/day
+
   // Priority 6: Passive (Scroll)
-  scroll_50:           10,  // Max 2/day = 20 XP
-  scroll_90:           20,  // Max 1/day = 20 XP
+  scroll_50:           5,   // Max 5/day = 25 XP
+  scroll_90:           8,   // Max 5/day = 40 XP (replaces scroll_50 reward)
 } as const;
 
 export type XpActionType = keyof typeof XP_TABLE_DATA;
@@ -35,18 +35,18 @@ export const XP_TABLE: Record<XpActionType, number> = XP_TABLE_DATA;
 
 // Daily Limits per Action Type
 export const DAILY_LIMITS: Partial<Record<XpActionType, number>> = {
-  read_summary: 15,
-  read_more: 10,
-  article_combo: 2,
-  trivia_correct: 3,
+  read_summary: 10,
+  read_more: 8,
+  article_combo: 1,
+  trivia_correct: 5,
   trivia_perfect: 1,
   trivia_speed: 1,
   predict_submit: 3,
   predict_correct: 3,
   comment: 5,
-  react: 10,
-  scroll_50: 2,
-  scroll_90: 1,
+  react: 1,   // per article, not total
+  scroll_50: 5,
+  scroll_90: 5,
 };
 
 export const DAILY_CAP = 400;

@@ -59,7 +59,7 @@ export function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) {
             <TrendingUp className="h-6 w-6 text-primary" />
           </div>
           <span className="hidden sm:inline">
-            Game<span className="text-primary">Pulse</span>
+            Level<span className="text-primary">Up</span><span className="text-accent">XP</span>
           </span>
         </a>
 
