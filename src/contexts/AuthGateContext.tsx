@@ -9,6 +9,7 @@ interface AuthGateContextType {
   pendingAction: PendingAction | null;
   isAuthenticated: boolean;
   user: User | null;
+  isLoading: boolean;
   openAuthModal: (action: GatedAction, pendingData?: Omit<PendingAction, "type">) => void;
   closeAuthModal: () => void;
   executePendingAction: () => void;
@@ -63,7 +64,6 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const executePendingAction = useCallback(() => {
-    // In real implementation, execute the stored action
     setPendingAction(null);
   }, []);
 
@@ -77,25 +77,23 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
   }, []);
 
-  if (isLoading) {
-    return <>{children}</>; // Or show loading spinner
-  }
+  // Always provide the context, even during loading
+  const value: AuthGateContextType = {
+    isAuthModalOpen,
+    authModalContext,
+    pendingAction,
+    isAuthenticated,
+    user,
+    isLoading,
+    openAuthModal,
+    closeAuthModal,
+    executePendingAction,
+    clearPendingAction,
+    signOut,
+  };
 
   return (
-    <AuthGateContext.Provider
-      value={{
-        isAuthModalOpen,
-        authModalContext,
-        pendingAction,
-        isAuthenticated,
-        user,
-        openAuthModal,
-        closeAuthModal,
-        executePendingAction,
-        clearPendingAction,
-        signOut,
-      }}
-    >
+    <AuthGateContext.Provider value={value}>
       {children}
     </AuthGateContext.Provider>
   );
@@ -109,7 +107,7 @@ export function useAuthGate() {
 
 // Hook to check if action requires auth
 export function useGatedAction() {
-  const { isAuthenticated, openAuthModal, user } = useAuthGate();
+  const { isAuthenticated, openAuthModal, user, isLoading } = useAuthGate();
 
   const requireAuth = useCallback(<T extends (...args: Parameters<T>) => ReturnType<T>>(
     action: GatedAction,
@@ -125,5 +123,5 @@ export function useGatedAction() {
     };
   }, [isAuthenticated, openAuthModal]);
 
-  return { requireAuth, isAuthenticated, user };
+  return { requireAuth, isAuthenticated, user, isLoading };
 }
