@@ -311,7 +311,7 @@ function AllGamesView({ onWatchLive, activeTab, setActiveTab }: { onWatchLive: (
       {/* Game groups */}
       <div className="space-y-8">
         {GAME_FILTERS.filter(g => g.id !== "all").map((game) => {
-          const matches = gameGroups[game.id];
+          const matches = displayGroups[game.id];
           if (!matches || matches.length === 0) return null;
           return (
             <div key={game.id}>
@@ -338,7 +338,7 @@ function AllGamesView({ onWatchLive, activeTab, setActiveTab }: { onWatchLive: (
             </div>
           );
         })}
-        {Object.keys(gameGroups).length === 0 && (
+        {Object.values(displayGroups).every(v => !v || v.length === 0) && (
           <div className="text-center py-16 text-muted-foreground">
             <p className="text-lg font-medium">No matches found</p>
             <p className="text-sm mt-1">Try selecting a different tab.</p>
