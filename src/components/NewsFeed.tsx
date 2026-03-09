@@ -40,9 +40,8 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoading) {
-          loadMore();
-          setDisplayedCount(prev => Math.min(prev + 5, articles.length));
+        if (entries[0].isIntersecting && displayedCount < filteredArticles.length) {
+          setDisplayedCount(prev => Math.min(prev + 5, filteredArticles.length));
         }
       },
       { threshold: 0.1 }
@@ -53,7 +52,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     }
 
     return () => observer.disconnect();
-  }, [hasMore, isLoading, loadMore, articles.length]);
+  }, [displayedCount, filteredArticles.length]);
 
   // Reset display count when filter changes
   useEffect(() => {
@@ -242,7 +241,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
       </div>
 
       {/* Infinite Scroll Trigger */}
-      {!isLoading && hasMore && displayedCount < filteredArticles.length && (
+      {!isLoading && displayedCount < filteredArticles.length && (
         <div ref={loadMoreRef} className="text-center py-6">
           <span className="text-muted-foreground text-sm">Loading more articles...</span>
         </div>
