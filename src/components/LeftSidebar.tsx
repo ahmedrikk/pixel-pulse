@@ -1,15 +1,14 @@
-import { Home, Star, Trophy, BookOpen, Cpu } from "lucide-react";
+import { Home, Star, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CATEGORIES } from "@/data/mockNews";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 import { UserProfileCard } from "@/components/UserProfileCard";
+import { XPProgressBar } from "@/components/XPProgressBar";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Star, label: "Reviews", href: "/reviews" },
   { icon: Trophy, label: "Esports", href: "/esports" },
-  { icon: BookOpen, label: "Guides", href: "/guides" },
-  { icon: Cpu, label: "Hardware", href: "/hardware" },
 ];
 
 export function LeftSidebar() {
@@ -40,6 +39,11 @@ export function LeftSidebar() {
             <span className="font-medium">{item.label}</span>
           </Link>
         ))}
+
+        {/* XP Progress Bar inside nav card */}
+        <div className="px-4 py-3 border-t border-border">
+          <XPProgressBar />
+        </div>
       </nav>
 
       {/* Category Tags */}
