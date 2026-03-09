@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { XPProvider } from "@/contexts/XPContext";
+import { AuthGateProvider } from "@/contexts/AuthGateContext";
+import { AuthModal } from "@/components/AuthModal";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
@@ -24,28 +26,31 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <XPProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter basename={import.meta.env.BASE_URL}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/u/:username" element={<PublicProfile />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/trivia" element={<DailyTrivia />} />
-              <Route path="/leaderboard" element={<Leaderboard />} />
-              <Route path="/auth/steam/callback" element={<SteamCallback />} />
-              <Route path="/esports" element={<Esports />} />
-              <Route path="/esports/:gameId" element={<Esports />} />
-              <Route path="/reviews" element={<GameCatalog />} />
-              <Route path="/reviews/:gameId" element={<GameReview />} />
-              <Route path="/guides" element={<ComingSoon />} />
-              <Route path="/hardware" element={<ComingSoon />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <AuthGateProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <AuthModal />
+            <BrowserRouter basename={import.meta.env.BASE_URL}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/u/:username" element={<PublicProfile />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/trivia" element={<DailyTrivia />} />
+                <Route path="/leaderboard" element={<Leaderboard />} />
+                <Route path="/auth/steam/callback" element={<SteamCallback />} />
+                <Route path="/esports" element={<Esports />} />
+                <Route path="/esports/:gameId" element={<Esports />} />
+                <Route path="/reviews" element={<GameCatalog />} />
+                <Route path="/reviews/:gameId" element={<GameReview />} />
+                <Route path="/guides" element={<ComingSoon />} />
+                <Route path="/hardware" element={<ComingSoon />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthGateProvider>
       </XPProvider>
     </ThemeProvider>
   </QueryClientProvider>
