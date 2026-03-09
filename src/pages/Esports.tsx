@@ -508,7 +508,7 @@ export default function Esports() {
         {/* Content */}
         <AnimatePresence mode="wait">
           {activeGame === "all" ? (
-            <AllGamesView onWatchLive={handleWatchLive} />
+            <AllGamesView onWatchLive={handleWatchLive} activeTab={activeTab} setActiveTab={setActiveTab} />
           ) : (
             <GameView gameId={activeGame} onWatchLive={handleWatchLive} />
           )}
