@@ -29,23 +29,25 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="max-w-lg w-full bg-card border rounded-lg p-6 shadow-lg">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+          <div className="max-w-2xl w-full bg-white border rounded-lg p-6 shadow-lg">
             <h1 className="text-2xl font-bold text-red-500 mb-4">Something went wrong</h1>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-gray-600 mb-4">
               The application encountered an error. Please try refreshing the page.
             </p>
-            <details className="bg-secondary p-3 rounded-md text-sm overflow-auto max-h-64">
-              <summary className="cursor-pointer font-medium mb-2">Error Details</summary>
-              <pre className="whitespace-pre-wrap break-all">
+            
+            {/* Error Details - Always Visible */}
+            <div className="bg-gray-100 p-4 rounded-md mb-4">
+              <h3 className="font-semibold text-red-600 mb-2">Error Details:</h3>
+              <pre className="whitespace-pre-wrap break-all text-sm text-gray-800 overflow-auto max-h-96">
                 {this.state.error?.toString()}
-                {"\n\n"}
                 {this.state.errorInfo?.componentStack}
               </pre>
-            </details>
+            </div>
+
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               Refresh Page
             </button>
