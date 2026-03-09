@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useXP } from "@/contexts/XPContext";
 
 const SESSION_KEY = "levelupxp_softblock_dismissed";
 
 interface EngagementConfig {
-  scrollThreshold: number; // viewport heights scrolled
-  viewThreshold: number;   // distinct cards viewed
-  timeThreshold: number;   // seconds on site
+  scrollThreshold: number;
+  viewThreshold: number;
+  timeThreshold: number;
 }
 
 const DEFAULT_CONFIG: EngagementConfig = {
@@ -20,6 +21,9 @@ export function useEngagementTracker(config: EngagementConfig = DEFAULT_CONFIG) 
   const viewedCards = useRef(new Set<string>());
   const startTime = useRef(Date.now());
   const triggered = useRef(false);
+  const scrollMilestones = useRef(0);
+  const cardMilestones = useRef(0);
+  const { addXP } = useXP();
 
   const trigger = useCallback(() => {
     if (triggered.current || isDismissedRef.current) return;
@@ -27,16 +31,22 @@ export function useEngagementTracker(config: EngagementConfig = DEFAULT_CONFIG) 
     setShouldShowModal(true);
   }, []);
 
-  // Scroll tracking
+  // Scroll tracking + XP
   useEffect(() => {
     if (isDismissedRef.current) return;
     const handleScroll = () => {
       const scrolled = window.scrollY / window.innerHeight;
+      // XP milestone every 6 viewports
+      const newMilestone = Math.floor(scrolled / 6);
+      if (newMilestone > scrollMilestones.current) {
+        scrollMilestones.current = newMilestone;
+        addXP(25);
+      }
       if (scrolled >= config.scrollThreshold) trigger();
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [config.scrollThreshold, trigger]);
+  }, [config.scrollThreshold, trigger, addXP]);
 
   // Time tracking
   useEffect(() => {
@@ -51,14 +61,21 @@ export function useEngagementTracker(config: EngagementConfig = DEFAULT_CONFIG) 
     return () => clearInterval(interval);
   }, [config.timeThreshold, trigger]);
 
-  // Card view tracking
+  // Card view tracking + XP
   const trackCardView = useCallback(
     (cardId: string) => {
       if (isDismissedRef.current) return;
       viewedCards.current.add(cardId);
-      if (viewedCards.current.size >= config.viewThreshold) trigger();
+      const size = viewedCards.current.size;
+      // XP milestone every 10 cards
+      const newMilestone = Math.floor(size / 10);
+      if (newMilestone > cardMilestones.current) {
+        cardMilestones.current = newMilestone;
+        addXP(50);
+      }
+      if (size >= config.viewThreshold) trigger();
     },
-    [config.viewThreshold, trigger]
+    [config.viewThreshold, trigger, addXP]
   );
 
   const dismiss = useCallback(() => {
