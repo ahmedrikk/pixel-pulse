@@ -7,6 +7,7 @@ import { ESPORTS_MATCHES } from "@/data/esportsData";
 import { PredictionCard } from "./PredictionCard";
 import { Card, CardContent } from "@/components/ui/card";
 
+
 export function RightSidebar() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
