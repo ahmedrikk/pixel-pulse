@@ -1,4 +1,4 @@
-import { Home, Star, Trophy, BookOpen, Cpu } from "lucide-react";
+import { Home, Star, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CATEGORIES } from "@/data/mockNews";
 import { useTagFilter } from "@/contexts/TagFilterContext";
@@ -8,8 +8,6 @@ const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Star, label: "Reviews", href: "/reviews" },
   { icon: Trophy, label: "Esports", href: "/esports" },
-  { icon: BookOpen, label: "Guides", href: "/guides" },
-  { icon: Cpu, label: "Hardware", href: "/hardware" },
 ];
 
 export function LeftSidebar() {
