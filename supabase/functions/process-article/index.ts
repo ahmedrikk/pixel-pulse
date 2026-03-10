@@ -7,8 +7,7 @@ const corsHeaders = {
 
 // OpenRouter API configuration
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-// Using user's provided API key (in production, store this in environment variables)
-const OPENROUTER_API_KEY = "<redacted>";
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
 
 // Recommended models for cost/performance balance
 // Fallback order: GPT-4o Mini → Claude Haiku → Llama
@@ -96,6 +95,10 @@ Tasks:
 2. TAGS: Identify what specific games, characters, streamers, studios, or events are ACTUALLY mentioned. Only tag those.
 
 CRITICAL: Do not submit a summary shorter than 270 characters under any circumstances. Expand it.`;
+
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY secret is not set in Supabase");
+  }
 
   // Try each model in order
   for (const model of MODELS) {
