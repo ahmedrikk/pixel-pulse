@@ -1,4 +1,4 @@
-import { Home, Star, Trophy } from "lucide-react";
+import { Home, Star, Trophy, Swords } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CATEGORIES } from "@/data/mockNews";
 import { useTagFilter } from "@/contexts/TagFilterContext";
