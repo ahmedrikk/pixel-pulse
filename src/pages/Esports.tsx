@@ -15,19 +15,27 @@ import { XPProgressBar } from "@/components/XPProgressBar";
 
 type TabType = "live" | "upcoming" | "results";
 
-// Map PandaScore videogame slugs to GAME_FILTERS ids
-const SLUG_TO_FILTER_ID: Record<string, string> = {
-  valorant: "valorant",
+// Map PandaScore videogame names/slugs to GAME_FILTERS ids (case-insensitive)
+const GAME_TO_FILTER_ID: Record<string, string> = {
+  // by name
+  "valorant": "valorant",
+  "counter-strike": "cs2",
+  "counter-strike 2": "cs2",
+  "league of legends": "lol",
+  "dota 2": "dota2",
+  "overwatch": "overwatch",
+  "overwatch 2": "overwatch",
+  "rainbow six siege": "r6",
+  // by slug
   "cs-go": "cs2",
-  cs2: "cs2",
-  "league-of-legends": "lol",
   "dota-2": "dota2",
   "overwatch-2": "overwatch",
+  "league-of-legends": "lol",
   "rainbow-six-siege": "r6",
 };
 
-function getFilterId(gameSlug: string): string {
-  return SLUG_TO_FILTER_ID[gameSlug] ?? gameSlug;
+function getFilterId(gameNameOrSlug: string): string {
+  return GAME_TO_FILTER_ID[gameNameOrSlug.toLowerCase()] ?? gameNameOrSlug;
 }
 
 function getMatchStatus(m: EsportsMatch): "live" | "upcoming" | "completed" {
@@ -58,7 +66,10 @@ function groupByDate(matches: EsportsMatch[]): Record<string, EsportsMatch[]> {
 function groupByGame(matches: EsportsMatch[]): Record<string, EsportsMatch[]> {
   const groups: Record<string, EsportsMatch[]> = {};
   for (const match of matches) {
-    const gameId = getFilterId(match.game);
+    // Try name first, then slug
+    const gameId = getFilterId(match.game) !== match.game
+      ? getFilterId(match.game)
+      : getFilterId(match.gameSlug);
     if (!groups[gameId]) groups[gameId] = [];
     groups[gameId].push(match);
   }
@@ -102,7 +113,9 @@ function TeamBlock({ name, imageUrl, isWinner, side }: { name: string; imageUrl:
 
 /* ── Match Card ── */
 function MatchCard({ match, onWatchLive }: { match: EsportsMatch; onWatchLive?: () => void }) {
-  const gameFilterId = getFilterId(match.game);
+  const gameFilterId = getFilterId(match.game) !== match.game
+    ? getFilterId(match.game)
+    : getFilterId(match.gameSlug);
   const gameFilter = GAME_FILTERS.find((g) => g.id === gameFilterId);
   const status = getMatchStatus(match);
   const isWinner1 = status === "completed" && match.score1 > match.score2;
@@ -241,7 +254,10 @@ function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, on
     const groups: Record<string, EsportsMatch[]> = {};
     const completedByGame = groupByGame([...pastMatches].sort((a, b) => new Date(b.begin_at ?? 0).getTime() - new Date(a.begin_at ?? 0).getTime()));
     for (const game of GAME_FILTERS.filter(g => g.id !== "all")) {
-      const live = liveMatches.filter(m => getFilterId(m.game) === game.id);
+      const live = liveMatches.filter(m => {
+        const id = getFilterId(m.game) !== m.game ? getFilterId(m.game) : getFilterId(m.gameSlug);
+        return id === game.id;
+      });
       if (live.length === 0) continue;
       const cards = [...live];
       if (cards.length < 2) {
@@ -365,7 +381,10 @@ function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, onWatchLi
   const game = GAME_FILTERS.find(g => g.id === gameId);
 
   const allForGame = useMemo(() => (
-    [...liveMatches, ...upcomingMatches, ...pastMatches].filter(m => getFilterId(m.game) === gameId)
+    [...liveMatches, ...upcomingMatches, ...pastMatches].filter(m => {
+      const id = getFilterId(m.game) !== m.game ? getFilterId(m.game) : getFilterId(m.gameSlug);
+      return id === gameId;
+    })
   ), [gameId, liveMatches, upcomingMatches, pastMatches]);
 
   const filteredMatches = useMemo(() => {
