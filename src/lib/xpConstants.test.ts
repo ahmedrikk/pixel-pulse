@@ -23,16 +23,16 @@ describe("XP constants", () => {
     expect(getStreakMultiplier(1)).toBe(1.0);
   });
 
-  it("streak multiplier for day 3 is 1.2", () => {
-    expect(getStreakMultiplier(3)).toBe(1.2);
+  it("streak multiplier for day 3 is 1.0 (days 1-6 bracket)", () => {
+    expect(getStreakMultiplier(3)).toBe(1.0);
   });
 
   it("streak multiplier for day 7 is 1.5", () => {
     expect(getStreakMultiplier(7)).toBe(1.5);
   });
 
-  it("streak multiplier for day 14 is 1.75", () => {
-    expect(getStreakMultiplier(14)).toBe(1.75);
+  it("streak multiplier for day 14 is 1.5 (days 7-29 bracket)", () => {
+    expect(getStreakMultiplier(14)).toBe(1.5);
   });
 
   it("streak multiplier for day 30 is 2.0", () => {
@@ -59,6 +59,6 @@ describe("XP constants", () => {
   });
   it("tier 25 has a reward defined", () => {
     expect(TIER_REWARDS[25]).toBeDefined();
-    expect(TIER_REWARDS[25].type).toBe("coupon");
+    expect(TIER_REWARDS[25].type).toBe("bundle");
   });
 });
