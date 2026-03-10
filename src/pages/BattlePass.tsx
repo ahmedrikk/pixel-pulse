@@ -278,6 +278,10 @@ export default function BattlePass() {
       {/* ─── STICKY HEADER ─── */}
       <header className="sticky top-0 z-50 h-[52px] flex items-center justify-between px-5 border-b" style={{ background: "rgba(7,13,24,0.85)", backdropFilter: "blur(12px)", borderColor: "#f9731633" }}>
         <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center justify-center w-8 h-8 rounded-md transition-colors hover:bg-white/10" style={{ color: "#f97316" }}>
+            <Home className="w-4 h-4" />
+          </Link>
+          <span className="w-px h-5" style={{ background: "#ffffff20" }} />
           <span className="font-['Barlow_Condensed',sans-serif] font-bold text-lg tracking-wide" style={{ color: "#f97316" }}>GAME PULSE</span>
           <span className="w-px h-5" style={{ background: "#ffffff20" }} />
           <span className="font-['Rajdhani',sans-serif] font-600 text-sm tracking-wider" style={{ color: "#ffffff60" }}>BATTLE PASS</span>
