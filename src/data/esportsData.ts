@@ -25,7 +25,7 @@ export const GAME_FILTERS = [
   { id: "all", label: "All Games", icon: "🎮" },
   { id: "valorant", label: "Valorant", icon: "🔫" },
   { id: "cs2", label: "CS2", icon: "💣" },
-  { id: "lol", label: "League of Legends", icon: "⚔️" },
+  { id: "lol", label: "League of Legends", icon: "👑" },
   { id: "dota2", label: "Dota 2", icon: "🛡️" },
   { id: "overwatch", label: "Overwatch 2", icon: "🦸" },
   { id: "r6", label: "Rainbow Six", icon: "🔒" },
