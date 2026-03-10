@@ -1,25 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Zap, Users, HelpCircle, ExternalLink, Radio, Trophy, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FRIENDS_ONLINE, LIVE_MATCH } from "@/data/mockNews";
-import { ESPORTS_MATCHES } from "@/data/esportsData";
 import { PredictionCard } from "./PredictionCard";
 import { Card, CardContent } from "@/components/ui/card";
+import { useEsportsMatches } from "@/hooks/useEsportsMatches";
+import type { EsportsMatch as PandaMatch } from "@/lib/pandascore";
 
+// Adapter: convert PandaScore EsportsMatch to the shape PredictionCard expects
+function toPredictionMatch(m: PandaMatch) {
+  return {
+    id: String(m.id),
+    gameTitle: m.game,
+    leagueName: m.league,
+    format: m.numberOfGames ? `Bo${m.numberOfGames}` : "Match",
+    teamA: { name: m.team1, logo: "🎮", shortName: m.team1.slice(0, 3).toUpperCase(), flag: "", probability: 50 },
+    teamB: { name: m.team2, logo: "🎮", shortName: m.team2.slice(0, 3).toUpperCase(), flag: "", probability: 50 },
+    scoreA: m.score1,
+    scoreB: m.score2,
+    timestamp: m.begin_at ?? new Date().toISOString(),
+    status: (m.status === "running" ? "live" : m.status === "finished" ? "completed" : "upcoming") as "live" | "upcoming" | "completed",
+    streamUrl: m.streamUrl ?? undefined,
+  };
+}
 
 export function RightSidebar() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [upcomingMatches, setUpcomingMatches] = useState<typeof ESPORTS_MATCHES>([]);
 
-  useEffect(() => {
-    // Filter upcoming matches and sort by soonest
-    const upcoming = ESPORTS_MATCHES
-      .filter(m => m.status === "upcoming")
-      .slice(0, 2);
-    setUpcomingMatches(upcoming);
-  }, []);
+  const { liveMatches, upcomingMatches } = useEsportsMatches();
+  const liveMatch = liveMatches[0] ?? null;
+  const showUpcoming = upcomingMatches.slice(0, 2).map(toPredictionMatch);
 
   const handleAnswerSelect = (index: number) => {
     setSelectedAnswer(index);
@@ -46,20 +57,37 @@ export function RightSidebar() {
           </div>
         </div>
         <div className="p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-            {LIVE_MATCH.tournamentName}
-          </p>
-          <h4 className="font-bold text-lg mb-2">{LIVE_MATCH.matchTitle}</h4>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-            <Users className="h-4 w-4" />
-            <span>{LIVE_MATCH.viewers} watching</span>
-          </div>
-          <Button asChild className="w-full gap-2">
-            <a href={LIVE_MATCH.streamUrl} target="_blank" rel="noopener noreferrer">
-              Watch on {LIVE_MATCH.platform}
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          </Button>
+          {liveMatch ? (
+            <>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                {liveMatch.tournament}
+              </p>
+              <h4 className="font-bold text-lg mb-2">{liveMatch.team1} vs {liveMatch.team2}</h4>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                </span>
+                <span>LIVE — {liveMatch.score1} : {liveMatch.score2}</span>
+              </div>
+              {liveMatch.streamUrl ? (
+                <Button asChild className="w-full gap-2">
+                  <a href={liveMatch.streamUrl} target="_blank" rel="noopener noreferrer">
+                    Watch Live
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </Button>
+              ) : (
+                <Button asChild className="w-full gap-2" variant="secondary">
+                  <Link to="/esports">View Match</Link>
+                </Button>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-2">
+              No live matches right now
+            </p>
+          )}
         </div>
       </div>
 
@@ -77,10 +105,10 @@ export function RightSidebar() {
               </Button>
             </Link>
           </div>
-          
-          {upcomingMatches.length > 0 ? (
+
+          {showUpcoming.length > 0 ? (
             <div className="space-y-3">
-              {upcomingMatches.map((match) => (
+              {showUpcoming.map((match) => (
                 <PredictionCard
                   key={match.id}
                   match={match}
@@ -93,41 +121,19 @@ export function RightSidebar() {
               No upcoming matches right now
             </p>
           )}
-          
+
           <div className="flex justify-center gap-3 mt-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Zap className="h-3 w-3" />
-              20 XP to predict
+              25 XP to predict
             </span>
             <span className="flex items-center gap-1">
               <Trophy className="h-3 w-3" />
-              65 XP if correct
+              60 XP if correct
             </span>
           </div>
         </CardContent>
       </Card>
-
-      {/* Upcoming Event */}
-      <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
-        <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-4 border-b">
-          <div className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary animate-pulse-glow" />
-            <h3 className="font-semibold">Upcoming Event</h3>
-          </div>
-        </div>
-        <div className="p-4">
-          <h4 className="font-bold mb-1">League of Legends Worlds</h4>
-          <p className="text-sm text-muted-foreground mb-3">
-            Semifinals: T1 vs. Gen.G
-          </p>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-            <span>🕐 Starts in 2 hours</span>
-          </div>
-          <Button variant="secondary" className="w-full gap-2">
-            Set Reminder
-          </Button>
-        </div>
-      </div>
 
       {/* Daily Trivia Widget */}
       <Link to="/trivia">
@@ -151,38 +157,15 @@ export function RightSidebar() {
         </Card>
       </Link>
 
-      {/* Friends Online */}
+      {/* Friends Online — coming soon */}
       <div className="bg-card rounded-lg border p-4 card-shadow">
         <h3 className="font-semibold mb-3 flex items-center gap-2">
           <Users className="h-4 w-4" />
           Friends Online
         </h3>
-        <div className="space-y-3">
-          {FRIENDS_ONLINE.map((friend) => (
-            <div key={friend.id} className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-medium">
-                  {friend.name.slice(0, 2).toUpperCase()}
-                </div>
-                <span
-                  className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card ${
-                    friend.status === "online"
-                      ? "bg-online"
-                      : friend.status === "away"
-                      ? "bg-yellow-500"
-                      : "bg-muted-foreground"
-                  }`}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{friend.name}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {friend.game}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <p className="text-sm text-muted-foreground text-center py-2">
+          Friends activity coming soon
+        </p>
       </div>
     </aside>
   );
