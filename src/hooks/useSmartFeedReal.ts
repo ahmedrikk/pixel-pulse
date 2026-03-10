@@ -4,25 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Article, RankedArticle, FeedPriority, UserImpression, FeedSession } from "@/types/feed";
 import { toast } from "sonner";
 
-// Generic tags that should NOT appear as the primary blue badge —
-// these are platform/genre/content-type labels, not specific game/studio/character names.
-// The badge should show the most specific subject of the article.
-const GENERIC_TAGS = new Set([
-  "Gaming", "News", "VideoGames", "Game", "Update", "Entertainment",
-  "PlayStation", "Xbox", "PCGaming", "Steam", "SteamDeck", "NintendoSwitch",
-  "MobileGaming", "VR", "PS5", "PS4", "XboxSeriesX", "XboxOne", "Switch",
-  "RPG", "FPS", "MOBA", "BattleRoyale", "IndieGame", "Roguelike", "Roguelite",
-  "Metroidvania", "Soulslike", "OpenWorld", "Sandbox", "Strategy", "Simulation",
-  "Sports", "Racing", "Fighting", "Platformer", "Puzzle", "Horror", "Survival",
-  "Adventure", "Action", "CoOp", "Multiplayer", "SinglePlayer",
-  "NewRelease", "DLC", "Expansion", "Remake", "Remaster", "Port", "Sequel",
-  "Reboot", "Trailer", "Gameplay", "Review", "Preview", "Interview",
-  "Rumor", "Leak", "Delay", "Cancelled", "Benchmark", "GameUpdate",
-  "Esports", "Twitch", "Streaming", "YouTube",
-  "NVIDIA", "AMD", "Intel", "RayTracing", "DLSS", "FSR",
-  "4KGaming", "8KGaming", "HighRefreshRate", "OLED", "HDR",
-]);
-
 // Convert NewsItem to Article format
 function convertToArticle(news: {
   id: string;
@@ -47,9 +28,8 @@ function convertToArticle(news: {
     sourceUrl: news.sourceUrl,
     author: news.author,
     heroImageUrl: news.imageUrl,
-    // gameTags = specific entities (game names, studios, characters, streamers)
-    // excludes generic platform/genre terms so the blue badge shows the actual subject
-    gameTags: news.tags.filter(t => !GENERIC_TAGS.has(t)),
+    // AI is the sole gatekeeper — tags are already specific named entities
+    gameTags: news.tags,
     topicTags: news.tags,
     publishedAt: news.timestamp,
     fetchedAt: new Date().toISOString(),
