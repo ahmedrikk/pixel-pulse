@@ -233,7 +233,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           loading="lazy"
         />
         <span className="absolute top-3 left-3 px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
-          #{article.gameTags[0] || "Gaming"}
+          #{article.gameTags[0] || article.topicTags[0] || "Gaming"}
         </span>
       </div>
 
