@@ -36,6 +36,13 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
   const [displayedCount, setDisplayedCount] = useState(6);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
+  // Filter articles by active tag — must be declared before the observer useEffect
+  const filteredArticles = activeTag
+    ? articles.filter((item) =>
+        item.topicTags.includes(activeTag) || item.gameTags.includes(activeTag)
+      )
+    : articles;
+
   // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -58,13 +65,6 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
   useEffect(() => {
     setDisplayedCount(6);
   }, [activeTag]);
-
-  // Filter articles by active tag
-  const filteredArticles = activeTag
-    ? articles.filter((item) => 
-        item.topicTags.includes(activeTag) || item.gameTags.includes(activeTag)
-      )
-    : articles;
 
   const displayedNews = filteredArticles.slice(0, displayedCount);
 
