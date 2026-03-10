@@ -18,7 +18,7 @@ type TabType = "live" | "upcoming" | "results";
 const GAME_META: Record<string, { label: string; icon: string }> = {
   "valorant":  { label: "Valorant",           icon: "🔫" },
   "cs2":       { label: "CS2",                icon: "💣" },
-  "lol":       { label: "League of Legends",  icon: "⚔️" },
+  "lol":       { label: "League of Legends",  icon: "👑" },
   "dota2":     { label: "Dota 2",             icon: "🛡️" },
   "overwatch": { label: "Overwatch 2",        icon: "🦸" },
   "r6":        { label: "Rainbow Six",        icon: "🔒" },
