@@ -54,6 +54,19 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+// Last-resort guard: reject tags that are obviously not a named entity.
+// This catches AI slip-ups like "Update", "Gaming", "News" that still sneak through.
+const JUNK_TAGS = new Set([
+  "update","updates","gaming","news","videogames","game","games",
+  "entertainment","fun","action","adventure","horror","sport","sports",
+  "racing","puzzle","strategy","simulation","rpg","fps","moba",
+  "multiplayer","singleplayer","coop","indie","streaming","trailer",
+  "review","preview","rumor","leak","delay","dlc","remake","remaster",
+]);
+function isSpecificTag(tag: string): boolean {
+  return !JUNK_TAGS.has(tag.toLowerCase());
+}
+
 // Trim summary to max 280 characters at word boundary
 function normaliseSummary(summary: string): string {
   if (!summary) return "";
@@ -157,8 +170,8 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     setHasAwardedView(true);
     addXP(XP_VALUES.VIEW_SUMMARY);
     
-    // Show review prompt if article matches fav games
-    if (article.gameTags.length > 0) {
+    // Only show review prompt when article has a real specific game tag
+    if (article.topicTags.some(isSpecificTag)) {
       setShowReviewPrompt(true);
     }
   }, [hasAwardedView, addXP, article.gameTags.length]);
@@ -216,7 +229,10 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
   const summaryText = normaliseSummary(article.summary);
 
-  // Show top 4 tags
+  // First specific (non-generic) tag for the blue badge and review prompt
+  const primaryTag = article.topicTags.find(isSpecificTag) ?? null;
+
+  // Show top 4 tags, all of them (including context tags like PS5)
   const displayTags = article.topicTags.slice(0, 4);
 
   return (
@@ -232,9 +248,11 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
         />
-        <span className="absolute top-3 left-3 px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
-          #{article.gameTags[0] || article.topicTags[0] || "Gaming"}
-        </span>
+        {primaryTag && (
+          <span className="absolute top-3 left-3 px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
+            #{primaryTag}
+          </span>
+        )}
       </div>
 
       {/* Content */}
@@ -367,12 +385,12 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           />
         )}
 
-        {/* Game Review Prompt */}
-        {showReviewPrompt && article.gameTags[0] && (
+        {/* Game Review Prompt — only when we have a real specific game name */}
+        {showReviewPrompt && primaryTag && (
           <GameReviewPrompt
             articleId={article.id}
-            gameId={article.gameTags[0]}
-            gameName={article.gameTags[0]}
+            gameId={primaryTag}
+            gameName={primaryTag}
             gameCoverUrl={article.heroImageUrl}
             isVisible={showReviewPrompt}
             onDismiss={() => setShowReviewPrompt(false)}
