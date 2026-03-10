@@ -35,50 +35,36 @@ interface ProcessedArticle {
  */
 async function processArticleWithOpenRouter(article: ArticleInput): Promise<ProcessedArticle> {
   const systemPrompt = `You are an expert gaming news editor, SEO specialist, and hashtag strategist.
-Your task is to analyze gaming news articles and generate smart, searchable hashtags based on the FULL article content.
+You are an intelligent content agent. Your job is to deeply read a gaming news article and extract three things:
 
-FOLLOW THESE RULES STRICTLY:
+1. **TITLE** (under 60 chars): A sharp, factual headline. No clickbait.
 
-1. **TITLE** (under 60 chars): Create a compelling, high-CTR headline. No clickbait.
+2. **SUMMARY** (EXACTLY 270–280 characters): Dense, fact-first summary.
+   - Count every character including spaces. Must be 270–280 chars.
+   - If source content is short, expand using your knowledge of the topic.
+   - No bullet points. No quotes. Pack in who/what/when/why it matters.
 
-2. **SUMMARY** (EXACTLY 280 characters — character count, NOT word count): Write a tight, punchy, fact-dense summary.
-   - The summary MUST be between 270–280 characters. Count every single character including spaces and punctuation.
-   - If the provided content is short or vague, use your knowledge of the game/company/topic to EXPAND and fill to 280 characters with relevant context, background, or implications.
-   - Never truncate — always write the full 270–280 characters.
-   - Direct, answer-first style. No bullet points, no quotes.
-   - Pack in: who, what, when, why it matters, what players should know.
+3. **TAGS** — Act as a named entity extractor. Read the article and pull out the real-world proper nouns that define what this article is about. Think:
+   - What game(s) are mentioned by name? → "ResidentEvil2", "GTA6", "Minecraft"
+   - What characters appear? → "Mario", "MasterChief", "Kratos", "Pikachu"
+   - What studios/publishers are named? → "Capcom", "Nintendo", "RockstarGames"
+   - What real people (streamers, devs, executives)? → "HideoKojima", "Ninja", "xQc"
+   - What specific events or tournaments? → "GameAwards2025", "IEM", "VCT"
+   - What platform ONLY if the article is specifically about hardware? → "PS5", "Switch2"
 
-3. **HASHTAGS** (5–8 tags): Read the FULL article and extract ONLY what is explicitly mentioned.
+   AGENT RULE — ask yourself: "If someone searched this tag, would they find THIS article?" If yes, include it. If not, drop it.
 
-   WHAT TO TAG (in priority order):
-   - Specific game titles mentioned: "EldenRing", "GTA6", "Minecraft", "Valorant"
-   - Specific character names: "Mario", "Link", "Kratos", "MasterChief", "Pikachu"
-   - Streamer/creator names if mentioned: "Ninja", "Pokimane", "xQc", "Asmongold"
-   - Specific company/studio names: "Nintendo", "Rockstar", "FromSoftware", "Valve"
-   - Tournament or event names: "WorldChampionship", "IEM", "VCT", "TGA2025"
-   - Platform only if the article is specifically about it: "PS5", "Xbox", "NintendoSwitch"
-   - Content type if meaningful: "DLC", "Remake", "Delay", "BetaTest"
-   - Genre ONLY if no specific game is mentioned: "RPG", "FPS", "BattleRoyale"
+   ABSOLUTE BANS — never output any of these under any circumstances:
+   Gaming, News, VideoGames, Game, Games, Update, Updates, Entertainment,
+   RPG, FPS, Action, Adventure, Puzzle, Horror, Strategy, Simulation, Sports,
+   Racing, Fighting, Platformer, MOBA, Roguelike, Sandbox, OpenWorld, Multiplayer,
+   SinglePlayer, CoOp, Streaming, Twitch, YouTube, PCGaming, MobileGaming,
+   NewRelease, Gameplay, Review, Preview, Trailer, Rumor, Leak, Delay
 
-   STRICT RULES:
-   - Tags must come from what is ACTUALLY IN the article — do not invent
-   - NO generic tags: never use "Gaming", "News", "VideoGames", "Game", "Update"
-   - NO # symbol
-   - PascalCase for multi-word: "EldenRing", "RockstarGames", "NintendoSwitch"
-   - Keep abbreviations uppercase: "PS5", "DLC", "GTA6", "FPS"
-   - If article is about Mario, tag is "Mario" — if about GTA6, tag is "GTA6"
+   FORMAT: PascalCase, no # symbol, 4–7 tags total.
 
-Respond ONLY with valid JSON:
-{
-  "title": "string",
-  "summary": "string",
-  "tags": ["SpecificGameName", "CharacterOrStreamer", "StudioName", "ContentType"]
-}
-
-GOOD: ["GTA6", "RockstarGames", "OpenWorld", "PS5"]
-GOOD: ["Mario", "Nintendo", "Switch2", "Platformer"]
-GOOD: ["Ninja", "Fortnite", "Twitch", "Streaming"]
-BAD: ["Gaming", "News", "VideoGames", "Fun", "Update"] — too generic, never use these`;
+Respond ONLY with valid JSON — no markdown, no explanation:
+{"title": "...", "summary": "...", "tags": ["Tag1", "Tag2", "Tag3"]}`;
 
   const userPrompt = `Analyze this gaming article carefully.
 
@@ -90,11 +76,10 @@ ${article.content.substring(0, 6000)}
 
 ---
 
-Tasks:
-1. SUMMARY: Write a summary of EXACTLY 270–280 characters. If the content is short, EXPAND using your knowledge of this game/topic/company to reach 270 characters. Before finalizing, count the characters. Adjust until it is 270–280.
-2. TAGS: Identify what specific games, characters, streamers, studios, or events are ACTUALLY mentioned. Only tag those.
+Read this article fully. Then:
 
-CRITICAL: Do not submit a summary shorter than 270 characters under any circumstances. Expand it.`;
+1. Write the SUMMARY — exactly 270–280 characters. Expand with context if source is short.
+2. Extract TAGS as a named entity agent — only proper nouns: game titles, character names, real people, studios, events. Zero generic category words. Ask yourself for each tag: "Is this a specific named thing from this article?" If no, remove it.`;
 
   if (!OPENROUTER_API_KEY) {
     throw new Error("OPENROUTER_API_KEY secret is not set in Supabase");
