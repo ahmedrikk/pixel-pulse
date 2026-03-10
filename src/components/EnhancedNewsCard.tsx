@@ -54,29 +54,13 @@ function formatDate(dateString: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// Split summary into paragraphs based on word count
-function formatSummary(summary: string, wordCount: number): string[] {
-  if (wordCount <= 55) {
-    return [summary];
-  }
-  
-  // Split at approximately 50% of words
-  const words = summary.split(" ");
-  const midPoint = Math.floor(words.length / 2);
-  
-  // Find nearest sentence end
-  let splitIndex = midPoint;
-  for (let i = midPoint; i < words.length; i++) {
-    if (words[i].endsWith(".")) {
-      splitIndex = i + 1;
-      break;
-    }
-  }
-  
-  const firstPara = words.slice(0, splitIndex).join(" ");
-  const secondPara = words.slice(splitIndex).join(" ");
-  
-  return [firstPara, secondPara].filter(Boolean);
+// Trim summary to max 280 characters at word boundary
+function normaliseSummary(summary: string): string {
+  if (!summary) return "";
+  if (summary.length <= 280) return summary;
+  const cut = summary.substring(0, 279);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
 }
 
 export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps) {
@@ -230,9 +214,8 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     toast.success(`+${XP_VALUES.READ_FULL_ARTICLE} XP!`, { duration: 1500 });
   }, [addXP]);
 
-  // Format summary
-  const summaryParagraphs = formatSummary(article.summary, article.summaryWordCount);
-  
+  const summaryText = normaliseSummary(article.summary);
+
   // Show top 4 tags
   const displayTags = article.topicTags.slice(0, 4);
 
@@ -270,13 +253,11 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           {article.title}
         </h2>
 
-        {/* Summary - Split into paragraphs if > 50 words */}
-        <div className="mb-4 space-y-2">
-          {summaryParagraphs.map((para, i) => (
-            <p key={i} className="text-muted-foreground leading-relaxed">
-              {para}
-            </p>
-          ))}
+        {/* Summary — fixed 4-line display, uniform across all cards */}
+        <div className="mb-4 h-[5.5rem] overflow-hidden">
+          <p className="text-muted-foreground leading-[1.375rem] line-clamp-4">
+            {summaryText}
+          </p>
         </div>
 
         {/* Tags */}

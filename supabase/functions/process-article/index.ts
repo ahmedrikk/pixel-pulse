@@ -42,11 +42,12 @@ FOLLOW THESE RULES STRICTLY:
 
 1. **TITLE** (under 60 chars): Create a compelling, high-CTR headline. No clickbait.
 
-2. **SUMMARY** (EXACTLY 280 characters — count carefully, not words): Write a tight, punchy, fact-dense summary.
-   - Must be between 260–280 characters (strict — count every character including spaces)
-   - Direct, answer-first style
-   - No bullet points, no quotes
-   - Pack in the key who/what/when/why
+2. **SUMMARY** (EXACTLY 280 characters — character count, NOT word count): Write a tight, punchy, fact-dense summary.
+   - The summary MUST be between 270–280 characters. Count every single character including spaces and punctuation.
+   - If the provided content is short or vague, use your knowledge of the game/company/topic to EXPAND and fill to 280 characters with relevant context, background, or implications.
+   - Never truncate — always write the full 270–280 characters.
+   - Direct, answer-first style. No bullet points, no quotes.
+   - Pack in: who, what, when, why it matters, what players should know.
 
 3. **HASHTAGS** (5–8 tags): Read the FULL article and extract ONLY what is explicitly mentioned.
 
@@ -91,10 +92,10 @@ ${article.content.substring(0, 6000)}
 ---
 
 Tasks:
-1. SUMMARY: Write a summary of EXACTLY 260–280 characters (spaces count). Count carefully before responding.
-2. TAGS: Read the article and identify what specific games, characters, streamers, studios, or events are ACTUALLY mentioned. Only tag those — do not guess or add generic terms.
+1. SUMMARY: Write a summary of EXACTLY 270–280 characters. If the content is short, EXPAND using your knowledge of this game/topic/company to reach 270 characters. Before finalizing, count the characters. Adjust until it is 270–280.
+2. TAGS: Identify what specific games, characters, streamers, studios, or events are ACTUALLY mentioned. Only tag those.
 
-Critical: summary must be 260–280 characters, no more, no less.`;
+CRITICAL: Do not submit a summary shorter than 270 characters under any circumstances. Expand it.`;
 
   // Try each model in order
   for (const model of MODELS) {
@@ -145,12 +146,16 @@ Critical: summary must be 260–280 characters, no more, no less.`;
         continue; // Try next model
       }
 
-      // Enforce 280-char hard limit on summary
+      // Enforce 280-char hard cap; trim at word boundary
       let summary: string = parsedResult.summary || article.content.substring(0, 280);
       if (summary.length > 280) {
         const cut = summary.substring(0, 279);
         const lastSpace = cut.lastIndexOf(" ");
         summary = (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
+      }
+      // Log a warning if too short (AI didn't comply) but still use it
+      if (summary.length < 200) {
+        console.warn(`Short summary (${summary.length} chars) for: ${article.title.substring(0, 50)}`);
       }
 
       const tags: string[] = Array.isArray(parsedResult.tags)
