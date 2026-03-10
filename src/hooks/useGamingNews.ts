@@ -50,6 +50,14 @@ function stripHtml(html: string): string {
   return doc.body.textContent || "";
 }
 
+// Enforce 280-character hard cap at word boundary
+function cap280(text: string): string {
+  if (!text || text.length <= 280) return text;
+  const cut = text.substring(0, 279);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
+}
+
 // Extract image from HTML content
 function extractImageFromHtml(html: string): string | null {
   const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
@@ -246,7 +254,7 @@ async function processNewArticlesWithAI(articles: NewsItem[]): Promise<NewsItem[
           const processedArticle: NewsItem = {
             ...article,
             title: processed.processedTitle || article.title,
-            summary: processed.processedSummary || article.summary,
+            summary: cap280(processed.processedSummary || article.summary),
             tags: mergedTags,
           };
 

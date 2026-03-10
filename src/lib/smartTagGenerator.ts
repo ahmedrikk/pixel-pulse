@@ -442,43 +442,20 @@ export function generateSmartTags(title: string, content: string): string[] {
 }
 
 /**
- * Generates tags and merges with existing tags
- * AI tags take priority, then smart generated tags, then original tags
+ * Returns AI tags when available; falls back to smart pattern-matched tags only when AI has none.
+ * Never mixes AI + keyword tags — AI output is trusted as-is.
  */
 export function mergeTags(aiTags: string[], originalTags: string[], title: string, content: string): string[] {
-  // Clean AI tags
+  // Clean AI tags (strip any accidental # prefix)
   const cleanAiTags = aiTags
-    .map(t => t.trim())
-    .filter(t => t.length > 0)
-    .map(t => t.startsWith('#') ? t.substring(1) : t);
+    .map(t => t.trim().replace(/^#/, ""))
+    .filter(t => t.length > 0);
 
-  // Generate smart tags as fallback
-  const smartTags = generateSmartTags(title, content);
-
-  // Merge in priority order: AI > Smart > Original
-  const merged = Array.from(new Set([...cleanAiTags, ...smartTags, ...originalTags]));
-
-  // Apply gaming rule
-  const gamingIndicators = [
-    "PlayStation", "Xbox", "Nintendo", "PCGaming", "Steam", "Switch", "PS5",
-    "FPS", "RPG", "IndieGame", "MOBA", "Esports", "Gaming"
-  ];
-  
-  const hasGamingContent = merged.some(tag => 
-    gamingIndicators.some(indicator => 
-      tag.toLowerCase().includes(indicator.toLowerCase())
-    )
-  );
-
-  if (hasGamingContent) {
-    if (!merged.includes("Gaming")) {
-      merged.push("Gaming");
-    }
-    const entIndex = merged.indexOf("Entertainment");
-    if (entIndex > -1) {
-      merged.splice(entIndex, 1);
-    }
+  // If AI returned tags, trust them exclusively
+  if (cleanAiTags.length > 0) {
+    return cleanAiTags.slice(0, 8);
   }
 
-  return merged.slice(0, 8);
+  // Fallback: use pattern-matched smart tags
+  return generateSmartTags(title, content).slice(0, 8);
 }

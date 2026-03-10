@@ -52,6 +52,13 @@ function toDbFormat(article: NewsItem, expiresAt: Date): Omit<CachedArticle, 'id
   };
 }
 
+function cap280(text: string): string {
+  if (!text || text.length <= 280) return text;
+  const cut = text.substring(0, 279);
+  const lastSpace = cut.lastIndexOf(" ");
+  return (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
+}
+
 /**
  * Convert database format to NewsItem
  */
@@ -59,7 +66,7 @@ function toNewsItem(article: CachedArticle): NewsItem {
   return {
     id: article.original_id,
     title: article.ai_title || article.title,
-    summary: article.ai_summary || article.summary,
+    summary: cap280(article.ai_summary || article.summary),
     sourceUrl: article.source_url,
     imageUrl: article.image_url,
     category: article.category,

@@ -42,52 +42,45 @@ FOLLOW THESE RULES STRICTLY:
 
 1. **TITLE** (under 60 chars): Create a compelling, high-CTR headline. No clickbait.
 
-2. **SUMMARY** (90-110 words): Write a concise, factual, "AI Engine Optimized" summary.
-   - Direct, answer-first, data-rich
-   - No bullet points
-   - Include key facts, numbers, dates
+2. **SUMMARY** (EXACTLY 280 characters — count carefully, not words): Write a tight, punchy, fact-dense summary.
+   - Must be between 260–280 characters (strict — count every character including spaces)
+   - Direct, answer-first style
+   - No bullet points, no quotes
+   - Pack in the key who/what/when/why
 
-3. **HASHTAGS** (5-8 tags): Generate HIGHLY SPECIFIC, SEARCHABLE hashtags:
-   
-   PRIORITY 1 - GAME NAMES (Always include if mentioned):
-   - Exact game titles: "EldenRing", "GTA6", "BaldursGate3", "Valorant", "Minecraft"
-   - Include sequel numbers: "FinalFantasy16", "StreetFighter6"
-   
-   PRIORITY 2 - PLATFORMS & HARDWARE:
-   - Consoles: "PS5", "PlayStation", "Xbox", "XboxSeriesX", "NintendoSwitch", "Switch2"
-   - PC: "PCGaming", "Steam", "SteamDeck"
-   - Graphics: "RTX4090", "RTX5090", "AMD", "NVIDIA"
-   
-   PRIORITY 3 - CONTENT TYPE:
-   - News types: "GameUpdate", "NewRelease", "DLC", "Expansion", "Remake", "Remaster"
-   - Events: "GameAwards", "E3", "Gamescom", "TGA"
-   
-   PRIORITY 4 - CHARACTERS & IP:
-   - Character names: "Mario", "Link", "Kratos", "MasterChief"
-   - Studios: "Nintendo", "Rockstar", "FromSoftware", "CDProjektRed"
-   
-   PRIORITY 5 - GENRE & TOPICS:
-   - Genres: "RPG", "FPS", "BattleRoyale", "MOBA", "IndieGame", "Roguelike"
-   - Trends: "Speedrun", "Esports", "Twitch", "Streaming"
+3. **HASHTAGS** (5–8 tags): Read the FULL article and extract ONLY what is explicitly mentioned.
 
-HASHTAG FORMAT RULES:
-- NO # symbol in the tag string
-- Use PascalCase for multi-word tags: "EldenRing" not "eldenring"
-- Keep abbreviations uppercase: "PS5", "DLC", "FPS"
-- Be SPECIFIC: "GTA6" not just "GTA"
-- Maximum 8 tags, minimum 5
+   WHAT TO TAG (in priority order):
+   - Specific game titles mentioned: "EldenRing", "GTA6", "Minecraft", "Valorant"
+   - Specific character names: "Mario", "Link", "Kratos", "MasterChief", "Pikachu"
+   - Streamer/creator names if mentioned: "Ninja", "Pokimane", "xQc", "Asmongold"
+   - Specific company/studio names: "Nintendo", "Rockstar", "FromSoftware", "Valve"
+   - Tournament or event names: "WorldChampionship", "IEM", "VCT", "TGA2025"
+   - Platform only if the article is specifically about it: "PS5", "Xbox", "NintendoSwitch"
+   - Content type if meaningful: "DLC", "Remake", "Delay", "BetaTest"
+   - Genre ONLY if no specific game is mentioned: "RPG", "FPS", "BattleRoyale"
+
+   STRICT RULES:
+   - Tags must come from what is ACTUALLY IN the article — do not invent
+   - NO generic tags: never use "Gaming", "News", "VideoGames", "Game", "Update"
+   - NO # symbol
+   - PascalCase for multi-word: "EldenRing", "RockstarGames", "NintendoSwitch"
+   - Keep abbreviations uppercase: "PS5", "DLC", "GTA6", "FPS"
+   - If article is about Mario, tag is "Mario" — if about GTA6, tag is "GTA6"
 
 Respond ONLY with valid JSON:
 {
   "title": "string",
   "summary": "string",
-  "tags": ["GameName", "Platform", "Genre", "ContentType", "Studio"]
+  "tags": ["SpecificGameName", "CharacterOrStreamer", "StudioName", "ContentType"]
 }
 
-Example good tags: ["GTA6", "RockstarGames", "PS5", "Xbox", "OpenWorld", "NewRelease"]
-Example bad tags: ["Gaming", "News", "VideoGames", "Fun"] (too generic!)`;
+GOOD: ["GTA6", "RockstarGames", "OpenWorld", "PS5"]
+GOOD: ["Mario", "Nintendo", "Switch2", "Platformer"]
+GOOD: ["Ninja", "Fortnite", "Twitch", "Streaming"]
+BAD: ["Gaming", "News", "VideoGames", "Fun", "Update"] — too generic, never use these`;
 
-  const userPrompt = `Analyze this gaming article and generate specific, searchable hashtags.
+  const userPrompt = `Analyze this gaming article carefully.
 
 Article Title: ${article.title}
 Source: ${article.source}
@@ -97,14 +90,11 @@ ${article.content.substring(0, 6000)}
 
 ---
 
-Generate hashtags based on:
-1. Specific game names mentioned (e.g., "EldenRing", "GTA6")
-2. Platforms (e.g., "PS5", "Xbox", "PCGaming")
-3. Content type (e.g., "NewRelease", "DLC", "Update")
-4. Studios/Characters if relevant
-5. Genres (e.g., "RPG", "FPS", "IndieGame")
+Tasks:
+1. SUMMARY: Write a summary of EXACTLY 260–280 characters (spaces count). Count carefully before responding.
+2. TAGS: Read the article and identify what specific games, characters, streamers, studios, or events are ACTUALLY mentioned. Only tag those — do not guess or add generic terms.
 
-Remember: NO generic tags like "Gaming" or "News". Be SPECIFIC!`;
+Critical: summary must be 260–280 characters, no more, no less.`;
 
   // Try each model in order
   for (const model of MODELS) {
@@ -155,13 +145,25 @@ Remember: NO generic tags like "Gaming" or "News". Be SPECIFIC!`;
         continue; // Try next model
       }
 
-      console.log(`✓ Successfully processed with ${model}: "${parsedResult.title}"`);
-      console.log(`  Tags: ${JSON.stringify(parsedResult.tags)}`);
+      // Enforce 280-char hard limit on summary
+      let summary: string = parsedResult.summary || article.content.substring(0, 280);
+      if (summary.length > 280) {
+        const cut = summary.substring(0, 279);
+        const lastSpace = cut.lastIndexOf(" ");
+        summary = (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
+      }
+
+      const tags: string[] = Array.isArray(parsedResult.tags)
+        ? parsedResult.tags.filter((t: unknown) => typeof t === "string" && t.length > 0).slice(0, 8)
+        : [];
+
+      console.log(`✓ Successfully processed with ${model}: "${parsedResult.title}" (${summary.length} chars)`);
+      console.log(`  Tags: ${JSON.stringify(tags)}`);
 
       return {
         processedTitle: parsedResult.title || article.title,
-        processedSummary: parsedResult.summary || article.content.substring(0, 300) + "...",
-        processedTags: Array.isArray(parsedResult.tags) ? parsedResult.tags : []
+        processedSummary: summary,
+        processedTags: tags,
       };
 
     } catch (error) {
