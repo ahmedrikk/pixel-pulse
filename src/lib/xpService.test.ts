@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/integrations/supabase/client", () => ({
+  isDemoMode: vi.fn().mockReturnValue(false),
   supabase: {
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } }),
+    },
     functions: {
       invoke: vi.fn().mockResolvedValue({ data: { awarded: 20, xp_today: 20 }, error: null }),
     },
     from: vi.fn().mockReturnValue({
       insert: vi.fn().mockResolvedValue({ error: null }),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
     }),
   },
 }));
