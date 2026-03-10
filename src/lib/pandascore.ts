@@ -107,16 +107,16 @@ async function pandaProxy(path: string, params: Record<string, string> = {}): Pr
 }
 
 export async function fetchLiveMatches(): Promise<EsportsMatch[]> {
-  const data = await pandaProxy("/matches/running", { "page[size]": "5" });
+  const data = await pandaProxy("/matches/running", { "page[size]": "100" });
   return data.filter((m) => m.opponents.length >= 2).map(transformMatch);
 }
 
 export async function fetchUpcomingMatches(): Promise<EsportsMatch[]> {
-  const data = await pandaProxy("/matches/upcoming", { sort: "begin_at", "page[size]": "10" });
+  const data = await pandaProxy("/matches/upcoming", { sort: "begin_at", "page[size]": "100" });
   return data.filter((m) => m.opponents.length >= 2).map(transformMatch);
 }
 
 export async function fetchPastMatches(): Promise<EsportsMatch[]> {
-  const data = await pandaProxy("/matches/past", { sort: "-begin_at", "page[size]": "10" });
+  const data = await pandaProxy("/matches/past", { sort: "-begin_at", "page[size]": "100" });
   return data.filter((m) => m.opponents.length >= 2).map(transformMatch);
 }
