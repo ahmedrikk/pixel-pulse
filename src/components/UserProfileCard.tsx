@@ -1,18 +1,59 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
-const MOCK_USER = {
-  initials: "GT",
-  displayName: "@GamerTag_X",
-  handle: "@gamertag",
-  bio: "Indie game enthusiast & RPG lover. Always hunting for hidden gems.",
-  emoji: "🎮",
-  following: 142,
-  followers: 891,
-};
+interface Profile {
+  username: string | null;
+  avatar_url: string | null;
+  banner_url: string | null;
+  bio: string | null;
+}
+
+const DEFAULT_BANNER = "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&h=200&fit=crop";
 
 export function UserProfileCard() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      setIsLoggedIn(true);
+      supabase
+        .from("profiles")
+        .select("username, avatar_url, banner_url, bio")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => setProfile(data));
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setIsLoggedIn(!!session?.user);
+      if (!session?.user) setProfile(null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (!isLoggedIn) {
+    return (
+      <div className="bg-card rounded-2xl border p-4 card-shadow text-center space-y-3">
+        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl mx-auto">
+          🎮
+        </div>
+        <p className="text-sm text-muted-foreground">Sign in to track your XP and stats</p>
+        <Link to="/login">
+          <Button className="w-full" size="sm">Sign In</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const displayName = profile?.username ?? "Gamer";
+  const initials = displayName.slice(0, 2).toUpperCase();
+  const bannerUrl = profile?.banner_url ?? DEFAULT_BANNER;
 
   return (
     <motion.div
@@ -25,54 +66,57 @@ export function UserProfileCard() {
       {/* Banner */}
       <div className="relative h-24 overflow-hidden">
         <img
-          src="https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&h=200&fit=crop"
-          alt="Geometric architecture banner"
+          src={bannerUrl}
+          alt="Profile banner"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-card/30" />
 
         {/* Avatar overlapping banner */}
         <div className="absolute -bottom-8 left-5">
-          <motion.div
-            className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-black text-foreground shadow-lg border-[3px] border-card"
-            style={{
-              background: "linear-gradient(135deg, hsl(142 71% 45%), hsl(186 100% 50%))",
-            }}
-            animate={isHovered ? { scale: 1.08 } : { scale: 1 }}
-            transition={{ type: "spring", stiffness: 400, damping: 15 }}
-          >
-            {MOCK_USER.initials}
-          </motion.div>
+          {profile?.avatar_url ? (
+            <motion.img
+              src={profile.avatar_url}
+              alt={displayName}
+              className="w-16 h-16 rounded-full object-cover border-[3px] border-card shadow-lg"
+              animate={isHovered ? { scale: 1.08 } : { scale: 1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 15 }}
+            />
+          ) : (
+            <motion.div
+              className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-black text-foreground shadow-lg border-[3px] border-card"
+              style={{
+                background: "linear-gradient(135deg, hsl(142 71% 45%), hsl(186 100% 50%))",
+              }}
+              animate={isHovered ? { scale: 1.08 } : { scale: 1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 15 }}
+            >
+              {initials}
+            </motion.div>
+          )}
         </div>
 
-        {/* Names on banner */}
+        {/* Name on banner */}
         <div className="absolute bottom-1 left-24">
           <p className="text-sm font-bold text-foreground drop-shadow-sm leading-tight">
-            {MOCK_USER.displayName}
-          </p>
-          <p className="text-xs text-muted-foreground drop-shadow-sm">
-            {MOCK_USER.handle}
+            @{displayName}
           </p>
         </div>
       </div>
 
       {/* Bio */}
       <div className="pt-10 px-5 pb-4">
-        <p className="text-sm text-foreground leading-relaxed">
-          {MOCK_USER.bio}
-        </p>
-        <p className="mt-1 text-base">{MOCK_USER.emoji}</p>
+        {profile?.bio ? (
+          <p className="text-sm text-foreground leading-relaxed">{profile.bio}</p>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">No bio yet</p>
+        )}
 
-        {/* Stats */}
-        <div className="flex items-center gap-5 mt-4 pt-3 border-t border-border">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-bold text-foreground">{MOCK_USER.following}</span>
-            <span className="text-sm text-muted-foreground">Following</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-bold text-foreground">{MOCK_USER.followers}</span>
-            <span className="text-sm text-muted-foreground">Followers</span>
-          </div>
+        {/* Profile link */}
+        <div className="mt-4 pt-3 border-t border-border">
+          <Link to="/profile">
+            <Button size="sm" variant="secondary" className="w-full">View Profile</Button>
+          </Link>
         </div>
       </div>
     </motion.div>
