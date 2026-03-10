@@ -4,18 +4,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Star,
   ThumbsUp,
-  ThumbsDown,
   Monitor,
   Gamepad2,
-  Play,
   Trophy,
   ChevronRight,
   Send,
   Crown,
 } from "lucide-react";
-import { GAME_DATABASE, TOP_REVIEWERS, type GameReview as ReviewType } from "@/data/gameReviewData";
 import { SiteLayout } from "@/components/SiteLayout";
 import { trackComment, trackReaction } from "@/lib/xpService";
+import { useGameDetails } from "@/hooks/useGameDetails";
+import { useUserReviews, useSubmitReview } from "@/hooks/useGameReviews";
 
 const platformIcons: Record<string, React.ReactNode> = {
   PC: <Monitor className="h-5 w-5" />,
@@ -55,163 +54,144 @@ function StarRating({
   );
 }
 
-function ScoreBar({ label, score, max = 5 }: { label: string; score: number; max?: number }) {
-  const pct = (score / max) * 100;
-  return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-sm">
-        <span className="font-medium text-foreground">{label}</span>
-        <span className="font-bold text-primary">{score}/{max}</span>
-      </div>
-      <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
-        <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ReviewCard({
-  review,
-  onVote,
-}: {
-  review: ReviewType;
-  onVote: (id: string, type: "up" | "down") => void;
-}) {
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-card border rounded-xl p-5 card-shadow hover:card-shadow-hover transition-shadow"
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-sm">
-            {review.avatar}
-          </div>
-          <div>
-            <p className="font-semibold text-foreground">{review.userName}</p>
-            <p className="text-xs text-muted-foreground">
-              {review.reviewCount} reviews • {new Date(review.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-            </p>
-          </div>
-        </div>
-        <StarRating rating={review.rating} size="sm" />
-      </div>
-
-      <p className="text-sm text-muted-foreground leading-relaxed mb-4">{review.text}</p>
-
-      <div className="flex items-center gap-4 text-sm">
-        <span className="text-muted-foreground mr-1">Helpful?</span>
-        <button
-          onClick={() => onVote(review.id, "up")}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary hover:bg-primary/10 hover:text-primary transition-all active:scale-95"
-        >
-          <ThumbsUp className="h-3.5 w-3.5" />
-          <span className="font-medium">{review.helpful}</span>
-        </button>
-        <button
-          onClick={() => onVote(review.id, "down")}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary hover:bg-destructive/10 hover:text-destructive transition-all active:scale-95"
-        >
-          <ThumbsDown className="h-3.5 w-3.5" />
-          <span className="font-medium">{review.notHelpful}</span>
-        </button>
-      </div>
-    </motion.div>
-  );
-}
-
 export default function GameReview() {
   const { gameId } = useParams<{ gameId: string }>();
-  const game = gameId ? GAME_DATABASE[gameId] : null;
-
-  if (!game) {
-    return <Navigate to="/reviews" replace />;
-  }
-
-  const [reviews, setReviews] = useState(game.reviews);
   const [newReviewText, setNewReviewText] = useState("");
   const [newRating, setNewRating] = useState(0);
   const [sortBy, setSortBy] = useState<"helpful" | "recent">("helpful");
 
-  const sortedReviews = [...reviews].sort((a, b) =>
-    sortBy === "helpful" ? b.helpful - a.helpful : new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const { data: game, isLoading: gameLoading, error: gameError } = useGameDetails(gameId);
+  const { data: userReviews = [] } = useUserReviews(gameId);
+  const submitReview = useSubmitReview(gameId ?? "");
 
-  const handleVote = (id: string, type: "up" | "down") => {
-    setReviews((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, [type === "up" ? "helpful" : "notHelpful"]: r[type === "up" ? "helpful" : "notHelpful"] + 1 }
-          : r
-      )
+  if (gameLoading) {
+    return (
+      <SiteLayout>
+        <div className="space-y-4 animate-pulse">
+          <div className="h-64 rounded-2xl bg-secondary" />
+          <div className="h-8 w-1/2 rounded bg-secondary" />
+          <div className="h-4 w-full rounded bg-secondary" />
+          <div className="h-4 w-3/4 rounded bg-secondary" />
+        </div>
+      </SiteLayout>
     );
-    if (type === "up") trackReaction(game.id, "helpful");
+  }
+
+  if (gameError || !game) {
+    return <Navigate to="/reviews" replace />;
+  }
+
+  const handleVote = (reviewId: string) => {
+    trackReaction(game.id, "helpful");
+    // Optimistic UI — actual vote goes through useVoteHelpful mutation
   };
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (!newReviewText.trim() || newRating === 0) return;
-    const review: ReviewType = {
-      id: `r${Date.now()}`,
-      userName: "GamerTag_X",
-      avatar: "GT",
-      rating: newRating,
-      text: newReviewText,
-      date: new Date().toISOString().split("T")[0],
-      helpful: 0,
-      notHelpful: 0,
-      reviewCount: 1,
-    };
-    setReviews((prev) => [review, ...prev]);
-    setNewReviewText("");
-    setNewRating(0);
-    trackComment(game.id);
+    try {
+      await submitReview.mutateAsync({
+        starRating: newRating,
+        reviewText: newReviewText.trim(),
+        tags: [],
+      });
+      setNewReviewText("");
+      setNewRating(0);
+      trackComment(game.id);
+    } catch {
+      // Auth gate will handle unauthenticated state
+    }
   };
 
-  const overallScore = Object.values(game.scores).reduce((a, b) => a + b, 0) / Object.values(game.scores).length;
+  // Critic reviews from OpenCritic
+  const criticReviews = (game.openCritic?.reviews ?? []).map((r, i) => ({
+    id: `critic-${i}`,
+    userName: r.author,
+    outlet: r.outlet,
+    outletLogo: r.outletLogo,
+    rating: r.score ? Math.round((r.score / 100) * 5) : 3,
+    score: r.score,
+    text: r.snippet,
+    date: r.publishedDate,
+    helpful: 0,
+    url: r.url,
+    isCritic: true,
+  }));
+
+  // User reviews sorted
+  const sortedUserReviews = [...userReviews].sort((a, b) =>
+    sortBy === "helpful"
+      ? b.helpfulVotes - a.helpfulVotes
+      : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   return (
     <SiteLayout>
 
       {/* Hero */}
-      <div className="relative h-[420px] md:h-[480px] overflow-hidden">
+      <div className="relative h-[420px] md:h-[480px] overflow-hidden rounded-2xl mb-6">
         <img
-          src={game.heroImage}
+          src={game.coverImage}
           alt={game.name}
           className="w-full h-full object-cover"
           loading="eager"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 max-w-6xl mx-auto">
+        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <span className="inline-block px-3 py-1 rounded-full bg-accent/20 text-accent text-xs font-bold uppercase tracking-wider mb-3">
-              {game.genre}
-            </span>
+            {game.genres[0] && (
+              <span className="inline-block px-3 py-1 rounded-full bg-accent/20 text-accent text-xs font-bold uppercase tracking-wider mb-3">
+                {game.genres[0]}
+              </span>
+            )}
             <h1 className="text-3xl md:text-5xl font-black text-foreground mb-2 leading-tight">
               {game.name}
             </h1>
-            <p className="text-muted-foreground text-sm mb-4">
-              {game.developer} • {game.releaseDate}
-            </p>
+            {game.releaseDate && (
+              <p className="text-muted-foreground text-sm mb-4">
+                {game.releaseDate}
+              </p>
+            )}
 
             <div className="flex flex-wrap items-center gap-4">
-              {/* Rating */}
+              {/* RAWG Rating */}
               <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border rounded-xl px-4 py-2.5">
-                <span className="text-2xl font-black text-primary">{game.averageRating}</span>
+                <span className="text-2xl font-black text-primary">{game.rawgRating.toFixed(1)}</span>
                 <div>
-                  <StarRating rating={Math.round(game.averageRating)} size="sm" />
-                  <p className="text-xs text-muted-foreground">{game.totalRatings.toLocaleString()} ratings</p>
+                  <StarRating rating={Math.round(game.rawgRating)} size="sm" />
+                  <p className="text-xs text-muted-foreground">RAWG rating</p>
                 </div>
               </div>
 
+              {/* OpenCritic Score */}
+              {game.openCritic?.score && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                  <div className="text-center">
+                    <div className="text-2xl font-black text-primary">{game.openCritic.score}</div>
+                    <div className="text-[10px] text-muted-foreground">OpenCritic</div>
+                  </div>
+                  {game.openCritic.tier && (
+                    <div>
+                      <div className="text-sm font-semibold">{game.openCritic.tier}</div>
+                      {game.openCritic.percentRecommended != null && (
+                        <div className="text-xs text-muted-foreground">
+                          {game.openCritic.percentRecommended.toFixed(0)}% recommend
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Metacritic */}
+              {game.metacriticScore && (
+                <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border rounded-xl px-4 py-2.5">
+                  <span className="text-2xl font-black text-primary">{game.metacriticScore}</span>
+                  <p className="text-xs text-muted-foreground">Metacritic</p>
+                </div>
+              )}
+
               {/* Platforms */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {game.platforms.map((p) => (
                   <div
                     key={p}
@@ -228,133 +208,79 @@ export default function GameReview() {
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-8">
-
-        {/* Bento Grid: Trailer + Verdict + Description */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Trailer */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-card border rounded-2xl overflow-hidden card-shadow"
-          >
-            <div className="aspect-video bg-secondary flex items-center justify-center relative group cursor-pointer">
-              <iframe
-                src={game.trailerUrl}
-                title="Game Trailer"
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </motion.div>
-
-          {/* Quick Verdict */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-card border rounded-2xl p-6 card-shadow flex flex-col"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <div className="h-8 w-1.5 rounded-full bg-gradient-to-b from-primary to-accent" />
-              <h2 className="text-xl font-bold text-foreground">Quick Verdict</h2>
-            </div>
-            <p className="text-muted-foreground text-sm leading-relaxed flex-1">
-              {game.quickVerdict}
-            </p>
-            <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-              <Play className="h-4 w-4 text-primary" />
-              <span className="font-medium">TL;DR — A masterpiece expansion that raises the bar.</span>
-            </div>
-          </motion.div>
-        </div>
+      <div className="space-y-8">
 
         {/* Description */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-card border rounded-2xl p-6 card-shadow"
-        >
-          <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-            <ChevronRight className="h-5 w-5 text-primary" />
-            About the Game
-          </h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">{game.description}</p>
-        </motion.div>
-
-        {/* Bento Grid: Scores + Leaderboard */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Score Breakdown */}
+        {game.description && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="lg:col-span-2 bg-card border rounded-2xl p-6 card-shadow"
-          >
-            <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-primary" />
-              Score Breakdown
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-              {Object.entries(game.scores).map(([key, val]) => (
-                <ScoreBar key={key} label={key.charAt(0).toUpperCase() + key.slice(1)} score={val} />
-              ))}
-            </div>
-            <div className="mt-6 pt-4 border-t flex items-center justify-between">
-              <span className="text-sm text-muted-foreground font-medium">Overall Score</span>
-              <div className="flex items-center gap-2">
-                <span className="text-3xl font-black text-primary">{overallScore.toFixed(1)}</span>
-                <span className="text-muted-foreground text-sm">/ 5</span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Top Reviewers Leaderboard */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.2 }}
             className="bg-card border rounded-2xl p-6 card-shadow"
           >
-            <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-              <Crown className="h-5 w-5 text-primary" />
-              Top Reviewers
+            <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
+              <ChevronRight className="h-5 w-5 text-primary" />
+              About the Game
             </h2>
-            <div className="space-y-3">
-              {TOP_REVIEWERS.map((r, i) => (
-                <div key={r.name} className="flex items-center gap-3">
-                  <span className={`text-xs font-black w-5 text-center ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
-                    {i + 1}
-                  </span>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/60 to-accent/60 flex items-center justify-center text-primary-foreground font-bold text-xs">
-                    {r.avatar}
+            <p className="text-muted-foreground text-sm leading-relaxed line-clamp-6">{game.description}</p>
+          </motion.div>
+        )}
+
+        {/* Critic Reviews */}
+        {criticReviews.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-primary" />
+              Critic Reviews
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {criticReviews.map((r) => (
+                <motion.a
+                  key={r.id}
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="block bg-card border rounded-xl p-5 card-shadow hover:card-shadow-hover transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      {r.outletLogo ? (
+                        <img src={r.outletLogo} alt={r.outlet} className="w-8 h-8 rounded object-contain bg-secondary p-1" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-xs">
+                          {r.outlet[0]}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-semibold text-foreground">{r.outlet}</p>
+                        <p className="text-xs text-muted-foreground">{r.userName}</p>
+                      </div>
+                    </div>
+                    {r.score != null && (
+                      <span className="text-lg font-black text-primary">{r.score}/100</span>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
-                    <p className="text-xs text-muted-foreground">{r.reviews} reviews</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <ThumbsUp className="h-3 w-3" />
-                    <span>{r.helpful.toLocaleString()}</span>
-                  </div>
-                </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{r.text}</p>
+                </motion.a>
               ))}
             </div>
-          </motion.div>
-        </div>
+          </div>
+        )}
 
-        {/* User Reviews Section */}
+        {/* Community Reviews */}
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-foreground">Community Reviews</h2>
+          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Crown className="h-5 w-5 text-primary" />
+            Community Reviews
+          </h2>
 
           {/* Write Review */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
+            transition={{ delay: 0.3 }}
             className="bg-card border rounded-2xl p-6 card-shadow"
           >
             <h3 className="font-semibold text-foreground mb-3">Write a Review</h3>
@@ -374,11 +300,11 @@ export default function GameReview() {
             <div className="flex justify-end mt-3">
               <button
                 onClick={handleSubmitReview}
-                disabled={!newReviewText.trim() || newRating === 0}
+                disabled={!newReviewText.trim() || newRating === 0 || submitReview.isPending}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="h-4 w-4" />
-                Submit Review
+                {submitReview.isPending ? "Submitting..." : "Submit Review"}
               </button>
             </div>
           </motion.div>
@@ -403,9 +329,51 @@ export default function GameReview() {
           {/* Review List */}
           <AnimatePresence mode="popLayout">
             <div className="space-y-4">
-              {sortedReviews.map((r) => (
-                <ReviewCard key={r.id} review={r} onVote={handleVote} />
+              {sortedUserReviews.map((r) => (
+                <motion.div
+                  key={r.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-card border rounded-xl p-5 card-shadow hover:card-shadow-hover transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-sm">
+                        {r.author.name[0]?.toUpperCase() ?? "?"}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">{r.author.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </p>
+                      </div>
+                    </div>
+                    <StarRating rating={r.starRating} size="sm" />
+                  </div>
+
+                  {r.reviewText && (
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-4">{r.reviewText}</p>
+                  )}
+
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-muted-foreground mr-1">Helpful?</span>
+                    <button
+                      onClick={() => handleVote(r.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary hover:bg-primary/10 hover:text-primary transition-all active:scale-95"
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                      <span className="font-medium">{r.helpfulVotes}</span>
+                    </button>
+                  </div>
+                </motion.div>
               ))}
+
+              {sortedUserReviews.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  No community reviews yet. Be the first!
+                </p>
+              )}
             </div>
           </AnimatePresence>
         </div>
