@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Esports from "./pages/Esports";
 import GameCatalog from "./pages/GameCatalog";
 import GameReview from "./pages/GameReview";
+import BattlePass from "./pages/BattlePass";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/esports/:gameId" element={<Esports />} />
               <Route path="/reviews" element={<GameCatalog />} />
               <Route path="/reviews/:gameId" element={<GameReview />} />
+              <Route path="/battle-pass" element={<BattlePass />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
