@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink, Calendar } from "lucide-react";
+import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, Calendar, X, Tv2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useXP } from "@/contexts/XPContext";
 import { Sun, Moon } from "lucide-react";
-import { GAME_FILTERS } from "@/data/esportsData";
 import { type EsportsMatch } from "@/lib/pandascore";
 import { useEsportsMatches } from "@/hooks/useEsportsMatches";
 import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds } from "date-fns";
@@ -15,10 +14,25 @@ import { XPProgressBar } from "@/components/XPProgressBar";
 
 type TabType = "live" | "upcoming" | "results";
 
-// Map PandaScore videogame names/slugs to GAME_FILTERS ids (case-insensitive)
-// PandaScore returns names like "LoL", "Counter-Strike", "Valorant"
-const GAME_TO_FILTER_ID: Record<string, string> = {
-  // by name (exactly as PandaScore returns)
+// ── Static metadata for known games ─────────────────────────────────────────
+const GAME_META: Record<string, { label: string; icon: string }> = {
+  "valorant":  { label: "Valorant",           icon: "🔫" },
+  "cs2":       { label: "CS2",                icon: "💣" },
+  "lol":       { label: "League of Legends",  icon: "⚔️" },
+  "dota2":     { label: "Dota 2",             icon: "🛡️" },
+  "overwatch": { label: "Overwatch 2",        icon: "🦸" },
+  "r6":        { label: "Rainbow Six",        icon: "🔒" },
+  "pubg":      { label: "PUBG",               icon: "🪖" },
+  "cod":       { label: "Call of Duty",       icon: "🎯" },
+  "apex":      { label: "Apex Legends",       icon: "🚀" },
+  "rocket-league": { label: "Rocket League",  icon: "🚗" },
+  "starcraft-2":   { label: "StarCraft II",   icon: "👾" },
+  "hearthstone":   { label: "Hearthstone",    icon: "🃏" },
+};
+
+// Map PandaScore videogame names/slugs → normalized game id
+const GAME_TO_ID: Record<string, string> = {
+  // names (exactly as PandaScore returns)
   "valorant": "valorant",
   "counter-strike": "cs2",
   "counter-strike 2": "cs2",
@@ -30,16 +44,29 @@ const GAME_TO_FILTER_ID: Record<string, string> = {
   "overwatch 2": "overwatch",
   "rainbow six siege": "r6",
   "r6": "r6",
-  // by slug
+  "pubg mobile": "pubg",
+  "call of duty": "cod",
+  "apex legends": "apex",
+  "rocket league": "rocket-league",
+  "starcraft ii": "starcraft-2",
+  "starcraft 2": "starcraft-2",
+  "hearthstone": "hearthstone",
+  // slugs
   "cs-go": "cs2",
   "dota-2": "dota2",
   "overwatch-2": "overwatch",
   "league-of-legends": "lol",
   "rainbow-six-siege": "r6",
+  "rocket-league": "rocket-league",
 };
 
-function getFilterId(gameNameOrSlug: string): string {
-  return GAME_TO_FILTER_ID[gameNameOrSlug.toLowerCase()] ?? gameNameOrSlug;
+function getGameId(match: EsportsMatch): string {
+  const byName = GAME_TO_ID[match.game.toLowerCase()];
+  if (byName) return byName;
+  const bySlug = GAME_TO_ID[match.gameSlug.toLowerCase()];
+  if (bySlug) return bySlug;
+  // Fall back to slug (e.g. "pubg-mobile")
+  return match.gameSlug || match.game.toLowerCase().replace(/\s+/g, "-");
 }
 
 function getMatchStatus(m: EsportsMatch): "live" | "upcoming" | "completed" {
@@ -70,14 +97,107 @@ function groupByDate(matches: EsportsMatch[]): Record<string, EsportsMatch[]> {
 function groupByGame(matches: EsportsMatch[]): Record<string, EsportsMatch[]> {
   const groups: Record<string, EsportsMatch[]> = {};
   for (const match of matches) {
-    // Try name first, then slug
-    const gameId = getFilterId(match.game) !== match.game
-      ? getFilterId(match.game)
-      : getFilterId(match.gameSlug);
-    if (!groups[gameId]) groups[gameId] = [];
-    groups[gameId].push(match);
+    const id = getGameId(match);
+    if (!groups[id]) groups[id] = [];
+    groups[id].push(match);
   }
   return groups;
+}
+
+// ── Twitch helpers ────────────────────────────────────────────────────────────
+function extractTwitchChannel(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "twitch.tv" || u.hostname === "www.twitch.tv") {
+      return u.pathname.replace(/^\//, "").split("/")[0] || null;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+// ── Twitch Embed Modal ────────────────────────────────────────────────────────
+function TwitchModal({ match, onClose }: { match: EsportsMatch; onClose: () => void }) {
+  const channel = match.streamUrl ? extractTwitchChannel(match.streamUrl) : null;
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="relative w-full max-w-4xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-card rounded-2xl overflow-hidden border border-border shadow-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center gap-3 min-w-0">
+              <Badge className="bg-[hsl(var(--live-glow))] text-white border-transparent gap-1.5 text-xs font-bold flex-shrink-0">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                </span>
+                LIVE
+              </Badge>
+              <span className="font-bold text-foreground truncate">
+                {match.team1} vs {match.team2}
+              </span>
+              <span className="text-sm text-muted-foreground truncate hidden sm:block">
+                {match.league}
+              </span>
+            </div>
+            <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Embed */}
+          <div className="aspect-video bg-black">
+            {channel ? (
+              <iframe
+                src={`https://player.twitch.tv/?channel=${channel}&parent=${hostname}&autoplay=true`}
+                title={`${match.team1} vs ${match.team2} — Live`}
+                className="w-full h-full"
+                allowFullScreen
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <Tv2 className="h-12 w-12 opacity-30" />
+                <p className="text-sm font-medium">Stream link not available</p>
+                {match.streamUrl && (
+                  <a
+                    href={match.streamUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Open external stream
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
 }
 
 /* ── Countdown ── */
@@ -116,11 +236,17 @@ function TeamBlock({ name, imageUrl, isWinner, side }: { name: string; imageUrl:
 }
 
 /* ── Match Card ── */
-function MatchCard({ match, onWatchLive }: { match: EsportsMatch; onWatchLive?: () => void }) {
-  const gameFilterId = getFilterId(match.game) !== match.game
-    ? getFilterId(match.game)
-    : getFilterId(match.gameSlug);
-  const gameFilter = GAME_FILTERS.find((g) => g.id === gameFilterId);
+function MatchCard({
+  match,
+  gameFilters,
+  onWatchLive,
+}: {
+  match: EsportsMatch;
+  gameFilters: GameFilter[];
+  onWatchLive: (match: EsportsMatch) => void;
+}) {
+  const gameId = getGameId(match);
+  const gameFilter = gameFilters.find((g) => g.id === gameId);
   const status = getMatchStatus(match);
   const isWinner1 = status === "completed" && match.score1 > match.score2;
   const isWinner2 = status === "completed" && match.score2 > match.score1;
@@ -201,12 +327,14 @@ function MatchCard({ match, onWatchLive }: { match: EsportsMatch; onWatchLive?: 
           {match.begin_at ? format(parseISO(match.begin_at), "HH:mm") + " UTC" : "TBD"}
         </span>
         {status === "live" && match.streamUrl && (
-          <a href={match.streamUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => { e.stopPropagation(); onWatchLive?.(); }}>
-            <Button size="sm" className="h-8 text-xs gap-1.5 font-bold rounded-lg">
-              <ExternalLink className="h-3.5 w-3.5" />
-              Watch Live
-            </Button>
-          </a>
+          <Button
+            size="sm"
+            className="h-8 text-xs gap-1.5 font-bold rounded-lg"
+            onClick={(e) => { e.stopPropagation(); onWatchLive(match); }}
+          >
+            <Tv2 className="h-3.5 w-3.5" />
+            Watch Live
+          </Button>
         )}
         {status === "upcoming" && (
           <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 rounded-lg">
@@ -225,6 +353,13 @@ function MatchCard({ match, onWatchLive }: { match: EsportsMatch; onWatchLive?: 
   );
 }
 
+/* ── Game Filter type ── */
+interface GameFilter {
+  id: string;
+  label: string;
+  icon: string;
+}
+
 /* ═══════════════════════════════════════════════
    All Games View
    ═══════════════════════════════════════════════ */
@@ -233,12 +368,13 @@ interface AllGamesViewProps {
   upcomingMatches: EsportsMatch[];
   pastMatches: EsportsMatch[];
   isLoading: boolean;
-  onWatchLive: () => void;
+  gameFilters: GameFilter[];
+  onWatchLive: (match: EsportsMatch) => void;
   activeTab: TabType;
   setActiveTab: (t: TabType) => void;
 }
 
-function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, onWatchLive, activeTab, setActiveTab }: AllGamesViewProps) {
+function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, gameFilters, onWatchLive, activeTab, setActiveTab }: AllGamesViewProps) {
   const navigate = useNavigate();
   const { addXP } = useXP();
 
@@ -262,30 +398,23 @@ function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, on
     // Collect all game IDs that have ANY match data
     const activeGameIds = new Set<string>();
     for (const m of [...liveMatches, ...upcomingMatches, ...pastMatches]) {
-      const id = getFilterId(m.game) !== m.game ? getFilterId(m.game) : getFilterId(m.gameSlug);
-      activeGameIds.add(id);
+      activeGameIds.add(getGameId(m));
     }
 
-    for (const game of GAME_FILTERS.filter(g => g.id !== "all")) {
-      if (!activeGameIds.has(game.id)) continue; // skip games with no data at all
-      const live = liveMatches.filter(m => {
-        const id = getFilterId(m.game) !== m.game ? getFilterId(m.game) : getFilterId(m.gameSlug);
-        return id === game.id;
-      });
+    for (const game of gameFilters.filter(g => g.id !== "all")) {
+      if (!activeGameIds.has(game.id)) continue;
+      const live = liveMatches.filter(m => getGameId(m) === game.id);
       const cards = [...live];
-      // Backfill first with upcoming, then with completed
       if (cards.length < 2) {
-        const upNext = (upcomingByGame[game.id] || []).slice(0, 2 - cards.length);
-        cards.push(...upNext);
+        cards.push(...(upcomingByGame[game.id] || []).slice(0, 2 - cards.length));
       }
       if (cards.length < 2) {
-        const past = (completedByGame[game.id] || []).slice(0, 2 - cards.length);
-        cards.push(...past);
+        cards.push(...(completedByGame[game.id] || []).slice(0, 2 - cards.length));
       }
       if (cards.length > 0) groups[game.id] = cards.slice(0, 2);
     }
     return groups;
-  }, [activeTab, liveMatches, upcomingMatches, pastMatches]);
+  }, [activeTab, liveMatches, upcomingMatches, pastMatches, gameFilters]);
 
   const displayGroups = activeTab === "live" ? liveGameGroups : gameGroups;
 
@@ -342,7 +471,7 @@ function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, on
 
       {/* Game groups */}
       <div className="space-y-8">
-        {GAME_FILTERS.filter(g => g.id !== "all").map((game) => {
+        {gameFilters.filter(g => g.id !== "all").map((game) => {
           const matches = displayGroups[game.id];
           if (!matches || matches.length === 0) return null;
           return (
@@ -364,7 +493,7 @@ function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, on
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {matches.map((match) => (
-                  <MatchCard key={match.id} match={match} onWatchLive={onWatchLive} />
+                  <MatchCard key={match.id} match={match} gameFilters={gameFilters} onWatchLive={onWatchLive} />
                 ))}
               </div>
             </div>
@@ -391,18 +520,16 @@ interface GameViewProps {
   liveMatches: EsportsMatch[];
   upcomingMatches: EsportsMatch[];
   pastMatches: EsportsMatch[];
-  onWatchLive: () => void;
+  gameFilters: GameFilter[];
+  onWatchLive: (match: EsportsMatch) => void;
 }
 
-function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, onWatchLive }: GameViewProps) {
+function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, gameFilters, onWatchLive }: GameViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>("live");
-  const game = GAME_FILTERS.find(g => g.id === gameId);
+  const game = gameFilters.find(g => g.id === gameId);
 
   const allForGame = useMemo(() => (
-    [...liveMatches, ...upcomingMatches, ...pastMatches].filter(m => {
-      const id = getFilterId(m.game) !== m.game ? getFilterId(m.game) : getFilterId(m.gameSlug);
-      return id === gameId;
-    })
+    [...liveMatches, ...upcomingMatches, ...pastMatches].filter(m => getGameId(m) === gameId)
   ), [gameId, liveMatches, upcomingMatches, pastMatches]);
 
   const filteredMatches = useMemo(() => {
@@ -436,8 +563,8 @@ function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, onWatchLi
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <span className="text-2xl">{game?.icon}</span>
-        <h2 className="text-xl font-bold text-foreground">{game?.label}</h2>
+        <span className="text-2xl">{game?.icon ?? "🎮"}</span>
+        <h2 className="text-xl font-bold text-foreground">{game?.label ?? gameId}</h2>
       </div>
 
       {/* Tabs */}
@@ -483,7 +610,7 @@ function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, onWatchLi
                 )}
                 <div className="grid gap-3">
                   {matches.map((match) => (
-                    <MatchCard key={match.id} match={match} onWatchLive={onWatchLive} />
+                    <MatchCard key={match.id} match={match} gameFilters={gameFilters} onWatchLive={onWatchLive} />
                   ))}
                 </div>
               </div>
@@ -505,6 +632,7 @@ export default function Esports() {
   const navigate = useNavigate();
   const [activeGame, setActiveGame] = useState("all");
   const [activeTab, setActiveTab] = useState<TabType>("live");
+  const [watchingMatch, setWatchingMatch] = useState<EsportsMatch | null>(null);
 
   const { liveMatches, upcomingMatches, pastMatches, isLoading, error } = useEsportsMatches();
 
@@ -517,6 +645,26 @@ export default function Esports() {
     }
   }, [gameId]);
 
+  // Derive game filters dynamically from actual match data
+  const gameFilters: GameFilter[] = useMemo(() => {
+    const seen = new Map<string, GameFilter>();
+    for (const m of [...liveMatches, ...upcomingMatches, ...pastMatches]) {
+      const id = getGameId(m);
+      if (!seen.has(id)) {
+        const meta = GAME_META[id];
+        seen.set(id, {
+          id,
+          label: meta?.label ?? m.game,
+          icon: meta?.icon ?? "🎮",
+        });
+      }
+    }
+    return [
+      { id: "all", label: "All Games", icon: "🎮" },
+      ...Array.from(seen.values()),
+    ];
+  }, [liveMatches, upcomingMatches, pastMatches]);
+
   const handleGameFilter = (id: string) => {
     if (id === "all") {
       navigate("/esports");
@@ -526,8 +674,9 @@ export default function Esports() {
     }
   };
 
-  const handleWatchLive = () => {
+  const handleWatchLive = (match: EsportsMatch) => {
     addXP(25);
+    setWatchingMatch(match);
   };
 
   return (
@@ -568,9 +717,9 @@ export default function Esports() {
           </div>
         )}
 
-        {/* Game Selector Bar */}
+        {/* Game Selector Bar — derived from live data */}
         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-thin mb-2">
-          {GAME_FILTERS.map((game) => (
+          {gameFilters.map((game) => (
             <motion.button
               key={game.id}
               whileTap={{ scale: 0.95 }}
@@ -595,6 +744,7 @@ export default function Esports() {
               upcomingMatches={upcomingMatches}
               pastMatches={pastMatches}
               isLoading={isLoading}
+              gameFilters={gameFilters}
               onWatchLive={handleWatchLive}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -605,11 +755,19 @@ export default function Esports() {
               liveMatches={liveMatches}
               upcomingMatches={upcomingMatches}
               pastMatches={pastMatches}
+              gameFilters={gameFilters}
               onWatchLive={handleWatchLive}
             />
           )}
         </AnimatePresence>
       </main>
+
+      {/* Twitch Embed Modal */}
+      <AnimatePresence>
+        {watchingMatch && (
+          <TwitchModal match={watchingMatch} onClose={() => setWatchingMatch(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
