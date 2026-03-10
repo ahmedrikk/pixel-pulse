@@ -1,10 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, TrendingUp, Monitor, Gamepad2, Search, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
-import { CATALOG_GAMES, GENRES, type CatalogGame } from "@/data/gameCatalogData";
+import { useGameCatalog, type CatalogGame } from "@/hooks/useGameCatalog";
 import { SiteLayout } from "@/components/SiteLayout";
 import { Input } from "@/components/ui/input";
+
+const GENRES = [
+  { id: "all",        label: "All Games",   icon: "🎮" },
+  { id: "action-rpg", label: "Action RPG", icon: "⚔️" },
+  { id: "fps",        label: "FPS",         icon: "🔫" },
+  { id: "adventure",  label: "Adventure",   icon: "🗺️" },
+  { id: "strategy",   label: "Strategy",    icon: "♟️" },
+  { id: "racing",     label: "Racing",      icon: "🏎️" },
+  { id: "sports",     label: "Sports",      icon: "⚽" },
+];
 
 const platformIcons: Record<string, React.ReactNode> = {
   PC: <Monitor className="h-3.5 w-3.5" />,
@@ -55,14 +65,16 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
           <h3 className="font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
             {game.name}
           </h3>
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-            {game.description}
-          </p>
+          {game.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+              {game.description}
+            </p>
+          )}
 
           <div className="flex items-center justify-between pt-1">
             {/* Platforms */}
-            <div className="flex items-center gap-1.5">
-              {game.platforms.map((p) => (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {game.platforms.slice(0, 3).map((p) => (
                 <span
                   key={p}
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-secondary text-muted-foreground text-[10px] font-medium"
@@ -73,10 +85,12 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
               ))}
             </div>
 
-            {/* Ratings count */}
-            <span className="text-[10px] text-muted-foreground">
-              {(game.totalRatings / 1000).toFixed(1)}k reviews
-            </span>
+            {/* Metacritic score if available */}
+            {game.metacriticScore && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                MC {game.metacriticScore}
+              </span>
+            )}
           </div>
         </div>
       </Link>
@@ -87,17 +101,21 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
 export default function GameCatalog() {
   const [activeGenre, setActiveGenre] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const filteredGames = CATALOG_GAMES.filter((game) => {
-    const matchesGenre = activeGenre === "all" || game.genre === activeGenre;
-    const matchesSearch =
-      !searchQuery ||
-      game.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      game.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesGenre && matchesSearch;
+  // Debounce search to avoid hammering API
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const { data: games = [], isLoading, error } = useGameCatalog({
+    search: debouncedSearch || undefined,
+    genre: activeGenre === "all" ? undefined : activeGenre,
   });
 
-  const trendingGames = CATALOG_GAMES.filter((g) => g.trending);
+  const trendingGames = games.filter((g) => g.trending);
+  const filteredGames = games;   // hook already filters by genre/search
 
   return (
     <SiteLayout>
@@ -113,38 +131,40 @@ export default function GameCatalog() {
         </motion.div>
 
         {/* Trending Section */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-5 w-5 text-accent" />
-            <h2 className="text-lg font-bold text-foreground">Trending Now</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {trendingGames.map((game) => (
-              <Link
-                key={game.id}
-                to={`/reviews/${game.id}`}
-                className="group relative aspect-[3/4] rounded-xl overflow-hidden card-shadow hover:card-shadow-hover transition-all hover:-translate-y-1"
-              >
-                <img
-                  src={game.coverImage}
-                  alt={game.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <h3 className="text-sm font-bold text-foreground line-clamp-2 leading-tight group-hover:text-primary transition-colors">
-                    {game.name}
-                  </h3>
-                  <div className="flex items-center gap-1 mt-1">
-                    <Star className="h-3 w-3 fill-primary text-primary" />
-                    <span className="text-xs font-bold text-foreground">{game.rating}</span>
+        {trendingGames.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="h-5 w-5 text-accent" />
+              <h2 className="text-lg font-bold text-foreground">Trending Now</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {trendingGames.slice(0, 6).map((game) => (
+                <Link
+                  key={game.id}
+                  to={`/reviews/${game.id}`}
+                  className="group relative aspect-[3/4] rounded-xl overflow-hidden card-shadow hover:card-shadow-hover transition-all hover:-translate-y-1"
+                >
+                  <img
+                    src={game.coverImage}
+                    alt={game.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-3">
+                    <h3 className="text-sm font-bold text-foreground line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+                      {game.name}
+                    </h3>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Star className="h-3 w-3 fill-primary text-primary" />
+                      <span className="text-xs font-bold text-foreground">{game.rating}</span>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </motion.div>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Search + Filters */}
         <motion.div
@@ -190,18 +210,36 @@ export default function GameCatalog() {
             <h2 className="text-lg font-bold text-foreground">
               {activeGenre === "all" ? "All Games" : GENRES.find((g) => g.id === activeGenre)?.label}
             </h2>
-            <span className="text-sm text-muted-foreground">{filteredGames.length} games</span>
+            {!isLoading && (
+              <span className="text-sm text-muted-foreground">{filteredGames.length} games</span>
+            )}
           </div>
 
-          <AnimatePresence mode="popLayout">
+          {isLoading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredGames.map((game, i) => (
-                <GameCard key={game.id} game={game} index={i} />
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-64 rounded-2xl bg-secondary animate-pulse" />
               ))}
             </div>
-          </AnimatePresence>
+          )}
 
-          {filteredGames.length === 0 && (
+          {error && (
+            <p className="text-center text-muted-foreground py-12">
+              Failed to load games. Please try again.
+            </p>
+          )}
+
+          {!isLoading && !error && (
+            <AnimatePresence mode="popLayout">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredGames.map((game, i) => (
+                  <GameCard key={game.id} game={game} index={i} />
+                ))}
+              </div>
+            </AnimatePresence>
+          )}
+
+          {!isLoading && !error && filteredGames.length === 0 && (
             <div className="text-center py-16">
               <p className="text-muted-foreground text-lg">No games found matching your criteria.</p>
             </div>
