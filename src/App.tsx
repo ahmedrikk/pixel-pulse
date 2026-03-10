@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Esports from "./pages/Esports";
 import GameCatalog from "./pages/GameCatalog";
 import GameReview from "./pages/GameReview";
+import BattlePass from "./pages/BattlePass";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
