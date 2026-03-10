@@ -1,4 +1,5 @@
-const BASE_URL = "https://api.pandascore.co";
+import { supabase } from "@/integrations/supabase/client";
+
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&h=400&fit=crop";
 
@@ -26,8 +27,9 @@ export interface EsportsMatch {
   team2Image: string | null;
   score1: number;
   score2: number;
-  game: string;
-  gameLabel: string;
+  game: string;         // videogame name, e.g. "Counter-Strike"
+  gameSlug: string;     // videogame slug, e.g. "cs-go"
+  gameLabel: string;    // short label, e.g. "CS2"
   tournament: string;
   league: string;
   numberOfGames: number | null;
@@ -82,6 +84,7 @@ export function transformMatch(match: PandaScoreMatch): EsportsMatch {
     score1,
     score2,
     game: match.videogame.name,
+    gameSlug: match.videogame.slug,
     gameLabel: getGameLabel(match.videogame.name),
     tournament: match.tournament.name,
     league: match.league.name,
@@ -92,48 +95,28 @@ export function transformMatch(match: PandaScoreMatch): EsportsMatch {
   };
 }
 
-// --- API fetchers ---
+// --- Proxy via Supabase Edge Function (avoids CORS) ---
 
-function getHeaders(): HeadersInit {
-  const key = import.meta.env.VITE_PANDASCORE_API_KEY;
-  if (!key) throw new Error("VITE_PANDASCORE_API_KEY is not set");
-  return {
-    Authorization: `Bearer ${key}`,
-  };
+async function pandaProxy(path: string, params: Record<string, string> = {}): Promise<PandaScoreMatch[]> {
+  const { data, error } = await supabase.functions.invoke("pandascore-proxy", {
+    body: { path, params },
+  });
+  if (error) throw new Error(`PandaScore proxy error: ${error.message}`);
+  if (!Array.isArray(data)) throw new Error("Unexpected PandaScore response");
+  return data as PandaScoreMatch[];
 }
 
 export async function fetchLiveMatches(): Promise<EsportsMatch[]> {
-  const res = await fetch(`${BASE_URL}/matches/running?page[size]=5`, {
-    headers: getHeaders(),
-  });
-  if (!res.ok) throw new Error(`PandaScore error: ${res.status}`);
-  const data: PandaScoreMatch[] = await res.json();
-  return data
-    .filter((m) => m.opponents.length >= 2)
-    .map(transformMatch);
+  const data = await pandaProxy("/matches/running", { "page[size]": "5" });
+  return data.filter((m) => m.opponents.length >= 2).map(transformMatch);
 }
 
 export async function fetchUpcomingMatches(): Promise<EsportsMatch[]> {
-  const res = await fetch(
-    `${BASE_URL}/matches/upcoming?sort=begin_at&page[size]=10`,
-    { headers: getHeaders() }
-  );
-  if (!res.ok) throw new Error(`PandaScore error: ${res.status}`);
-  const data: PandaScoreMatch[] = await res.json();
-  return data
-    .filter((m) => m.opponents.length >= 2)
-    .map(transformMatch);
+  const data = await pandaProxy("/matches/upcoming", { sort: "begin_at", "page[size]": "10" });
+  return data.filter((m) => m.opponents.length >= 2).map(transformMatch);
 }
 
 export async function fetchPastMatches(): Promise<EsportsMatch[]> {
-  const res = await fetch(
-    `${BASE_URL}/matches/past?sort=-begin_at&page[size]=10`,
-    { headers: getHeaders() }
-  );
-  if (!res.ok) throw new Error(`PandaScore error: ${res.status}`);
-  const data: PandaScoreMatch[] = await res.json();
-  return data
-    .filter((m) => m.opponents.length >= 2)
-    .map(transformMatch);
+  const data = await pandaProxy("/matches/past", { sort: "-begin_at", "page[size]": "10" });
+  return data.filter((m) => m.opponents.length >= 2).map(transformMatch);
 }
-
