@@ -28,6 +28,7 @@ const App = () => (
               <Route path="/esports/:gameId" element={<Esports />} />
               <Route path="/reviews" element={<GameCatalog />} />
               <Route path="/reviews/:gameId" element={<GameReview />} />
+              <Route path="/battle-pass" element={<BattlePass />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
