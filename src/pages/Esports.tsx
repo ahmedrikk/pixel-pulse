@@ -16,16 +16,20 @@ import { XPProgressBar } from "@/components/XPProgressBar";
 type TabType = "live" | "upcoming" | "results";
 
 // Map PandaScore videogame names/slugs to GAME_FILTERS ids (case-insensitive)
+// PandaScore returns names like "LoL", "Counter-Strike", "Valorant"
 const GAME_TO_FILTER_ID: Record<string, string> = {
-  // by name
+  // by name (exactly as PandaScore returns)
   "valorant": "valorant",
   "counter-strike": "cs2",
   "counter-strike 2": "cs2",
+  "lol": "lol",
   "league of legends": "lol",
   "dota 2": "dota2",
+  "dota2": "dota2",
   "overwatch": "overwatch",
   "overwatch 2": "overwatch",
   "rainbow six siege": "r6",
+  "r6": "r6",
   // by slug
   "cs-go": "cs2",
   "dota-2": "dota2",
@@ -248,26 +252,40 @@ function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, on
 
   const gameGroups = useMemo(() => groupByGame(filteredByTab), [filteredByTab]);
 
-  // For "live" tab: backfill with recent completed when < 2 live per game
+  // For "live" tab: show live matches per game, backfill with upcoming then completed
   const liveGameGroups = useMemo(() => {
     if (activeTab !== "live") return {};
     const groups: Record<string, EsportsMatch[]> = {};
+    const upcomingByGame = groupByGame([...upcomingMatches].sort((a, b) => new Date(a.begin_at ?? 0).getTime() - new Date(b.begin_at ?? 0).getTime()));
     const completedByGame = groupByGame([...pastMatches].sort((a, b) => new Date(b.begin_at ?? 0).getTime() - new Date(a.begin_at ?? 0).getTime()));
+
+    // Collect all game IDs that have ANY match data
+    const activeGameIds = new Set<string>();
+    for (const m of [...liveMatches, ...upcomingMatches, ...pastMatches]) {
+      const id = getFilterId(m.game) !== m.game ? getFilterId(m.game) : getFilterId(m.gameSlug);
+      activeGameIds.add(id);
+    }
+
     for (const game of GAME_FILTERS.filter(g => g.id !== "all")) {
+      if (!activeGameIds.has(game.id)) continue; // skip games with no data at all
       const live = liveMatches.filter(m => {
         const id = getFilterId(m.game) !== m.game ? getFilterId(m.game) : getFilterId(m.gameSlug);
         return id === game.id;
       });
-      if (live.length === 0) continue;
       const cards = [...live];
+      // Backfill first with upcoming, then with completed
       if (cards.length < 2) {
-        const backfill = (completedByGame[game.id] || []).slice(0, 2 - cards.length);
-        cards.push(...backfill);
+        const upNext = (upcomingByGame[game.id] || []).slice(0, 2 - cards.length);
+        cards.push(...upNext);
       }
-      groups[game.id] = cards.slice(0, 2);
+      if (cards.length < 2) {
+        const past = (completedByGame[game.id] || []).slice(0, 2 - cards.length);
+        cards.push(...past);
+      }
+      if (cards.length > 0) groups[game.id] = cards.slice(0, 2);
     }
     return groups;
-  }, [activeTab, liveMatches, pastMatches]);
+  }, [activeTab, liveMatches, upcomingMatches, pastMatches]);
 
   const displayGroups = activeTab === "live" ? liveGameGroups : gameGroups;
 
