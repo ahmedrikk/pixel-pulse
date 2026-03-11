@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   Home, Lock, Trophy, Zap, Star, Gift, Shield, Crown,
-  ChevronRight, Clock, Flame, Award, Sparkles, Target, ArrowLeft,
+  ChevronRight, ChevronLeft, Clock, Flame, Award, Sparkles, Target, ArrowLeft,
 } from "lucide-react";
 import { useXP } from "@/contexts/XPContext";
 
