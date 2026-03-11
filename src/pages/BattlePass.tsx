@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Home, Star, Trophy, Swords, Lock, ExternalLink, ChevronRight } from "lucide-react";
+import {
+  Home, Lock, Trophy, Zap, Star, Gift, Shield, Crown,
+  ChevronRight, Clock, Flame, Award, Sparkles, Target, ArrowLeft,
+} from "lucide-react";
+import { useXP } from "@/contexts/XPContext";
 
 // ─── TYPES ──────────────────────────────────────────────────
-type TabId = "rewards" | "quests" | "howto";
 type RewardType = "badge" | "title" | "coupon" | "frame" | "cosmetic" | "milestone" | "ultimate";
+type RewardTrack = "free" | "premium";
 
 interface Tier {
   tier: number;
@@ -15,6 +19,7 @@ interface Tier {
   icon: string;
   act: number;
   unlocked: boolean;
+  track: RewardTrack;
 }
 
 interface Quest {
@@ -37,50 +42,78 @@ const SEASON_XP_MAX = 25000;
 const TIER_XP_CURRENT = 750;
 const TIER_XP_MAX = 1000;
 
-const REWARD_COLORS: Record<RewardType, { bg: string; border: string; text: string; glow: string }> = {
-  badge:     { bg: "#1a2a4a", border: "#3b82f6", text: "#93c5fd", glow: "rgba(59,130,246,0.3)" },
-  title:     { bg: "#2a1a3a", border: "#8b5cf6", text: "#c4b5fd", glow: "rgba(139,92,246,0.3)" },
-  coupon:    { bg: "#1a3a2a", border: "#10b981", text: "#6ee7b7", glow: "rgba(16,185,129,0.3)" },
-  frame:     { bg: "#3a2a1a", border: "#f59e0b", text: "#fcd34d", glow: "rgba(245,158,11,0.3)" },
-  cosmetic:  { bg: "#2a1a2a", border: "#ec4899", text: "#f9a8d4", glow: "rgba(236,72,153,0.3)" },
-  milestone: { bg: "#3a2a0a", border: "#f59e0b", text: "#fbbf24", glow: "rgba(251,191,36,0.5)" },
-  ultimate:  { bg: "#3a1a0a", border: "#ef4444", text: "#fca5a5", glow: "rgba(239,68,68,0.6)" },
+const TYPE_THEMES: Record<RewardType, { bg: string; border: string; text: string; icon: string }> = {
+  badge:     { bg: "hsl(217 91% 96%)", border: "hsl(217 91% 60%)", text: "hsl(217 91% 40%)", icon: "🏅" },
+  title:     { bg: "hsl(263 70% 96%)", border: "hsl(263 70% 55%)", text: "hsl(263 70% 35%)", icon: "🏷️" },
+  coupon:    { bg: "hsl(160 84% 95%)", border: "hsl(160 84% 39%)", text: "hsl(160 84% 25%)", icon: "🎟️" },
+  frame:     { bg: "hsl(38 92% 95%)",  border: "hsl(38 92% 50%)",  text: "hsl(38 92% 30%)",  icon: "🖼️" },
+  cosmetic:  { bg: "hsl(330 81% 96%)", border: "hsl(330 81% 55%)", text: "hsl(330 81% 35%)", icon: "✨" },
+  milestone: { bg: "hsl(38 92% 94%)",  border: "hsl(38 92% 50%)",  text: "hsl(38 92% 30%)",  icon: "⭐" },
+  ultimate:  { bg: "hsl(0 84% 96%)",   border: "hsl(0 84% 55%)",   text: "hsl(0 84% 35%)",   icon: "👑" },
 };
 
-const TIERS: Tier[] = [
-  { tier: 1,  xp: 1000,  reward: "Newcomer Badge",             type: "badge",     icon: "🏅", act: 1, unlocked: true },
-  { tier: 2,  xp: 2000,  reward: "Title: Press Start",         type: "title",     icon: "🏷️", act: 1, unlocked: true },
-  { tier: 3,  xp: 3000,  reward: "5% Gaming Coupon",           type: "coupon",    icon: "🎟️", act: 1, unlocked: true },
-  { tier: 4,  xp: 4000,  reward: "Bronze Leaderboard Frame",   type: "frame",     icon: "🖼️", act: 1, unlocked: true },
-  { tier: 5,  xp: 5000,  reward: "10% Coupon + Level Grinder", type: "milestone", icon: "⭐", act: 1, unlocked: true },
-  { tier: 6,  xp: 6000,  reward: "Silver Reaction Emotes",     type: "cosmetic",  icon: "✨", act: 2, unlocked: true },
-  { tier: 7,  xp: 7000,  reward: "Title: Lore Keeper",         type: "title",     icon: "🏷️", act: 2, unlocked: true },
-  { tier: 8,  xp: 8000,  reward: "10% Coupon (Partner B)",     type: "coupon",    icon: "🎟️", act: 2, unlocked: true },
-  { tier: 9,  xp: 9000,  reward: "Silver Leaderboard Frame",   type: "frame",     icon: "🖼️", act: 2, unlocked: true },
-  { tier: 10, xp: 10000, reward: "15% Coupon + Anim Badge",    type: "milestone", icon: "⭐", act: 2, unlocked: true },
-  { tier: 11, xp: 11000, reward: "Title: Meta Analyst",        type: "title",     icon: "🏷️", act: 2, unlocked: true },
-  { tier: 12, xp: 12000, reward: "Dark Mode UI Skin",          type: "cosmetic",  icon: "🎨", act: 2, unlocked: true },
-  { tier: 13, xp: 13000, reward: "15% Coupon (Partner C)",     type: "coupon",    icon: "🎟️", act: 3, unlocked: true },
-  { tier: 14, xp: 14000, reward: "Gold Leaderboard Frame",     type: "frame",     icon: "🖼️", act: 3, unlocked: false },
-  { tier: 15, xp: 15000, reward: "20% Coupon + Final Boss",    type: "milestone", icon: "⭐", act: 3, unlocked: false },
-  { tier: 16, xp: 16000, reward: "Trivia Champion Badge",      type: "badge",     icon: "🏅", act: 3, unlocked: false },
-  { tier: 17, xp: 17000, reward: "Title: Esports Oracle",      type: "title",     icon: "🏷️", act: 3, unlocked: false },
-  { tier: 18, xp: 18000, reward: "20% Coupon + Plat Frame",    type: "coupon",    icon: "🎟️", act: 4, unlocked: false },
-  { tier: 19, xp: 19000, reward: "Animated Profile Border",    type: "cosmetic",  icon: "✨", act: 4, unlocked: false },
-  { tier: 20, xp: 20000, reward: "25% Mega Coupon Bundle",     type: "milestone", icon: "⭐", act: 4, unlocked: false },
-  { tier: 21, xp: 21000, reward: "Title: Elite Correspondent", type: "title",     icon: "🏷️", act: 4, unlocked: false },
-  { tier: 22, xp: 22000, reward: "Rare Season Badge",          type: "badge",     icon: "🏅", act: 4, unlocked: false },
-  { tier: 23, xp: 23000, reward: "30% Premium Coupon",         type: "coupon",    icon: "🎟️", act: 5, unlocked: false },
-  { tier: 24, xp: 24000, reward: "Diamond Crown Frame",        type: "frame",     icon: "🖼️", act: 5, unlocked: false },
-  { tier: 25, xp: 25000, reward: "SEASON CHAMPION + 40% Bundle", type: "ultimate", icon: "👑", act: 5, unlocked: false },
+const FREE_TIERS: Tier[] = [
+  { tier: 1,  xp: 1000,  reward: "Newcomer Badge",             type: "badge",     icon: "🏅", act: 1, unlocked: true,  track: "free" },
+  { tier: 2,  xp: 2000,  reward: "Title: Press Start",         type: "title",     icon: "🏷️", act: 1, unlocked: true,  track: "free" },
+  { tier: 3,  xp: 3000,  reward: "5% Gaming Coupon",           type: "coupon",    icon: "🎟️", act: 1, unlocked: true,  track: "free" },
+  { tier: 4,  xp: 4000,  reward: "Bronze Leaderboard Frame",   type: "frame",     icon: "🖼️", act: 1, unlocked: true,  track: "free" },
+  { tier: 5,  xp: 5000,  reward: "10% Coupon + Level Grinder", type: "milestone", icon: "⭐", act: 1, unlocked: true,  track: "free" },
+  { tier: 6,  xp: 6000,  reward: "Silver Reaction Emotes",     type: "cosmetic",  icon: "✨", act: 2, unlocked: true,  track: "free" },
+  { tier: 7,  xp: 7000,  reward: "Title: Lore Keeper",         type: "title",     icon: "🏷️", act: 2, unlocked: true,  track: "free" },
+  { tier: 8,  xp: 8000,  reward: "10% Coupon (Partner B)",     type: "coupon",    icon: "🎟️", act: 2, unlocked: true,  track: "free" },
+  { tier: 9,  xp: 9000,  reward: "Silver Leaderboard Frame",   type: "frame",     icon: "🖼️", act: 2, unlocked: true,  track: "free" },
+  { tier: 10, xp: 10000, reward: "15% Coupon + Anim Badge",    type: "milestone", icon: "⭐", act: 2, unlocked: true,  track: "free" },
+  { tier: 11, xp: 11000, reward: "Title: Meta Analyst",        type: "title",     icon: "🏷️", act: 2, unlocked: true,  track: "free" },
+  { tier: 12, xp: 12000, reward: "Dark Mode UI Skin",          type: "cosmetic",  icon: "🎨", act: 2, unlocked: true,  track: "free" },
+  { tier: 13, xp: 13000, reward: "15% Coupon (Partner C)",     type: "coupon",    icon: "🎟️", act: 3, unlocked: true,  track: "free" },
+  { tier: 14, xp: 14000, reward: "Gold Leaderboard Frame",     type: "frame",     icon: "🖼️", act: 3, unlocked: false, track: "free" },
+  { tier: 15, xp: 15000, reward: "20% Coupon + Final Boss",    type: "milestone", icon: "⭐", act: 3, unlocked: false, track: "free" },
+  { tier: 16, xp: 16000, reward: "Trivia Champion Badge",      type: "badge",     icon: "🏅", act: 3, unlocked: false, track: "free" },
+  { tier: 17, xp: 17000, reward: "Title: Esports Oracle",      type: "title",     icon: "🏷️", act: 3, unlocked: false, track: "free" },
+  { tier: 18, xp: 18000, reward: "20% Coupon + Plat Frame",    type: "coupon",    icon: "🎟️", act: 4, unlocked: false, track: "free" },
+  { tier: 19, xp: 19000, reward: "Animated Profile Border",    type: "cosmetic",  icon: "✨", act: 4, unlocked: false, track: "free" },
+  { tier: 20, xp: 20000, reward: "25% Mega Coupon Bundle",     type: "milestone", icon: "⭐", act: 4, unlocked: false, track: "free" },
+  { tier: 21, xp: 21000, reward: "Title: Elite Correspondent", type: "title",     icon: "🏷️", act: 4, unlocked: false, track: "free" },
+  { tier: 22, xp: 22000, reward: "Rare Season Badge",          type: "badge",     icon: "🏅", act: 4, unlocked: false, track: "free" },
+  { tier: 23, xp: 23000, reward: "30% Premium Coupon",         type: "coupon",    icon: "🎟️", act: 5, unlocked: false, track: "free" },
+  { tier: 24, xp: 24000, reward: "Diamond Crown Frame",        type: "frame",     icon: "🖼️", act: 5, unlocked: false, track: "free" },
+  { tier: 25, xp: 25000, reward: "SEASON CHAMPION + 40%",      type: "ultimate",  icon: "👑", act: 5, unlocked: false, track: "free" },
+];
+
+const PREMIUM_TIERS: Tier[] = [
+  { tier: 1,  xp: 1000,  reward: "Exclusive Emblem",           type: "cosmetic",  icon: "💎", act: 1, unlocked: false, track: "premium" },
+  { tier: 2,  xp: 2000,  reward: "Holographic Title",          type: "title",     icon: "🌟", act: 1, unlocked: false, track: "premium" },
+  { tier: 3,  xp: 3000,  reward: "Premium Emote Pack",         type: "cosmetic",  icon: "🎭", act: 1, unlocked: false, track: "premium" },
+  { tier: 4,  xp: 4000,  reward: "Animated Avatar Frame",      type: "frame",     icon: "💫", act: 1, unlocked: false, track: "premium" },
+  { tier: 5,  xp: 5000,  reward: "Legendary Crate",            type: "milestone", icon: "📦", act: 1, unlocked: false, track: "premium" },
+  { tier: 6,  xp: 6000,  reward: "Neon Reaction Set",          type: "cosmetic",  icon: "🌈", act: 2, unlocked: false, track: "premium" },
+  { tier: 7,  xp: 7000,  reward: "Title: Mythic Reader",       type: "title",     icon: "📖", act: 2, unlocked: false, track: "premium" },
+  { tier: 8,  xp: 8000,  reward: "15% Exclusive Coupon",       type: "coupon",    icon: "🎫", act: 2, unlocked: false, track: "premium" },
+  { tier: 9,  xp: 9000,  reward: "Gold Animated Frame",        type: "frame",     icon: "🏆", act: 2, unlocked: false, track: "premium" },
+  { tier: 10, xp: 10000, reward: "Epic Engram",                type: "milestone", icon: "🔮", act: 2, unlocked: false, track: "premium" },
+  { tier: 11, xp: 11000, reward: "Prismatic Shader",           type: "cosmetic",  icon: "🎨", act: 2, unlocked: false, track: "premium" },
+  { tier: 12, xp: 12000, reward: "Title: Data Miner",          type: "title",     icon: "⛏️", act: 2, unlocked: false, track: "premium" },
+  { tier: 13, xp: 13000, reward: "25% Partner Coupon",         type: "coupon",    icon: "🎫", act: 3, unlocked: false, track: "premium" },
+  { tier: 14, xp: 14000, reward: "Platinum Frame",             type: "frame",     icon: "🪙", act: 3, unlocked: false, track: "premium" },
+  { tier: 15, xp: 15000, reward: "Exotic Engram",              type: "milestone", icon: "💠", act: 3, unlocked: false, track: "premium" },
+  { tier: 16, xp: 16000, reward: "Legendary Badge",            type: "badge",     icon: "🎖️", act: 3, unlocked: false, track: "premium" },
+  { tier: 17, xp: 17000, reward: "Title: Grandmaster",         type: "title",     icon: "👑", act: 3, unlocked: false, track: "premium" },
+  { tier: 18, xp: 18000, reward: "30% Mega Coupon",            type: "coupon",    icon: "🎫", act: 4, unlocked: false, track: "premium" },
+  { tier: 19, xp: 19000, reward: "Celestial Border",           type: "cosmetic",  icon: "🌠", act: 4, unlocked: false, track: "premium" },
+  { tier: 20, xp: 20000, reward: "Ascendant Shard",            type: "milestone", icon: "💎", act: 4, unlocked: false, track: "premium" },
+  { tier: 21, xp: 21000, reward: "Title: Vanguard",            type: "title",     icon: "🛡️", act: 4, unlocked: false, track: "premium" },
+  { tier: 22, xp: 22000, reward: "Exotic Badge",               type: "badge",     icon: "🔱", act: 4, unlocked: false, track: "premium" },
+  { tier: 23, xp: 23000, reward: "40% Premium Coupon",         type: "coupon",    icon: "🎫", act: 5, unlocked: false, track: "premium" },
+  { tier: 24, xp: 24000, reward: "Ascendant Frame",            type: "frame",     icon: "⚜️", act: 5, unlocked: false, track: "premium" },
+  { tier: 25, xp: 25000, reward: "MYTHIC CHAMPION BUNDLE",     type: "ultimate",  icon: "🏛️", act: 5, unlocked: false, track: "premium" },
 ];
 
 const ACTS = [
-  { num: 1, name: "Origin",  color: "#f97316", range: [0, 5000] as [number, number], tiers: "T1–5" },
-  { num: 2, name: "Rising",  color: "#3b82f6", range: [5000, 12000] as [number, number], tiers: "T6–12" },
-  { num: 3, name: "Apex",    color: "#8b5cf6", range: [12000, 17000] as [number, number], tiers: "T13–17" },
-  { num: 4, name: "Siege",   color: "#f59e0b", range: [17000, 22000] as [number, number], tiers: "T18–22" },
-  { num: 5, name: "Endgame", color: "#ef4444", range: [22000, 25000] as [number, number], tiers: "T23–25" },
+  { num: 1, name: "Origin",  tiers: "T1–5" },
+  { num: 2, name: "Rising",  tiers: "T6–12" },
+  { num: 3, name: "Apex",    tiers: "T13–17" },
+  { num: 4, name: "Siege",   tiers: "T18–22" },
+  { num: 5, name: "Endgame", tiers: "T23–25" },
 ];
 
 const INITIAL_QUESTS: Quest[] = [
@@ -93,70 +126,35 @@ const INITIAL_QUESTS: Quest[] = [
   { id: "q7", icon: "🔥", title: "Streak Keeper",      description: "Maintain your daily login streak", xpReward: 50, current: 1, target: 1, done: true },
 ];
 
-const NAV_ITEMS = [
-  { icon: Home, label: "Home", href: "/" },
-  { icon: Star, label: "Reviews", href: "/reviews" },
-  { icon: Trophy, label: "Esports", href: "/esports" },
-  { icon: Swords, label: "Battle Pass", href: "/battle-pass" },
+const REWARD_GRID = [
+  { name: "Legendary Weapon", icon: "⚔️", level: 5,  rarity: "Legendary" },
+  { name: "Enhancement Core", icon: "🔧", level: 8,  rarity: "Rare" },
+  { name: "Exotic Engram",    icon: "🔮", level: 10, rarity: "Exotic" },
+  { name: "Season Emblem",    icon: "🛡️", level: 12, rarity: "Legendary" },
+  { name: "Bright Dust",      icon: "✨", level: 15, rarity: "Common" },
+  { name: "Shader Pack",      icon: "🎨", level: 18, rarity: "Rare" },
+  { name: "Exotic Emote",     icon: "💃", level: 20, rarity: "Exotic" },
+  { name: "Ascendant Shard",  icon: "💎", level: 22, rarity: "Legendary" },
+  { name: "Ornament Set",     icon: "👗", level: 24, rarity: "Exotic" },
+  { name: "Gilded Title",     icon: "👑", level: 25, rarity: "Mythic" },
 ];
 
-const XP_SOURCES = [
-  {
-    group: "CORE", color: "#f97316", num: "①",
-    actions: [
-      { icon: "📰", name: "Read Article Summary", xp: 20, limit: "10×/day" },
-      { icon: "🔗", name: "Click 'Read Full Article'", xp: 35, limit: "8×/day" },
-      { icon: "🔥", name: "Article Combo (4+ reads)", xp: 40, limit: "1×/day" },
-    ],
-  },
-  {
-    group: "LOYALTY", color: "#3b82f6", num: "②",
-    actions: [
-      { icon: "📅", name: "Daily Login", xp: 50, limit: "1×/day" },
-      { icon: "⚡", name: "7-Day Streak Bonus", xp: 200, limit: "1×/week" },
-      { icon: "💎", name: "30-Day Streak Bonus", xp: 600, limit: "1×/month" },
-    ],
-  },
-  {
-    group: "TRIVIA", color: "#10b981", num: "③",
-    actions: [
-      { icon: "🧠", name: "Daily Trivia Quiz", xp: 30, limit: "1×/day" },
-      { icon: "✅", name: "Trivia Correct Answer", xp: 15, limit: "5×/day" },
-      { icon: "🎯", name: "Perfect Trivia Score", xp: 50, limit: "1×/day" },
-    ],
-  },
-  {
-    group: "ESPORTS", color: "#f59e0b", num: "④",
-    actions: [
-      { icon: "🏆", name: "Esports Prediction", xp: 25, limit: "3×/day" },
-      { icon: "🎮", name: "Correct Prediction Bonus", xp: 60, limit: "3×/day" },
-    ],
-  },
-  {
-    group: "SOCIAL", color: "#8b5cf6", num: "⑤",
-    actions: [
-      { icon: "💬", name: "Comment on Article", xp: 25, limit: "5×/day" },
-      { icon: "❤️", name: "React to Article", xp: 10, limit: "Per article" },
-      { icon: "⭐", name: "Submit Game Review", xp: 75, limit: "Per game" },
-    ],
-  },
-  {
-    group: "PASSIVE", color: "#64748b", num: "⑥",
-    actions: [
-      { icon: "📜", name: "Page Scroll (90%)", xp: 8, limit: "5×/day" },
-    ],
-  },
+const RARITY_COLORS: Record<string, string> = {
+  Common: "hsl(var(--muted-foreground))",
+  Rare: "hsl(217 91% 60%)",
+  Legendary: "hsl(263 70% 55%)",
+  Exotic: "hsl(38 92% 50%)",
+  Mythic: "hsl(0 84% 55%)",
+};
+
+const SEASON_CHALLENGES = [
+  { name: "Read 50 articles", progress: 34, target: 50, xp: 500 },
+  { name: "Complete 20 quizzes", progress: 12, target: 20, xp: 400 },
+  { name: "Win 10 predictions", progress: 3, target: 10, xp: 600 },
+  { name: "7-day login streak", progress: 5, target: 7, xp: 200 },
 ];
 
-const STREAK_MULTIPLIERS = [
-  { range: "Day 1–2", mult: "1.0×", color: "#374151" },
-  { range: "Day 3–6", mult: "1.2×", color: "#64748b" },
-  { range: "Day 7–13", mult: "1.5×", color: "#f97316" },
-  { range: "Day 14–29", mult: "1.75×", color: "#f59e0b" },
-  { range: "Day 30+", mult: "2.0×", color: "#ef4444" },
-];
-
-// ─── HELPERS ─────────────────────────────────────────────────
+// ─── HELPERS ────────────────────────────────────────────────
 function useCountdown(targetDate: Date) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -168,33 +166,18 @@ function useCountdown(targetDate: Date) {
   const h = Math.floor((diff % 86400000) / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   const s = Math.floor((diff % 60000) / 1000);
-  return { d, h, m, s, formatted: `${String(d).padStart(2, "0")}:${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` };
-}
-
-function useQuestResetCountdown() {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const midnight = new Date();
-  midnight.setUTCHours(24, 0, 0, 0);
-  const diff = Math.max(0, midnight.getTime() - now);
-  const h = Math.floor(diff / 3600000);
-  const m = Math.floor((diff % 3600000) / 60000);
-  const s = Math.floor((diff % 60000) / 1000);
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return { d, h, m, s };
 }
 
 const fadeUp = {
-  initial: { opacity: 0, y: 12 },
+  initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: 12 },
-  transition: { duration: 0.32 },
+  exit: { opacity: 0, y: -8 },
+  transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] as const },
 };
 
-// ─── SHIMMER BAR ────────────────────────────────────────────
-function ShimmerBar({ percent, delay = 0, color = "#f97316", height = "h-3", className = "" }: { percent: number; delay?: number; color?: string; height?: string; className?: string }) {
+// ─── ANIMATED XP BAR ────────────────────────────────────────
+function XPBar({ percent, delay = 0, className = "" }: { percent: number; delay?: number; className?: string }) {
   const [w, setW] = useState(0);
   useEffect(() => {
     const t = setTimeout(() => setW(percent), delay);
@@ -202,21 +185,21 @@ function ShimmerBar({ percent, delay = 0, color = "#f97316", height = "h-3", cla
   }, [percent, delay]);
 
   return (
-    <div className={`relative w-full ${height} rounded-full overflow-hidden ${className}`} style={{ background: "rgba(255,255,255,0.06)" }}>
+    <div className={`relative w-full h-3 rounded-full overflow-hidden bg-secondary ${className}`}>
       <div
-        className="h-full rounded-full relative"
+        className="h-full rounded-full relative overflow-hidden"
         style={{
           width: `${w}%`,
-          background: `linear-gradient(90deg, ${color}, ${color}dd, ${color})`,
-          boxShadow: `0 0 16px ${color}66`,
+          background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))",
+          boxShadow: "0 0 12px hsl(186 100% 50% / 0.3)",
           transition: `width 1.2s cubic-bezier(0.22,1,0.36,1)`,
         }}
       >
         <div
-          className="absolute inset-0 rounded-full"
+          className="absolute inset-0"
           style={{
-            background: `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)`,
-            animation: "shimmer 2s infinite",
+            background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%)",
+            animation: "bp-shimmer 2s infinite",
           }}
         />
       </div>
@@ -224,30 +207,45 @@ function ShimmerBar({ percent, delay = 0, color = "#f97316", height = "h-3", cla
   );
 }
 
+// ─── FLOATING XP ANIMATION ──────────────────────────────────
+function FloatingXPIndicator({ amount }: { amount: number }) {
+  return (
+    <motion.span
+      className="absolute text-sm font-bold pointer-events-none"
+      style={{ color: "hsl(142 71% 45%)" }}
+      initial={{ opacity: 1, y: 0, x: "-50%" }}
+      animate={{ opacity: 0, y: -40, x: "-50%" }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1.2, ease: "easeOut" }}
+    >
+      +{amount} XP
+    </motion.span>
+  );
+}
+
 // ─── MAIN COMPONENT ─────────────────────────────────────────
 export default function BattlePass() {
-  const [activeTab, setActiveTab] = useState<TabId>("rewards");
   const [selectedTier, setSelectedTier] = useState(14);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
+  const [showDetail, setShowDetail] = useState(true);
   const trackRef = useRef<HTMLDivElement>(null);
   const seasonEnd = useMemo(() => new Date(Date.now() + 63 * 86400000), []);
   const countdown = useCountdown(seasonEnd);
-  const questReset = useQuestResetCountdown();
+  const { state: xpState, floatingXPs } = useXP();
 
   const doneCount = quests.filter((q) => q.done).length;
   const earnedXP = quests.filter((q) => q.done).reduce((s, q) => s + q.xpReward, 0);
-  const allDone = doneCount === 7;
 
-  // Auto-scroll track to current tier
+  // Auto-scroll to current tier
   useEffect(() => {
-    if (activeTab === "rewards" && trackRef.current) {
+    if (trackRef.current) {
       const t = setTimeout(() => {
         const el = trackRef.current?.querySelector(`[data-tier="${CURRENT_TIER}"]`);
         if (el) el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-      }, 300);
+      }, 400);
       return () => clearTimeout(t);
     }
-  }, [activeTab]);
+  }, []);
 
   const completeQuest = useCallback((id: string) => {
     setQuests((prev) =>
@@ -255,672 +253,560 @@ export default function BattlePass() {
     );
   }, []);
 
-  const selected = TIERS[selectedTier - 1];
-  const selectedColors = REWARD_COLORS[selected.type];
-  const xpAway = Math.max(0, selected.xp - CURRENT_XP);
-  const tierProgress = selected.unlocked ? 100 : Math.min(100, (CURRENT_XP / selected.xp) * 100);
+  const selected = FREE_TIERS[selectedTier - 1];
+  const selectedTheme = TYPE_THEMES[selected.type];
 
-  const sidebarTabs: { id: TabId; label: string; icon: string }[] = [
-    { id: "rewards", label: "Season & Rewards", icon: "◈" },
-    { id: "quests",  label: "Daily Quests",     icon: "◉" },
-    { id: "howto",   label: "How to Earn XP",   icon: "◇" },
-  ];
+  const selectTier = (tier: number) => {
+    setSelectedTier(tier);
+    setShowDetail(true);
+  };
 
   return (
-    <div className="min-h-screen font-['Barlow',sans-serif]" style={{ background: "#070d18" }}>
-      {/* Atmospheric overlays */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.06), transparent 70%)" }} />
-        <div className="absolute bottom-0 right-0 w-[600px] h-[400px] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(59,130,246,0.04), transparent 70%)" }} />
-        <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(rgba(249,115,22,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.022) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
-      </div>
-
-      {/* ─── STICKY HEADER ─── */}
-      <header className="sticky top-0 z-50 h-[52px] flex items-center justify-between px-5 border-b" style={{ background: "rgba(7,13,24,0.85)", backdropFilter: "blur(12px)", borderColor: "#f9731633" }}>
+    <div className="min-h-screen bg-background text-foreground">
+      {/* ─── HEADER ─── */}
+      <header className="sticky top-0 z-50 h-14 flex items-center justify-between px-6 bg-card border-b border-border shadow-sm">
         <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center justify-center w-8 h-8 rounded-md transition-colors hover:bg-white/10" style={{ color: "#f97316" }}>
-            <Home className="w-4 h-4" />
-          </Link>
-          <span className="w-px h-5" style={{ background: "#ffffff20" }} />
-          <span className="font-['Barlow_Condensed',sans-serif] font-bold text-lg tracking-wide" style={{ color: "#f97316" }}>GAME PULSE</span>
-          <span className="w-px h-5" style={{ background: "#ffffff20" }} />
-          <span className="font-['Rajdhani',sans-serif] font-600 text-sm tracking-wider" style={{ color: "#ffffff60" }}>BATTLE PASS</span>
-          <span className="font-['Rajdhani',sans-serif] font-700 text-sm" style={{ color: "#f97316" }}>S1</span>
-        </div>
-        <div className="flex items-center gap-5">
-          <div className="flex items-center gap-2">
-            <span className="font-['Rajdhani',sans-serif] text-xs tracking-wider" style={{ color: "#ffffff50" }}>ENDS</span>
-            <span className="font-['Barlow_Condensed',sans-serif] font-bold text-base tracking-wide" style={{ color: "#ffffffcc" }}>{countdown.formatted}</span>
-          </div>
-          <div
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-['Rajdhani',sans-serif] font-bold tracking-wider"
-            style={{ background: "#f9731620", border: "1px solid #f9731640", color: "#f97316", boxShadow: "0 0 12px rgba(249,115,22,0.3)", animation: "glowPulse 2s ease-in-out infinite" }}
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
           >
-            TIER {CURRENT_TIER} / {MAX_TIER}
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm font-medium">Home</span>
+          </Link>
+          <div className="w-px h-5 bg-border" />
+          <div className="flex items-center gap-2">
+            <Flame className="w-5 h-5 text-primary" />
+            <span className="font-bold text-foreground tracking-tight">GAME PULSE</span>
+          </div>
+          <div className="w-px h-5 bg-border" />
+          <span className="text-sm text-muted-foreground font-medium">BATTLE PASS</span>
+          <span className="text-sm font-bold text-primary">S1</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm">
+            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-muted-foreground">Ends in:</span>
+            <span className="font-bold text-foreground tabular-nums">
+              {countdown.d}d {countdown.h}h {countdown.m}m
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+            <Trophy className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-bold text-primary">RANK {CURRENT_TIER}</span>
           </div>
         </div>
       </header>
 
-      <div className="relative z-10 flex">
-        {/* ─── LEFT SIDEBAR ─── */}
-        <aside className="w-[205px] min-h-[calc(100vh-52px)] sticky top-[52px] flex flex-col border-r px-0 py-0 shrink-0" style={{ background: "#070d18", borderColor: "#ffffff0d" }}>
-          {/* Season info */}
-          <div className="px-4 pt-5 pb-3">
-            <p className="font-['Rajdhani',sans-serif] font-600 text-[10px] tracking-[0.2em] uppercase" style={{ color: "#ffffff40" }}>SEASON 1</p>
-            <h3 className="font-['Barlow_Condensed',sans-serif] font-800 text-base tracking-wide mt-0.5" style={{ color: "#ffffffdd" }}>SEASON OF THE EMBER</h3>
-            <p className="font-['Rajdhani',sans-serif] font-600 text-[10px] tracking-wider mt-0.5" style={{ color: "#f97316" }}>S1</p>
+      <div className="flex">
+        {/* ─── RANK TOWER (Left Panel) ─── */}
+        <aside className="w-[280px] min-h-[calc(100vh-56px)] sticky top-14 border-r border-border bg-card flex flex-col shrink-0">
+          {/* Banner image */}
+          <div className="relative h-40 overflow-hidden">
+            <img
+              src="https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&h=300&fit=crop"
+              alt="Season banner"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
           </div>
 
-          {/* XP bar */}
-          <div className="px-4 pb-4">
-            <ShimmerBar percent={(CURRENT_XP / SEASON_XP_MAX) * 100} delay={600} height="h-2" />
-            <div className="flex justify-between mt-1">
-              <span className="font-['Barlow_Condensed',sans-serif] text-[11px] font-600" style={{ color: "#f97316" }}>13,750</span>
-              <span className="font-['Barlow_Condensed',sans-serif] text-[11px] font-600" style={{ color: "#ffffff40" }}>25,000 XP</span>
+          {/* Rank display */}
+          <div className="relative -mt-16 px-6 flex flex-col items-center text-center">
+            <motion.div
+              className="w-24 h-24 rounded-2xl bg-card border-2 border-primary/30 shadow-lg flex items-center justify-center"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
+            >
+              <span className="text-4xl font-black text-primary">{CURRENT_TIER}</span>
+            </motion.div>
+            <h2 className="mt-3 text-lg font-bold text-foreground tracking-tight">RANK {CURRENT_TIER}</h2>
+            <p className="text-xs text-muted-foreground tracking-widest uppercase mt-0.5">Season of the Ember</p>
+
+            {/* Countdown */}
+            <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="w-3 h-3" />
+              <span>
+                {countdown.d} Days, {countdown.h} Hours
+              </span>
             </div>
           </div>
 
-          <div className="w-full h-px" style={{ background: "#ffffff0d" }} />
-
-          {/* Nav tabs */}
-          <div className="py-2">
-            {sidebarTabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className="w-full flex items-center gap-2 px-4 py-2.5 text-left transition-all duration-200"
-                style={{
-                  borderLeft: activeTab === t.id ? "3px solid #f97316" : "3px solid transparent",
-                  background: activeTab === t.id ? "#f9731610" : "transparent",
-                  color: activeTab === t.id ? "#f97316" : "#ffffff70",
-                }}
-              >
-                <span className="text-sm">{t.icon}</span>
-                <span className="font-['Rajdhani',sans-serif] font-600 text-[13px] tracking-wide">{t.label}</span>
-              </button>
-            ))}
+          {/* XP Progress */}
+          <div className="px-6 mt-5">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="font-semibold text-foreground">Season XP</span>
+              <span className="text-muted-foreground">
+                {CURRENT_XP.toLocaleString()} / {SEASON_XP_MAX.toLocaleString()}
+              </span>
+            </div>
+            <XPBar percent={(CURRENT_XP / SEASON_XP_MAX) * 100} delay={600} />
+            <div className="flex justify-between mt-1">
+              <span className="text-[10px] text-muted-foreground">Rank {CURRENT_TIER}</span>
+              <span className="text-[10px] text-muted-foreground">Rank {CURRENT_TIER + 1}</span>
+            </div>
           </div>
 
-          <div className="w-full h-px" style={{ background: "#ffffff0d" }} />
+          {/* Current tier XP */}
+          <div className="px-6 mt-4">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="font-medium text-foreground">To Next Rank</span>
+              <span className="text-muted-foreground font-semibold">{TIER_XP_CURRENT} / {TIER_XP_MAX}</span>
+            </div>
+            <XPBar percent={(TIER_XP_CURRENT / TIER_XP_MAX) * 100} delay={800} />
+          </div>
 
-          {/* Quest strip */}
-          <div className="px-4 py-4 mt-auto">
-            <div className="flex gap-1 mb-1.5">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex-1 h-[6px] rounded-full"
-                  style={{ background: i < doneCount ? "#10b981" : "#ffffff10" }}
-                />
+          <div className="mx-6 my-4 h-px bg-border" />
+
+          {/* Season challenges */}
+          <div className="px-6 flex-1">
+            <h3 className="text-xs font-bold text-foreground tracking-wider uppercase mb-3 flex items-center gap-1.5">
+              <Target className="w-3.5 h-3.5 text-primary" />
+              Season Ranks
+            </h3>
+            <div className="space-y-3">
+              {SEASON_CHALLENGES.map((ch) => (
+                <div key={ch.name}>
+                  <div className="flex justify-between text-[11px] mb-1">
+                    <span className="text-foreground/80 font-medium">{ch.name}</span>
+                    <span className="text-muted-foreground">{ch.progress}/{ch.target}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary/60 transition-all duration-700"
+                      style={{ width: `${(ch.progress / ch.target) * 100}%` }}
+                    />
+                  </div>
+                </div>
               ))}
             </div>
-            <p className="font-['Barlow',sans-serif] text-[11px]" style={{ color: "#ffffff50" }}>
-              {doneCount}/7 · <span style={{ color: "#10b981" }}>+{earnedXP} XP</span>
-            </p>
           </div>
 
-          {/* Site nav links */}
-          <div className="border-t px-2 py-3" style={{ borderColor: "#ffffff0d" }}>
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.label}
-                to={item.href}
-                className="flex items-center gap-2 px-3 py-2 rounded transition-colors"
-                style={{ color: item.href === "/battle-pass" ? "#f97316" : "#ffffff50" }}
-              >
-                <item.icon className="h-4 w-4" />
-                <span className="font-['Rajdhani',sans-serif] text-[12px] font-600 tracking-wide">{item.label}</span>
-              </Link>
-            ))}
+          {/* XP Bonus */}
+          <div className="px-6 pb-6 mt-4">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
+              <Zap className="w-5 h-5 text-primary mx-auto mb-1" />
+              <p className="text-xs font-bold text-primary">+20% XP BONUS</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Season Pass Active</p>
+            </div>
           </div>
         </aside>
 
         {/* ─── MAIN CONTENT ─── */}
-        <main className="flex-1 min-h-[calc(100vh-52px)] overflow-x-hidden bp-scrollbar">
+        <main className="flex-1 min-h-[calc(100vh-56px)] overflow-x-hidden">
+          {/* ─── HORIZONTAL PROGRESSION TRACK ─── */}
+          <section className="border-b border-border bg-card/50 p-6 pb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Award className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-bold text-foreground">Progression Track</h2>
+              </div>
+              <div className="flex gap-2">
+                {ACTS.map((act) => (
+                  <span
+                    key={act.num}
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground"
+                  >
+                    ACT {act.num} · {act.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* FREE TRACK */}
+            <div className="mb-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-primary bg-primary/10 px-2 py-0.5 rounded">
+                  FREE TRACK
+                </span>
+              </div>
+              <div ref={trackRef} className="overflow-x-auto pb-2 bp-scroll">
+                <div className="flex gap-1.5 min-w-max">
+                  {FREE_TIERS.map((t) => {
+                    const theme = TYPE_THEMES[t.type];
+                    const isCurrent = t.tier === CURRENT_TIER;
+                    const isSelected = t.tier === selectedTier;
+                    const isMilestone = [5, 10, 15, 20, 25].includes(t.tier);
+
+                    return (
+                      <div key={t.tier} data-tier={t.tier} className="flex flex-col items-center gap-0.5">
+                        {isCurrent && (
+                          <span className="text-[8px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                            ▶ NOW
+                          </span>
+                        )}
+                        {t.tier === CURRENT_TIER + 1 && !isCurrent && (
+                          <span className="text-[8px] font-bold text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                            NEXT
+                          </span>
+                        )}
+                        {t.tier !== CURRENT_TIER && t.tier !== CURRENT_TIER + 1 && <div className="h-[18px]" />}
+
+                        <span className="text-[8px] font-semibold text-muted-foreground">{t.tier}</span>
+
+                        <motion.button
+                          onClick={() => selectTier(t.tier)}
+                          className="relative w-[68px] h-[78px] rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer border-2 transition-shadow"
+                          style={{
+                            background: t.unlocked ? theme.bg : "hsl(var(--secondary))",
+                            borderColor: isSelected ? theme.border : t.unlocked ? theme.border + "60" : "hsl(var(--border))",
+                            opacity: t.unlocked ? 1 : 0.5,
+                            boxShadow: isSelected
+                              ? `0 0 0 2px ${theme.border}, 0 4px 16px ${theme.border}30`
+                              : isCurrent
+                              ? `0 0 0 2px hsl(var(--primary)), 0 4px 12px hsl(var(--primary) / 0.2)`
+                              : "none",
+                          }}
+                          whileHover={{ y: -4, scale: 1.05 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                        >
+                          {!t.unlocked && (
+                            <Lock className="absolute top-1.5 right-1.5 w-2.5 h-2.5 text-muted-foreground/50" />
+                          )}
+                          {isMilestone && t.unlocked && (
+                            <Star className="absolute top-1 left-1 w-2.5 h-2.5" style={{ color: theme.border }} />
+                          )}
+                          <span className="text-xl leading-none">{t.icon}</span>
+                          <span className="text-[8px] font-semibold" style={{ color: t.unlocked ? theme.text : "hsl(var(--muted-foreground))" }}>
+                            {(t.xp / 1000).toFixed(0)}K XP
+                          </span>
+                        </motion.button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Progress line */}
+                <div className="mt-2 h-1 rounded-full bg-secondary overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))" }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(CURRENT_XP / SEASON_XP_MAX) * 100}%` }}
+                    transition={{ duration: 1.2, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* PREMIUM TRACK */}
+            <div className="mt-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[10px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground px-2 py-0.5 rounded flex items-center gap-1">
+                  <Lock className="w-2.5 h-2.5" />
+                  PREMIUM PASS
+                </span>
+                <span className="text-[10px] text-muted-foreground">Unlock all premium rewards</span>
+              </div>
+              <div className="overflow-x-auto pb-2 bp-scroll">
+                <div className="flex gap-1.5 min-w-max">
+                  {PREMIUM_TIERS.map((t) => {
+                    const theme = TYPE_THEMES[t.type];
+                    return (
+                      <div key={`p-${t.tier}`} className="flex flex-col items-center gap-0.5">
+                        <div className="h-[18px]" />
+                        <span className="text-[8px] font-semibold text-muted-foreground/40">{t.tier}</span>
+                        <div
+                          className="relative w-[68px] h-[78px] rounded-xl flex flex-col items-center justify-center gap-1 border-2 opacity-40 cursor-not-allowed"
+                          style={{
+                            background: "hsl(var(--secondary))",
+                            borderColor: "hsl(var(--border))",
+                          }}
+                        >
+                          <Lock className="absolute top-1.5 right-1.5 w-2.5 h-2.5 text-muted-foreground/30" />
+                          <span className="text-xl leading-none grayscale">{t.icon}</span>
+                          <span className="text-[8px] font-semibold text-muted-foreground/50">
+                            {(t.xp / 1000).toFixed(0)}K XP
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ─── SELECTED TIER DETAIL ─── */}
           <AnimatePresence mode="wait">
-            {activeTab === "rewards" && (
-              <motion.div key="rewards" {...fadeUp} className="p-6 space-y-8">
-                <RewardsTab
-                  selectedTier={selectedTier}
-                  setSelectedTier={setSelectedTier}
-                  trackRef={trackRef}
-                  selected={selected}
-                  selectedColors={selectedColors}
-                  xpAway={xpAway}
-                  tierProgress={tierProgress}
-                />
-              </motion.div>
-            )}
-            {activeTab === "quests" && (
-              <motion.div key="quests" {...fadeUp} className="p-6 space-y-6">
-                <QuestsTab
-                  quests={quests}
-                  completeQuest={completeQuest}
-                  questReset={questReset}
-                  doneCount={doneCount}
-                  earnedXP={earnedXP}
-                  allDone={allDone}
-                />
-              </motion.div>
-            )}
-            {activeTab === "howto" && (
-              <motion.div key="howto" {...fadeUp} className="p-6 space-y-8">
-                <HowToTab />
-              </motion.div>
+            {showDetail && (
+              <motion.section
+                key={selectedTier}
+                {...fadeUp}
+                className="p-6 border-b border-border"
+              >
+                <div
+                  className="rounded-2xl p-6 flex gap-6 border shadow-sm"
+                  style={{
+                    background: selectedTheme.bg,
+                    borderColor: selectedTheme.border + "40",
+                  }}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-bold" style={{ color: selectedTheme.border }}>
+                        TIER {selected.tier}
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-card text-muted-foreground border border-border">
+                        ACT {selected.act} · {ACTS[selected.act - 1]?.name}
+                      </span>
+                      <span
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase"
+                        style={{ background: selectedTheme.border + "18", color: selectedTheme.text }}
+                      >
+                        {selected.type}
+                      </span>
+                    </div>
+                    <div className="text-5xl mb-3">{selected.icon}</div>
+                    <p className="font-bold text-base text-foreground">{selected.reward}</p>
+                    <div className="mt-3 max-w-[300px]">
+                      <XPBar
+                        percent={selected.unlocked ? 100 : Math.min(100, (CURRENT_XP / selected.xp) * 100)}
+                        delay={200}
+                      />
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {selected.unlocked ? "100" : Math.floor((CURRENT_XP / selected.xp) * 100)}% progress
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end justify-center">
+                    <p className="text-3xl font-black" style={{ color: selectedTheme.border }}>
+                      {selected.xp.toLocaleString()} XP
+                    </p>
+                    {selected.unlocked ? (
+                      <span className="mt-2 text-xs font-bold px-3 py-1.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                        ✓ UNLOCKED
+                      </span>
+                    ) : (
+                      <div className="text-right mt-2">
+                        <p className="text-sm text-muted-foreground font-medium">
+                          {(selected.xp - CURRENT_XP).toLocaleString()} XP away
+                        </p>
+                        <p className="text-[11px] text-muted-foreground/60">
+                          ≈ {Math.ceil((selected.xp - CURRENT_XP) / 200)} days at avg pace
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.section>
             )}
           </AnimatePresence>
+
+          {/* ─── REWARD GRID ─── */}
+          <section className="p-6 border-b border-border">
+            <div className="flex items-center gap-2 mb-4">
+              <Gift className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-bold text-foreground">Detailed Rewards</h2>
+            </div>
+            <div className="grid grid-cols-5 gap-3">
+              {REWARD_GRID.map((r) => {
+                const unlocked = r.level <= CURRENT_TIER;
+                const rarityColor = RARITY_COLORS[r.rarity] || "hsl(var(--muted-foreground))";
+                return (
+                  <motion.div
+                    key={r.name}
+                    className="rounded-xl border bg-card p-4 text-center cursor-pointer relative overflow-hidden"
+                    style={{
+                      opacity: unlocked ? 1 : 0.55,
+                      borderColor: unlocked ? rarityColor + "40" : "hsl(var(--border))",
+                    }}
+                    whileHover={{ y: -3, scale: 1.02 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                  >
+                    {!unlocked && (
+                      <Lock className="absolute top-2 right-2 w-3 h-3 text-muted-foreground/40" />
+                    )}
+                    <span className="text-3xl block mb-2">{r.icon}</span>
+                    <p className="text-xs font-bold text-foreground mb-0.5">{r.name}</p>
+                    <p className="text-[10px] font-semibold" style={{ color: rarityColor }}>
+                      {r.rarity}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Level {r.level}</p>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ─── BOTTOM: QUESTS + BONUSES ─── */}
+          <section className="p-6 grid grid-cols-3 gap-6">
+            {/* Daily Quests */}
+            <div className="col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-bold text-foreground">Daily Quests</h2>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-1">
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="w-6 h-1.5 rounded-full transition-colors"
+                        style={{
+                          background: i < doneCount ? "hsl(142 71% 45%)" : "hsl(var(--secondary))",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs text-muted-foreground font-semibold">{doneCount}/7</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {quests.map((q) => (
+                  <motion.div
+                    key={q.id}
+                    className="flex items-center gap-3 rounded-xl border bg-card p-3 transition-all"
+                    style={{
+                      opacity: q.done ? 0.65 : 1,
+                      borderColor: q.done ? "hsl(142 71% 45% / 0.3)" : "hsl(var(--border))",
+                    }}
+                    layout
+                  >
+                    <span className="text-xl w-8 text-center">{q.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold" style={{ color: q.done ? "hsl(142 71% 45%)" : "hsl(var(--foreground))" }}>
+                          {q.title}
+                        </span>
+                        {q.done && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">DONE</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{q.description}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-20 h-1.5 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${(q.current / q.target) * 100}%`,
+                              background: q.done ? "hsl(142 71% 45%)" : "hsl(var(--primary))",
+                            }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">{q.current}/{q.target}</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold min-w-[45px] text-right" style={{ color: q.done ? "hsl(142 71% 45%)" : "hsl(var(--primary))" }}>
+                      {q.xpReward} XP
+                    </span>
+                    {!q.done && (
+                      <button
+                        onClick={() => completeQuest(q.id)}
+                        className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors"
+                      >
+                        GO →
+                      </button>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pass Bonuses */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-bold text-foreground">Pass Bonuses</h2>
+              </div>
+
+              <div className="space-y-3">
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
+                  <Zap className="w-8 h-8 text-primary mx-auto mb-2" />
+                  <p className="text-sm font-bold text-primary">+20% XP BONUS</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">Active for all XP sources</p>
+                </div>
+
+                <div className="rounded-xl border bg-card p-4">
+                  <h4 className="text-xs font-bold text-foreground mb-3 flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5 text-primary" />
+                    Streak Multipliers
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      { range: "Day 1–2", mult: "1.0×", active: true },
+                      { range: "Day 3–6", mult: "1.2×", active: false },
+                      { range: "Day 7–13", mult: "1.5×", active: false },
+                      { range: "Day 14–29", mult: "1.75×", active: false },
+                      { range: "Day 30+", mult: "2.0×", active: false },
+                    ].map((s) => (
+                      <div key={s.range} className="flex justify-between items-center text-xs">
+                        <span className={s.active ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                          {s.range}
+                        </span>
+                        <span className={s.active ? "text-primary font-bold" : "text-muted-foreground"}>
+                          {s.mult}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border bg-card p-4">
+                  <h4 className="text-xs font-bold text-foreground mb-2">XP Earned Today</h4>
+                  <p className="text-2xl font-black text-primary">{earnedXP}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Daily cap: 400 XP</p>
+                  <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-700"
+                      style={{ width: `${Math.min(100, (earnedXP / 400) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Next 3 unlocks */}
+                <div className="rounded-xl border bg-card p-4">
+                  <h4 className="text-xs font-bold text-foreground mb-3">Next Unlocks</h4>
+                  <div className="space-y-2.5">
+                    {FREE_TIERS.filter((t) => !t.unlocked).slice(0, 3).map((t) => {
+                      const theme = TYPE_THEMES[t.type];
+                      const prog = Math.min(100, (CURRENT_XP / t.xp) * 100);
+                      return (
+                        <button
+                          key={t.tier}
+                          onClick={() => selectTier(t.tier)}
+                          className="w-full flex items-center gap-2 text-left hover:bg-secondary/50 rounded-lg p-1.5 -mx-1.5 transition-colors"
+                        >
+                          <span className="text-lg">{t.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-semibold text-foreground truncate">{t.reward}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${prog}%`, background: theme.border }} />
+                              </div>
+                              <span className="text-[9px] text-muted-foreground">T{t.tier}</span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
         </main>
       </div>
 
-      {/* Inline styles for animations */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@300;400;500&family=Rajdhani:wght@500;600;700&display=swap');
+      {/* Floating XP indicators */}
+      <div className="fixed bottom-8 left-[280px] z-50 pointer-events-none flex justify-center w-[calc(100%-280px)]">
+        <AnimatePresence>
+          {floatingXPs.map((f) => (
+            <FloatingXPIndicator key={f.id} amount={f.amount} />
+          ))}
+        </AnimatePresence>
+      </div>
 
-        @keyframes shimmer {
+      <style>{`
+        @keyframes bp-shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
-        @keyframes glowPulse {
-          0%, 100% { box-shadow: 0 0 12px rgba(249,115,22,0.3); }
-          50% { box-shadow: 0 0 24px rgba(249,115,22,0.5); }
-        }
-        @keyframes pulse-red {
-          0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.4); }
-          50% { box-shadow: 0 0 20px rgba(239,68,68,0.7); }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-6px); }
-        }
-        .bp-scrollbar::-webkit-scrollbar { width: 3px; height: 3px; }
-        .bp-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .bp-scrollbar::-webkit-scrollbar-thumb { background: #f9731640; border-radius: 3px; }
-        .bp-scrollbar *::-webkit-scrollbar { width: 3px; height: 3px; }
-        .bp-scrollbar *::-webkit-scrollbar-track { background: transparent; }
-        .bp-scrollbar *::-webkit-scrollbar-thumb { background: #f9731640; border-radius: 3px; }
+        .bp-scroll::-webkit-scrollbar { width: 3px; height: 4px; }
+        .bp-scroll::-webkit-scrollbar-track { background: transparent; }
+        .bp-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
       `}</style>
     </div>
-  );
-}
-
-// ─── TAB 1: REWARDS ─────────────────────────────────────────
-function RewardsTab({
-  selectedTier, setSelectedTier, trackRef, selected, selectedColors, xpAway, tierProgress,
-}: {
-  selectedTier: number;
-  setSelectedTier: (t: number) => void;
-  trackRef: React.RefObject<HTMLDivElement>;
-  selected: Tier;
-  selectedColors: { bg: string; border: string; text: string; glow: string };
-  xpAway: number;
-  tierProgress: number;
-}) {
-  const actName = ACTS.find((a) => a.num === selected.act);
-
-  return (
-    <>
-      {/* Section A - Title */}
-      <div>
-        <p className="font-['Rajdhani',sans-serif] text-[11px] font-600 tracking-[0.2em] uppercase" style={{ color: "#f97316" }}>
-          ◈ SEASON PROGRESS · REWARD TRACK
-        </p>
-        <div className="flex items-end justify-between mt-1">
-          <h1 className="font-['Barlow_Condensed',sans-serif] font-800 text-3xl tracking-wide" style={{ color: "#ffffffee" }}>
-            SEASON OF THE EMBER
-          </h1>
-          <span className="font-['Rajdhani',sans-serif] text-sm font-600 tracking-wider" style={{ color: "#ffffff40" }}>
-            FREE BATTLE PASS · <span style={{ color: "#f97316" }}>S1</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Section B - Stat Cards */}
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: "CURRENT TIER", value: CURRENT_TIER, sub: `of ${MAX_TIER}`, color: "#f97316" },
-          { label: "SEASON XP", value: "13,750", sub: "earned", color: "#3b82f6" },
-          { label: "XP TO NEXT", value: "250", sub: "tier 14", color: "#f59e0b" },
-          { label: "COMPLETION", value: "55%", sub: "season done", color: "#10b981" },
-        ].map((c) => (
-          <div
-            key={c.label}
-            className="rounded-lg p-4"
-            style={{ background: "#ffffff06", borderTop: `3px solid ${c.color}` }}
-          >
-            <p className="font-['Rajdhani',sans-serif] text-[10px] font-600 tracking-[0.15em]" style={{ color: "#ffffff40" }}>{c.label}</p>
-            <p className="font-['Barlow_Condensed',sans-serif] font-800 text-2xl mt-1" style={{ color: c.color }}>{c.value}</p>
-            <p className="font-['Barlow',sans-serif] text-[11px] font-300" style={{ color: "#ffffff40" }}>{c.sub}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Section C - Tier Progress Bar */}
-      <div className="rounded-lg p-4" style={{ background: "#ffffff06" }}>
-        <div className="flex justify-between items-center mb-2">
-          <span className="font-['Rajdhani',sans-serif] text-xs font-600 tracking-wider" style={{ color: "#ffffffaa" }}>
-            TIER {CURRENT_TIER} → TIER {CURRENT_TIER + 1}
-          </span>
-          <span className="font-['Barlow_Condensed',sans-serif] text-xs font-600" style={{ color: "#f59e0b" }}>
-            250 XP remaining
-          </span>
-        </div>
-        <ShimmerBar percent={(TIER_XP_CURRENT / TIER_XP_MAX) * 100} delay={400} />
-        <div className="flex justify-between mt-1.5">
-          {[0, 250, 500, 750, 1000].map((v) => (
-            <span key={v} className="font-['Barlow',sans-serif] text-[10px]" style={{ color: "#ffffff30" }}>{v}</span>
-          ))}
-        </div>
-      </div>
-
-      {/* Section D - Season Completion / Act Segments */}
-      <div className="rounded-lg p-4" style={{ background: "#ffffff06" }}>
-        <div className="flex justify-between items-center mb-3">
-          <span className="font-['Rajdhani',sans-serif] text-xs font-600 tracking-wider" style={{ color: "#ffffffaa" }}>SEASON COMPLETION</span>
-          <span className="font-['Barlow_Condensed',sans-serif] text-xs font-600" style={{ color: "#3b82f6" }}>13,750 / 25,000 XP</span>
-        </div>
-        <div className="flex gap-1 h-3 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-          {ACTS.map((act) => {
-            const actWidth = ((act.range[1] - act.range[0]) / SEASON_XP_MAX) * 100;
-            const filled = Math.min(1, Math.max(0, (CURRENT_XP - act.range[0]) / (act.range[1] - act.range[0])));
-            return (
-              <div key={act.num} className="relative h-full" style={{ width: `${actWidth}%` }}>
-                <div
-                  className="h-full rounded-sm"
-                  style={{
-                    width: `${filled * 100}%`,
-                    background: act.color,
-                    transition: "width 1s ease",
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex justify-between mt-2">
-          {ACTS.map((act) => {
-            const done = CURRENT_XP >= act.range[1];
-            return (
-              <span key={act.num} className="font-['Rajdhani',sans-serif] text-[10px] font-600 tracking-wider" style={{ color: done ? act.color : "#ffffff30" }}>
-                {done && "✓ "}ACT {act.num} · {act.name}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Section E - Reward Track */}
-      <div>
-        <p className="font-['Rajdhani',sans-serif] text-[11px] font-600 tracking-[0.2em] mb-3" style={{ color: "#f97316" }}>
-          ◆ REWARD TRACK — ALL 25 TIERS
-        </p>
-        {/* Act legend */}
-        <div className="flex gap-3 mb-4 flex-wrap">
-          {ACTS.map((act) => (
-            <div key={act.num} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full" style={{ background: "#ffffff08" }}>
-              <div className="w-2 h-2 rounded-full" style={{ background: act.color }} />
-              <span className="font-['Rajdhani',sans-serif] text-[10px] font-600 tracking-wider" style={{ color: "#ffffff60" }}>
-                ACT {act.num} · {act.name} ({act.tiers})
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Horizontal track */}
-        <div ref={trackRef as any} className="overflow-x-auto pb-4 bp-scrollbar">
-          <div className="flex gap-2 min-w-max px-1 py-2">
-            {TIERS.map((t) => {
-              const colors = REWARD_COLORS[t.type];
-              const isCurrent = t.tier === CURRENT_TIER;
-              const isNext = t.tier === CURRENT_TIER + 1;
-              const isSelected = t.tier === selectedTier;
-              const isMilestone = [5, 10, 15, 20, 25].includes(t.tier);
-              const isUltimate = t.tier === 25;
-
-              return (
-                <div key={t.tier} data-tier={t.tier} className="flex flex-col items-center gap-1">
-                  {/* Badge above */}
-                  {isCurrent && (
-                    <span className="font-['Rajdhani',sans-serif] text-[9px] font-700 tracking-wider px-1.5 py-0.5 rounded" style={{ background: "#f9731630", color: "#f97316" }}>
-                      ▶ NOW
-                    </span>
-                  )}
-                  {isNext && !isCurrent && (
-                    <span className="font-['Rajdhani',sans-serif] text-[9px] font-700 tracking-wider px-1.5 py-0.5 rounded" style={{ background: "#ffffff10", color: "#ffffff50" }}>
-                      NEXT
-                    </span>
-                  )}
-                  {!isCurrent && !isNext && <div className="h-[22px]" />}
-
-                  {/* Tier label */}
-                  <span className="font-['Rajdhani',sans-serif] text-[9px] font-600 tracking-wider" style={{ color: "#ffffff30" }}>
-                    T·{t.tier}
-                  </span>
-
-                  {/* Card */}
-                  <button
-                    onClick={() => setSelectedTier(t.tier)}
-                    className="relative w-[76px] h-[88px] rounded-lg flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer"
-                    style={{
-                      background: t.unlocked ? colors.bg : "#0a0f1a",
-                      border: `2px solid ${isCurrent ? "#f97316" : isSelected ? colors.border : t.unlocked ? colors.border + "80" : "#ffffff12"}`,
-                      opacity: t.unlocked ? 1 : 0.38,
-                      boxShadow: isCurrent
-                        ? "0 0 20px rgba(249,115,22,0.5)"
-                        : isUltimate
-                        ? undefined
-                        : isMilestone && t.unlocked
-                        ? `0 0 12px ${REWARD_COLORS.milestone.glow}`
-                        : isSelected
-                        ? `0 0 12px ${colors.glow}`
-                        : "none",
-                      animation: isUltimate ? "pulse-red 2s ease-in-out infinite" : undefined,
-                      transform: isSelected ? "translateY(-5px) scale(1.05)" : undefined,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.transform = "translateY(-5px) scale(1.05)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) {
-                        e.currentTarget.style.transform = "none";
-                      }
-                    }}
-                  >
-                    {!t.unlocked && (
-                      <Lock className="absolute top-1.5 right-1.5 w-3 h-3" style={{ color: "#ffffff20" }} />
-                    )}
-                    <span className="text-2xl">{t.icon}</span>
-                    <span className="font-['Barlow',sans-serif] text-[9px]" style={{ color: t.unlocked ? colors.text : "#ffffff30" }}>
-                      {(t.xp / 1000).toFixed(0)}K XP
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          {/* Progress line */}
-          <div className="mt-2 mx-1 h-1 rounded-full overflow-hidden" style={{ background: "#ffffff08" }}>
-            <div className="h-full rounded-full" style={{ width: `${(CURRENT_XP / SEASON_XP_MAX) * 100}%`, background: "#f97316", transition: "width 1s ease" }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Section F - Selected Tier Detail */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={selectedTier}
-          {...fadeUp}
-          className="rounded-xl p-5 flex gap-6"
-          style={{
-            background: selectedColors.bg,
-            border: `1px solid ${selectedColors.border}40`,
-            boxShadow: `0 0 30px ${selectedColors.glow}`,
-          }}
-        >
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-['Barlow_Condensed',sans-serif] font-800 text-lg" style={{ color: selectedColors.border }}>
-                TIER {selected.tier}
-              </span>
-              <span className="font-['Rajdhani',sans-serif] text-[10px] font-600 px-2 py-0.5 rounded tracking-wider" style={{ background: "#ffffff10", color: "#ffffff50" }}>
-                ACT {selected.act} · {actName?.name}
-              </span>
-              <span className="font-['Rajdhani',sans-serif] text-[10px] font-600 px-2 py-0.5 rounded tracking-wider uppercase" style={{ background: selectedColors.border + "20", color: selectedColors.text }}>
-                {selected.type}
-              </span>
-            </div>
-            <div className="text-4xl mb-2">{selected.icon}</div>
-            <p className="font-['Barlow_Condensed',sans-serif] font-700 text-base" style={{ color: "#ffffffcc" }}>{selected.reward}</p>
-            <div className="mt-3 max-w-[280px]">
-              <ShimmerBar percent={tierProgress} delay={200} color={selectedColors.border} height="h-2" />
-              <p className="font-['Barlow',sans-serif] text-[10px] mt-1" style={{ color: "#ffffff40" }}>
-                {tierProgress.toFixed(0)}% progress
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col items-end justify-center">
-            <p className="font-['Barlow_Condensed',sans-serif] font-800 text-3xl" style={{ color: selectedColors.border }}>
-              {selected.xp.toLocaleString()} XP
-            </p>
-            {selected.unlocked ? (
-              <span className="font-['Rajdhani',sans-serif] text-xs font-700 tracking-wider px-3 py-1 rounded-full mt-2" style={{ background: "#10b98120", color: "#10b981", border: "1px solid #10b98140" }}>
-                ✓ UNLOCKED
-              </span>
-            ) : (
-              <div className="text-right mt-1">
-                <p className="font-['Barlow',sans-serif] text-sm" style={{ color: "#ffffff60" }}>{xpAway.toLocaleString()} XP away</p>
-                <p className="font-['Barlow',sans-serif] text-[11px]" style={{ color: "#ffffff30" }}>
-                  ≈ {Math.ceil(xpAway / 200)} days at avg pace
-                </p>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Section G - Next Unlocks */}
-      <div>
-        <p className="font-['Rajdhani',sans-serif] text-[11px] font-600 tracking-[0.2em] mb-3" style={{ color: "#ffffff50" }}>
-          NEXT UNLOCKS
-        </p>
-        <div className="grid grid-cols-3 gap-3">
-          {TIERS.filter((t) => !t.unlocked).slice(0, 3).map((t) => {
-            const colors = REWARD_COLORS[t.type];
-            const prog = Math.min(100, (CURRENT_XP / t.xp) * 100);
-            return (
-              <button
-                key={t.tier}
-                onClick={() => setSelectedTier(t.tier)}
-                className="rounded-lg p-4 text-left transition-all duration-200 cursor-pointer"
-                style={{ background: "#ffffff06", border: `1px solid ${colors.border}30` }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = "none"; }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-2xl">{t.icon}</span>
-                  <span className="font-['Rajdhani',sans-serif] text-[10px] font-600 px-1.5 py-0.5 rounded" style={{ background: colors.border + "20", color: colors.text }}>
-                    T{t.tier}
-                  </span>
-                </div>
-                <p className="font-['Barlow_Condensed',sans-serif] font-700 text-sm" style={{ color: "#ffffffcc" }}>{t.reward}</p>
-                <p className="font-['Barlow',sans-serif] text-[10px] mt-1" style={{ color: "#ffffff40" }}>{(t.xp - CURRENT_XP).toLocaleString()} XP needed</p>
-                <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "#ffffff08" }}>
-                  <div className="h-full rounded-full" style={{ width: `${prog}%`, background: colors.border, transition: "width 0.8s ease" }} />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ─── TAB 2: QUESTS ──────────────────────────────────────────
-function QuestsTab({
-  quests, completeQuest, questReset, doneCount, earnedXP, allDone,
-}: {
-  quests: Quest[];
-  completeQuest: (id: string) => void;
-  questReset: string;
-  doneCount: number;
-  earnedXP: number;
-  allDone: boolean;
-}) {
-  return (
-    <>
-      {/* Header */}
-      <div>
-        <p className="font-['Rajdhani',sans-serif] text-[11px] font-600 tracking-[0.2em]" style={{ color: "#f97316" }}>
-          ◉ DAILY QUESTS
-        </p>
-        <div className="flex items-end justify-between mt-1">
-          <h1 className="font-['Barlow_Condensed',sans-serif] font-800 text-3xl tracking-wide" style={{ color: "#ffffffee" }}>
-            TODAY'S CHALLENGES
-          </h1>
-          <div className="flex items-center gap-2">
-            <span className="font-['Rajdhani',sans-serif] text-[11px] tracking-wider" style={{ color: "#ffffff40" }}>RESETS IN</span>
-            <span className="font-['Barlow_Condensed',sans-serif] font-700 text-base" style={{ color: "#f97316" }}>{questReset}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Summary strip */}
-      <div className="flex items-center justify-between rounded-lg p-4" style={{ background: "#ffffff06" }}>
-        <div className="flex items-center gap-4">
-          <div className="flex gap-1">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="w-8 h-[6px] rounded-full" style={{ background: i < doneCount ? "#10b981" : "#ffffff10" }} />
-            ))}
-          </div>
-          <span className="font-['Rajdhani',sans-serif] text-sm font-600" style={{ color: "#ffffff60" }}>
-            {doneCount} of 7 complete
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="font-['Barlow_Condensed',sans-serif] font-700 text-xl" style={{ color: "#10b981" }}>+{earnedXP} XP</span>
-          <span className="font-['Rajdhani',sans-serif] text-xs" style={{ color: "#ffffff40" }}>EARNED</span>
-        </div>
-      </div>
-
-      {allDone && (
-        <div className="flex justify-center">
-          <span
-            className="font-['Rajdhani',sans-serif] font-700 text-sm tracking-wider px-4 py-2 rounded-full"
-            style={{ background: "#10b98120", color: "#10b981", border: "1px solid #10b98140", animation: "float 2s ease-in-out infinite" }}
-          >
-            ✓ ALL DONE
-          </span>
-        </div>
-      )}
-
-      {/* Quest list */}
-      <div className="space-y-2">
-        {quests.map((q) => (
-          <div
-            key={q.id}
-            className="flex items-center gap-4 rounded-lg transition-all duration-200"
-            style={{
-              background: "#ffffff06",
-              padding: "13px",
-              opacity: q.done ? 0.7 : 1,
-              borderLeft: q.done ? "3px solid #10b981" : "3px solid transparent",
-            }}
-          >
-            <span className="text-xl w-8 text-center">{q.icon}</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-['Barlow_Condensed',sans-serif] font-700 text-sm" style={{ color: q.done ? "#10b981" : "#ffffffcc" }}>
-                  {q.title}
-                </span>
-                {q.done && (
-                  <span className="font-['Rajdhani',sans-serif] text-[9px] font-700 tracking-wider px-1.5 py-0.5 rounded" style={{ background: "#10b98120", color: "#10b981" }}>
-                    DONE
-                  </span>
-                )}
-              </div>
-              <p className="font-['Barlow',sans-serif] text-[11px]" style={{ color: "#ffffff40" }}>{q.description}</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: "#ffffff08" }}>
-                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(q.current / q.target) * 100}%`, background: q.done ? "#10b981" : "#f97316" }} />
-                </div>
-                <span className="font-['Barlow',sans-serif] text-[10px]" style={{ color: "#ffffff30" }}>
-                  {q.current}/{q.target}
-                </span>
-              </div>
-            </div>
-            <span className="font-['Barlow_Condensed',sans-serif] font-700 text-sm min-w-[50px] text-right" style={{ color: q.done ? "#10b981" : "#f97316" }}>
-              {q.xpReward} XP
-            </span>
-            {!q.done && (
-              <button
-                onClick={() => completeQuest(q.id)}
-                className="font-['Rajdhani',sans-serif] text-[11px] font-700 tracking-wider px-3 py-1.5 rounded transition-all duration-200"
-                style={{ border: "1px solid #f9731640", color: "#f97316", background: "transparent" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#f9731615"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-              >
-                GO →
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Pro tip */}
-      <div className="rounded-lg p-4 flex items-start gap-3" style={{ background: "#f9731608", borderLeft: "3px solid #f97316" }}>
-        <span className="text-lg">💡</span>
-        <div>
-          <p className="font-['Rajdhani',sans-serif] text-xs font-700 tracking-wider" style={{ color: "#f97316" }}>PRO TIP</p>
-          <p className="font-['Barlow',sans-serif] text-sm mt-0.5" style={{ color: "#ffffff60" }}>
-            Complete all 7 quests for a +50 XP All-Complete Bonus. Resets midnight UTC.
-          </p>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// ─── TAB 3: HOW TO EARN XP ──────────────────────────────────
-function HowToTab() {
-  return (
-    <>
-      <div>
-        <p className="font-['Rajdhani',sans-serif] text-[11px] font-600 tracking-[0.2em]" style={{ color: "#f97316" }}>
-          ◇ HOW TO EARN XP
-        </p>
-        <h1 className="font-['Barlow_Condensed',sans-serif] font-800 text-3xl tracking-wide mt-1" style={{ color: "#ffffffee" }}>
-          XP SOURCES
-        </h1>
-        <p className="font-['Rajdhani',sans-serif] text-xs font-600 tracking-wider mt-1" style={{ color: "#ffffff40" }}>
-          DAILY CAP: <span style={{ color: "#f97316" }}>400 XP</span> · STREAK BONUSES EXEMPT FROM CAP
-        </p>
-      </div>
-
-      {XP_SOURCES.map((group) => (
-        <div key={group.group}>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="font-['Rajdhani',sans-serif] text-[11px] font-700 tracking-[0.15em] px-2 py-0.5 rounded" style={{ background: group.color + "20", color: group.color }}>
-              {group.num} {group.group}
-            </span>
-            <div className="flex-1 h-px" style={{ background: group.color + "30" }} />
-          </div>
-          <div className="space-y-1.5 mb-6">
-            {group.actions.map((a) => (
-              <div
-                key={a.name}
-                className="flex items-center gap-3 rounded-lg px-4 py-2.5"
-                style={{ background: "#ffffff04", borderLeft: `3px solid ${group.color}` }}
-              >
-                <span className="text-base w-6 text-center">{a.icon}</span>
-                <div className="flex-1">
-                  <span className="font-['Barlow_Condensed',sans-serif] font-600 text-sm" style={{ color: "#ffffffcc" }}>{a.name}</span>
-                  <p className="font-['Barlow',sans-serif] text-[10px]" style={{ color: "#ffffff30" }}>Limit: {a.limit}</p>
-                </div>
-                <span className="font-['Barlow_Condensed',sans-serif] font-700 text-sm" style={{ color: group.color }}>
-                  {a.xp > 0 ? "+" : ""}{a.xp} XP
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      {/* Streak Multipliers */}
-      <div className="rounded-xl p-5" style={{ background: "#3b82f608", border: "1px solid #3b82f620" }}>
-        <p className="font-['Rajdhani',sans-serif] text-sm font-700 tracking-wider mb-4" style={{ color: "#3b82f6" }}>
-          ⚡ STREAK MULTIPLIERS <span className="font-400 text-xs" style={{ color: "#ffffff40" }}>— article reading XP only</span>
-        </p>
-        <div className="grid grid-cols-5 gap-2">
-          {STREAK_MULTIPLIERS.map((s) => (
-            <div key={s.range} className="rounded-lg p-3 text-center" style={{ background: "#ffffff06", borderTop: `3px solid ${s.color}` }}>
-              <p className="font-['Barlow_Condensed',sans-serif] font-800 text-xl" style={{ color: s.color }}>{s.mult}</p>
-              <p className="font-['Rajdhani',sans-serif] text-[10px] font-600 tracking-wider mt-1" style={{ color: "#ffffff40" }}>{s.range}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
   );
 }
