@@ -844,6 +844,25 @@ export default function BattlePass() {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
+        @keyframes bp-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.08); }
+        }
+        @keyframes bp-shine {
+          0% { left: -100%; }
+          100% { left: 200%; }
+        }
+        .bp-card .bp-shine {
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0) 70%, transparent 100%);
+          width: 60%;
+          top: 0;
+          bottom: 0;
+          left: -100%;
+          position: absolute;
+        }
+        .bp-card:hover .bp-shine {
+          animation: bp-shine 0.6s ease-out forwards;
+        }
         .bp-scroll::-webkit-scrollbar { width: 3px; height: 4px; }
         .bp-scroll::-webkit-scrollbar-track { background: transparent; }
         .bp-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
