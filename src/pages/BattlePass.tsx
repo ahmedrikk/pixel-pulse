@@ -178,21 +178,22 @@ const fadeUp = {
 
 // ─── ANIMATED XP BAR ────────────────────────────────────────
 function XPBar({ percent, delay = 0, className = "" }: { percent: number; delay?: number; className?: string }) {
-  const [w, setW] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setW(percent), delay);
-    return () => clearTimeout(t);
-  }, [percent, delay]);
-
   return (
     <div className={`relative w-full h-3 rounded-full overflow-hidden bg-secondary ${className}`}>
-      <div
+      <motion.div
         className="h-full rounded-full relative overflow-hidden"
         style={{
-          width: `${w}%`,
           background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))",
           boxShadow: "0 0 12px hsl(186 100% 50% / 0.3)",
-          transition: `width 1.2s cubic-bezier(0.22,1,0.36,1)`,
+        }}
+        initial={{ width: 0 }}
+        animate={{ width: `${percent}%` }}
+        transition={{
+          duration: 1.2,
+          delay: delay / 1000,
+          type: "spring",
+          stiffness: 80,
+          damping: 14,
         }}
       >
         <div
@@ -202,7 +203,7 @@ function XPBar({ percent, delay = 0, className = "" }: { percent: number; delay?
             animation: "bp-shimmer 2s infinite",
           }}
         />
-      </div>
+      </motion.div>
     </div>
   );
 }
