@@ -640,18 +640,24 @@ export default function BattlePass() {
                 return (
                   <motion.div
                     key={r.name}
-                    className="rounded-xl border bg-card p-4 text-center cursor-pointer relative overflow-hidden"
+                    className="bp-card rounded-xl border bg-card p-5 text-center cursor-pointer relative overflow-hidden"
                     style={{
                       opacity: unlocked ? 1 : 0.55,
                       borderColor: unlocked ? rarityColor + "40" : "hsl(var(--border))",
+                      boxShadow: unlocked ? `0 4px 16px ${rarityColor}20` : "none",
                     }}
-                    whileHover={{ y: -3, scale: 1.02 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    whileHover={{
+                      y: -10,
+                      scale: 1.1,
+                      boxShadow: unlocked ? `0 8px 32px ${rarityColor}40` : "0 4px 16px hsl(var(--foreground) / 0.08)",
+                    }}
+                    transition={{ type: "spring", stiffness: 400, damping: 18 }}
                   >
+                    <div className="bp-shine absolute inset-0 pointer-events-none" />
                     {!unlocked && (
                       <Lock className="absolute top-2 right-2 w-3 h-3 text-muted-foreground/40" />
                     )}
-                    <span className="text-3xl block mb-2">{r.icon}</span>
+                    <span className="text-4xl block mb-2">{r.icon}</span>
                     <p className="text-xs font-bold text-foreground mb-0.5">{r.name}</p>
                     <p className="text-[10px] font-semibold" style={{ color: rarityColor }}>
                       {r.rarity}
