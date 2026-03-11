@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   Home, Lock, Trophy, Zap, Star, Gift, Shield, Crown,
-  ChevronRight, Clock, Flame, Award, Sparkles, Target, ArrowLeft,
+  ChevronRight, ChevronLeft, Clock, Flame, Award, Sparkles, Target, ArrowLeft,
 } from "lucide-react";
 import { useXP } from "@/contexts/XPContext";
 
@@ -178,21 +178,22 @@ const fadeUp = {
 
 // ─── ANIMATED XP BAR ────────────────────────────────────────
 function XPBar({ percent, delay = 0, className = "" }: { percent: number; delay?: number; className?: string }) {
-  const [w, setW] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setW(percent), delay);
-    return () => clearTimeout(t);
-  }, [percent, delay]);
-
   return (
     <div className={`relative w-full h-3 rounded-full overflow-hidden bg-secondary ${className}`}>
-      <div
+      <motion.div
         className="h-full rounded-full relative overflow-hidden"
         style={{
-          width: `${w}%`,
           background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))",
           boxShadow: "0 0 12px hsl(186 100% 50% / 0.3)",
-          transition: `width 1.2s cubic-bezier(0.22,1,0.36,1)`,
+        }}
+        initial={{ width: 0 }}
+        animate={{ width: `${percent}%` }}
+        transition={{
+          duration: 1.2,
+          delay: delay / 1000,
+          type: "spring",
+          stiffness: 80,
+          damping: 14,
         }}
       >
         <div
@@ -202,7 +203,7 @@ function XPBar({ percent, delay = 0, className = "" }: { percent: number; delay?
             animation: "bp-shimmer 2s infinite",
           }}
         />
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -420,70 +421,102 @@ export default function BattlePass() {
                   FREE TRACK
                 </span>
               </div>
-              <div ref={trackRef} className="overflow-x-auto pb-2 bp-scroll">
-                <div className="flex gap-1.5 min-w-max">
-                  {FREE_TIERS.map((t) => {
-                    const theme = TYPE_THEMES[t.type];
-                    const isCurrent = t.tier === CURRENT_TIER;
-                    const isSelected = t.tier === selectedTier;
-                    const isMilestone = [5, 10, 15, 20, 25].includes(t.tier);
+              <div className="relative group">
+                {/* Left scroll button */}
+                <button
+                  onClick={() => trackRef.current?.scrollBy({ left: -300, behavior: "smooth" })}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 hover:shadow-primary/20 hover:shadow-md transition-all duration-200 opacity-0 group-hover:opacity-100"
+                  style={{ animation: "none" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.animation = "bp-pulse 1.5s ease-in-out infinite")}
+                  onMouseLeave={(e) => (e.currentTarget.style.animation = "none")}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                {/* Right scroll button */}
+                <button
+                  onClick={() => trackRef.current?.scrollBy({ left: 300, behavior: "smooth" })}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 hover:shadow-primary/20 hover:shadow-md transition-all duration-200 opacity-0 group-hover:opacity-100"
+                  style={{ animation: "none" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.animation = "bp-pulse 1.5s ease-in-out infinite")}
+                  onMouseLeave={(e) => (e.currentTarget.style.animation = "none")}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
 
-                    return (
-                      <div key={t.tier} data-tier={t.tier} className="flex flex-col items-center gap-0.5">
-                        {isCurrent && (
-                          <span className="text-[8px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                            ▶ NOW
-                          </span>
-                        )}
-                        {t.tier === CURRENT_TIER + 1 && !isCurrent && (
-                          <span className="text-[8px] font-bold text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
-                            NEXT
-                          </span>
-                        )}
-                        {t.tier !== CURRENT_TIER && t.tier !== CURRENT_TIER + 1 && <div className="h-[18px]" />}
+                <div
+                  ref={trackRef}
+                  className="overflow-x-auto pb-2 bp-scroll px-12"
+                  style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
+                >
+                  <div className="flex gap-2 min-w-max">
+                    {FREE_TIERS.map((t) => {
+                      const theme = TYPE_THEMES[t.type];
+                      const isCurrent = t.tier === CURRENT_TIER;
+                      const isSelected = t.tier === selectedTier;
+                      const isMilestone = [5, 10, 15, 20, 25].includes(t.tier);
 
-                        <span className="text-[8px] font-semibold text-muted-foreground">{t.tier}</span>
-
-                        <motion.button
-                          onClick={() => selectTier(t.tier)}
-                          className="relative w-[68px] h-[78px] rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer border-2 transition-shadow"
-                          style={{
-                            background: t.unlocked ? theme.bg : "hsl(var(--secondary))",
-                            borderColor: isSelected ? theme.border : t.unlocked ? theme.border + "60" : "hsl(var(--border))",
-                            opacity: t.unlocked ? 1 : 0.5,
-                            boxShadow: isSelected
-                              ? `0 0 0 2px ${theme.border}, 0 4px 16px ${theme.border}30`
-                              : isCurrent
-                              ? `0 0 0 2px hsl(var(--primary)), 0 4px 12px hsl(var(--primary) / 0.2)`
-                              : "none",
-                          }}
-                          whileHover={{ y: -4, scale: 1.05 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                        >
-                          {!t.unlocked && (
-                            <Lock className="absolute top-1.5 right-1.5 w-2.5 h-2.5 text-muted-foreground/50" />
+                      return (
+                        <div key={t.tier} data-tier={t.tier} className="flex flex-col items-center gap-0.5">
+                          {isCurrent && (
+                            <span className="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
+                              ▶ NOW
+                            </span>
                           )}
-                          {isMilestone && t.unlocked && (
-                            <Star className="absolute top-1 left-1 w-2.5 h-2.5" style={{ color: theme.border }} />
+                          {t.tier === CURRENT_TIER + 1 && !isCurrent && (
+                            <span className="text-[9px] font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+                              NEXT
+                            </span>
                           )}
-                          <span className="text-xl leading-none">{t.icon}</span>
-                          <span className="text-[8px] font-semibold" style={{ color: t.unlocked ? theme.text : "hsl(var(--muted-foreground))" }}>
-                            {(t.xp / 1000).toFixed(0)}K XP
-                          </span>
-                        </motion.button>
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* Progress line */}
-                <div className="mt-2 h-1 rounded-full bg-secondary overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))" }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(CURRENT_XP / SEASON_XP_MAX) * 100}%` }}
-                    transition={{ duration: 1.2, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                  />
+                          {t.tier !== CURRENT_TIER && t.tier !== CURRENT_TIER + 1 && <div className="h-[20px]" />}
+
+                          <span className="text-[9px] font-semibold text-muted-foreground">{t.tier}</span>
+
+                          <motion.button
+                            onClick={() => selectTier(t.tier)}
+                            className="bp-card relative w-[85px] h-[98px] rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer border-2 overflow-hidden"
+                            style={{
+                              background: t.unlocked ? theme.bg : "hsl(var(--secondary))",
+                              borderColor: isSelected ? theme.border : t.unlocked ? theme.border + "60" : "hsl(var(--border))",
+                              opacity: t.unlocked ? 1 : 0.38,
+                              boxShadow: isSelected
+                                ? `0 0 0 2px ${theme.border}, 0 6px 24px ${theme.border}40`
+                                : isCurrent
+                                ? `0 0 0 2px hsl(var(--primary)), 0 6px 20px hsl(var(--primary) / 0.25)`
+                                : isMilestone && t.unlocked
+                                ? `0 4px 16px ${theme.border}30`
+                                : "0 2px 8px hsl(var(--foreground) / 0.04)",
+                            }}
+                            whileHover={{ y: -10, scale: 1.1 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                          >
+                            {/* Shine overlay on hover */}
+                            <div className="bp-shine absolute inset-0 pointer-events-none" />
+
+                            {!t.unlocked && (
+                              <Lock className="absolute top-1.5 right-1.5 w-3 h-3 text-muted-foreground/50" />
+                            )}
+                            {isMilestone && t.unlocked && (
+                              <Star className="absolute top-1 left-1 w-3 h-3" style={{ color: theme.border }} />
+                            )}
+                            <span className="text-2xl leading-none">{t.icon}</span>
+                            <span className="text-[9px] font-semibold" style={{ color: t.unlocked ? theme.text : "hsl(var(--muted-foreground))" }}>
+                              {(t.xp / 1000).toFixed(0)}K XP
+                            </span>
+                          </motion.button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Progress line */}
+                  <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))" }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(CURRENT_XP / SEASON_XP_MAX) * 100}%` }}
+                      transition={{ duration: 1.2, delay: 0.3, type: "spring", stiffness: 80, damping: 14 }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -497,30 +530,32 @@ export default function BattlePass() {
                 </span>
                 <span className="text-[10px] text-muted-foreground">Unlock all premium rewards</span>
               </div>
-              <div className="overflow-x-auto pb-2 bp-scroll">
-                <div className="flex gap-1.5 min-w-max">
-                  {PREMIUM_TIERS.map((t) => {
-                    const theme = TYPE_THEMES[t.type];
-                    return (
-                      <div key={`p-${t.tier}`} className="flex flex-col items-center gap-0.5">
-                        <div className="h-[18px]" />
-                        <span className="text-[8px] font-semibold text-muted-foreground/40">{t.tier}</span>
-                        <div
-                          className="relative w-[68px] h-[78px] rounded-xl flex flex-col items-center justify-center gap-1 border-2 opacity-40 cursor-not-allowed"
-                          style={{
-                            background: "hsl(var(--secondary))",
-                            borderColor: "hsl(var(--border))",
-                          }}
-                        >
-                          <Lock className="absolute top-1.5 right-1.5 w-2.5 h-2.5 text-muted-foreground/30" />
-                          <span className="text-xl leading-none grayscale">{t.icon}</span>
-                          <span className="text-[8px] font-semibold text-muted-foreground/50">
-                            {(t.xp / 1000).toFixed(0)}K XP
-                          </span>
+              <div className="relative group">
+                <div className="overflow-x-auto pb-2 bp-scroll px-12" style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}>
+                  <div className="flex gap-2 min-w-max">
+                    {PREMIUM_TIERS.map((t) => {
+                      const theme = TYPE_THEMES[t.type];
+                      return (
+                        <div key={`p-${t.tier}`} className="flex flex-col items-center gap-0.5">
+                          <div className="h-[20px]" />
+                          <span className="text-[9px] font-semibold text-muted-foreground/40">{t.tier}</span>
+                          <div
+                            className="bp-card relative w-[85px] h-[98px] rounded-xl flex flex-col items-center justify-center gap-1.5 border-2 opacity-40 cursor-not-allowed overflow-hidden"
+                            style={{
+                              background: "hsl(var(--secondary))",
+                              borderColor: "hsl(var(--border))",
+                            }}
+                          >
+                            <Lock className="absolute top-1.5 right-1.5 w-3 h-3 text-muted-foreground/30" />
+                            <span className="text-2xl leading-none grayscale">{t.icon}</span>
+                            <span className="text-[9px] font-semibold text-muted-foreground/50">
+                              {(t.xp / 1000).toFixed(0)}K XP
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -605,18 +640,24 @@ export default function BattlePass() {
                 return (
                   <motion.div
                     key={r.name}
-                    className="rounded-xl border bg-card p-4 text-center cursor-pointer relative overflow-hidden"
+                    className="bp-card rounded-xl border bg-card p-5 text-center cursor-pointer relative overflow-hidden"
                     style={{
                       opacity: unlocked ? 1 : 0.55,
                       borderColor: unlocked ? rarityColor + "40" : "hsl(var(--border))",
+                      boxShadow: unlocked ? `0 4px 16px ${rarityColor}20` : "none",
                     }}
-                    whileHover={{ y: -3, scale: 1.02 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    whileHover={{
+                      y: -10,
+                      scale: 1.1,
+                      boxShadow: unlocked ? `0 8px 32px ${rarityColor}40` : "0 4px 16px hsl(var(--foreground) / 0.08)",
+                    }}
+                    transition={{ type: "spring", stiffness: 400, damping: 18 }}
                   >
+                    <div className="bp-shine absolute inset-0 pointer-events-none" />
                     {!unlocked && (
                       <Lock className="absolute top-2 right-2 w-3 h-3 text-muted-foreground/40" />
                     )}
-                    <span className="text-3xl block mb-2">{r.icon}</span>
+                    <span className="text-4xl block mb-2">{r.icon}</span>
                     <p className="text-xs font-bold text-foreground mb-0.5">{r.name}</p>
                     <p className="text-[10px] font-semibold" style={{ color: rarityColor }}>
                       {r.rarity}
@@ -802,6 +843,25 @@ export default function BattlePass() {
         @keyframes bp-shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
+        }
+        @keyframes bp-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.08); }
+        }
+        @keyframes bp-shine {
+          0% { left: -100%; }
+          100% { left: 200%; }
+        }
+        .bp-card .bp-shine {
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0) 70%, transparent 100%);
+          width: 60%;
+          top: 0;
+          bottom: 0;
+          left: -100%;
+          position: absolute;
+        }
+        .bp-card:hover .bp-shine {
+          animation: bp-shine 0.6s ease-out forwards;
         }
         .bp-scroll::-webkit-scrollbar { width: 3px; height: 4px; }
         .bp-scroll::-webkit-scrollbar-track { background: transparent; }
