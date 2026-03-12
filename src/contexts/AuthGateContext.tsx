@@ -11,6 +11,7 @@ interface AuthGateContextType {
   user: User | null;
   isLoading: boolean;
   openAuthModal: (action: GatedAction, pendingData?: Omit<PendingAction, "type">) => void;
+  openSignupPrompt: () => void;
   closeAuthModal: () => void;
   executePendingAction: () => void;
   clearPendingAction: () => void;
@@ -58,6 +59,12 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     setIsAuthModalOpen(true);
   }, []);
 
+  const openSignupPrompt = useCallback(() => {
+    setAuthModalContext("signup_prompt");
+    setPendingAction(null);
+    setIsAuthModalOpen(true);
+  }, []);
+
   const closeAuthModal = useCallback(() => {
     setIsAuthModalOpen(false);
     setAuthModalContext(null);
@@ -86,6 +93,7 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     user,
     isLoading,
     openAuthModal,
+    openSignupPrompt,
     closeAuthModal,
     executePendingAction,
     clearPendingAction,
