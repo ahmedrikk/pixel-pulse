@@ -7,7 +7,9 @@
 import { NewsItem } from "@/data/mockNews";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_API_KEY = "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";
+
+// API key from environment variable (GitHub Secret)
+const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY || "";
 
 // Models to try in order of preference
 const MODELS = [
@@ -25,12 +27,24 @@ interface OpenRouterResponse {
 }
 
 /**
+ * Check if OpenRouter is configured
+ */
+export function isOpenRouterConfigured(): boolean {
+  return !!OPENROUTER_API_KEY && OPENROUTER_API_KEY !== "";
+}
+
+/**
  * Generate smart hashtags for a single article using OpenRouter
  */
 export async function generateTagsWithOpenRouter(
   title: string,
   content: string
 ): Promise<string[]> {
+  if (!isOpenRouterConfigured()) {
+    console.warn("OpenRouter API key not configured");
+    return [];
+  }
+
   const systemPrompt = `You are a gaming news hashtag expert. Generate 5-8 specific, searchable hashtags for this gaming article.
 
 RULES:
@@ -105,6 +119,11 @@ Generate hashtags:`;
 export async function processArticlesWithOpenRouter(
   articles: NewsItem[]
 ): Promise<NewsItem[]> {
+  if (!isOpenRouterConfigured()) {
+    console.warn("OpenRouter not configured, skipping AI processing");
+    return articles;
+  }
+
   const processed: NewsItem[] = [];
 
   for (let i = 0; i < articles.length; i++) {

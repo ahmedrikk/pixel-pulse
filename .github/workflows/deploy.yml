@@ -37,6 +37,7 @@ jobs:
           VITE_PANDASCORE_API_KEY: ${{ secrets.VITE_PANDASCORE_API_KEY }}
           VITE_STEAM_API_KEY: ${{ secrets.VITE_STEAM_API_KEY }}
           VITE_RAWG_API_KEY: ${{ secrets.VITE_RAWG_API_KEY }}
+          VITE_OPENROUTER_API_KEY: ${{ secrets.VITE_OPENROUTER_API_KEY }}
         run: npm run build
 
       - name: Setup Pages
