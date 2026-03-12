@@ -2,7 +2,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { GatedAction } from "@/types/feed";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Chrome, MessageCircle, Loader2 } from "lucide-react";
+import { Chrome, MessageCircle, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -35,25 +35,54 @@ export function AuthModal() {
   } = useAuthGate();
   
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const getRedirectUrl = () => {
+    // For GitHub Pages, we need to handle the redirect properly
+    const baseUrl = window.location.origin;
+    const pathname = window.location.pathname;
+    
+    // If we're on GitHub Pages with /pixel-pulse/ path
+    if (pathname.includes('/pixel-pulse/')) {
+      return `${baseUrl}/pixel-pulse/`;
+    }
+    
+    return baseUrl + '/';
+  };
 
   const handleGoogleLogin = async () => {
     setIsLoading("google");
+    setError(null);
+    
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const redirectTo = getRedirectUrl();
+      console.log("Google OAuth redirectTo:", redirectTo);
+      
+      const { error: oauthError, data } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/pixel-pulse/`,
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
       
-      if (error) {
+      if (oauthError) {
+        console.error("Google OAuth error:", oauthError);
+        setError(oauthError.message);
         toast.error("Google login failed", {
-          description: error.message,
+          description: oauthError.message,
         });
+      } else {
+        console.log("Google OAuth initiated:", data);
+        // The OAuth flow will redirect the user, so we don't need to do anything else
       }
     } catch (err) {
+      console.error("Unexpected error during Google login:", err);
+      setError("An unexpected error occurred");
       toast.error("Something went wrong");
-      console.error(err);
     } finally {
       setIsLoading(null);
     }
@@ -61,22 +90,32 @@ export function AuthModal() {
 
   const handleDiscordLogin = async () => {
     setIsLoading("discord");
+    setError(null);
+    
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const redirectTo = getRedirectUrl();
+      console.log("Discord OAuth redirectTo:", redirectTo);
+      
+      const { error: oauthError, data } = await supabase.auth.signInWithOAuth({
         provider: "discord",
         options: {
-          redirectTo: `${window.location.origin}/pixel-pulse/`,
+          redirectTo,
         },
       });
       
-      if (error) {
+      if (oauthError) {
+        console.error("Discord OAuth error:", oauthError);
+        setError(oauthError.message);
         toast.error("Discord login failed", {
-          description: error.message,
+          description: oauthError.message,
         });
+      } else {
+        console.log("Discord OAuth initiated:", data);
       }
     } catch (err) {
+      console.error("Unexpected error during Discord login:", err);
+      setError("An unexpected error occurred");
       toast.error("Something went wrong");
-      console.error(err);
     } finally {
       setIsLoading(null);
     }
@@ -96,6 +135,13 @@ export function AuthModal() {
           <p className="text-center text-muted-foreground text-sm">
             {subMessage}
           </p>
+
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
           {/* Social Login Options */}
           <div className="space-y-3">
@@ -124,35 +170,6 @@ export function AuthModal() {
                 <MessageCircle className="h-5 w-5 text-indigo-500" />
               )}
               Continue with Discord
-            </Button>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with email
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Button 
-              className="w-full h-11 font-semibold"
-              onClick={handleGoogleLogin}
-              disabled={isLoading !== null}
-            >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Free Account"}
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full"
-              onClick={handleGoogleLogin}
-              disabled={isLoading !== null}
-            >
-              Already have an account? Log In
             </Button>
           </div>
 
