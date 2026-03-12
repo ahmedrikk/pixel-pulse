@@ -18,6 +18,7 @@ import Leaderboard from "./pages/Leaderboard";
 import Esports from "./pages/Esports";
 import GameCatalog from "./pages/GameCatalog";
 import GameReview from "./pages/GameReview";
+import BattlePass from "./pages/BattlePass";
 import NotFound from "./pages/NotFound";
 import ComingSoon from "./pages/ComingSoon";
 
@@ -46,6 +47,7 @@ const App = () => (
                   <Route path="/esports/:gameId" element={<Esports />} />
                   <Route path="/reviews" element={<GameCatalog />} />
                   <Route path="/reviews/:gameId" element={<GameReview />} />
+                  <Route path="/battle-pass" element={<BattlePass />} />
                   <Route path="/guides" element={<ComingSoon />} />
                   <Route path="/hardware" element={<ComingSoon />} />
                   <Route path="*" element={<NotFound />} />
