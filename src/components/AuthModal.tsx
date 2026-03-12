@@ -15,6 +15,7 @@ const ACTION_MESSAGES: Record<GatedAction, string> = {
   share_feed: "Join to post to your feed",
   review: "Join to rate and review games",
   react: "Join to react to content",
+  signup_prompt: "Join LevelUpXP",
 };
 
 const ACTION_SUBMESSAGES: Record<GatedAction, string> = {
@@ -25,6 +26,7 @@ const ACTION_SUBMESSAGES: Record<GatedAction, string> = {
   share_feed: "Share articles with your followers",
   review: "Help others discover great games",
   react: "Express yourself with emoji reactions",
+  signup_prompt: "Post reviews, track favorites & unlock achievements 🎮",
 };
 
 export function AuthModal() {

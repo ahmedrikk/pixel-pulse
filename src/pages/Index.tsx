@@ -1,18 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { NewsFeed } from "@/components/NewsFeed";
 import { RightSidebar } from "@/components/RightSidebar";
 import { MobileMenu } from "@/components/MobileMenu";
 import { TagFilterProvider } from "@/contexts/TagFilterContext";
-import { SoftBlockAuthModal } from "@/components/SoftBlockAuthModal";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { useXP } from "@/contexts/XPContext";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 
 const Index = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { addXP } = useXP();
   const { shouldShowModal, dismiss, trackCardView } = useEngagementTracker(addXP);
+  const { openSignupPrompt, isAuthenticated } = useAuthGate();
+
+  // Trigger auth modal when engagement tracker wants to show soft block
+  useEffect(() => {
+    if (shouldShowModal && !isAuthenticated) {
+      openSignupPrompt();
+      dismiss();
+    }
+  }, [shouldShowModal, isAuthenticated, openSignupPrompt, dismiss]);
 
   return (
     <TagFilterProvider>
@@ -47,7 +56,6 @@ const Index = () => {
           </div>
         </div>
 
-        <SoftBlockAuthModal isOpen={shouldShowModal} onDismiss={dismiss} />
       </div>
     </TagFilterProvider>
   );
