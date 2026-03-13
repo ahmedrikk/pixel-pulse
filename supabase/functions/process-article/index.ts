@@ -40,9 +40,10 @@ You are an intelligent content agent. Your job is to deeply read a gaming news a
 1. **TITLE** (under 60 chars): A sharp, factual headline. No clickbait.
 
 2. **SUMMARY** (EXACTLY 270–280 characters): Dense, fact-first summary.
-   - Count every character including spaces. Must be 270–280 chars.
-   - If source content is short, expand using your knowledge of the topic.
-   - No bullet points. No quotes. Pack in who/what/when/why it matters.
+   - Count every character including spaces. It MUST be between 270 and 280 chars. Not 100. Not 200. 270–280.
+   - If the source text is short (under 200 chars), you MUST expand it using your own knowledge of the topic, franchise, developer, or context. Do not just restate the headline.
+   - Write like a news wire: pack in who, what, when, where, why it matters — all in one tight paragraph.
+   - No bullet points. No quotes. No "In this article..." filler. Start with the subject directly.
 
 3. **TAGS** — Act as a named entity extractor. Read the article and pull out the real-world proper nouns that define what this article is about. Think:
    - What game(s) are mentioned by name? → "ResidentEvil2", "GTA6", "Minecraft"
@@ -78,7 +79,7 @@ ${article.content.substring(0, 6000)}
 
 Read this article fully. Then:
 
-1. Write the SUMMARY — exactly 270–280 characters. Expand with context if source is short.
+1. Write the SUMMARY — count the characters. Must land between 270 and 280. If the source snippet is short, use your knowledge of the game/studio/event to pad it out with relevant context. A short source is NOT an excuse for a short summary.
 2. Extract TAGS as a named entity agent — only proper nouns: game titles, character names, real people, studios, events. Zero generic category words. Ask yourself for each tag: "Is this a specific named thing from this article?" If no, remove it.`;
 
   if (!OPENROUTER_API_KEY) {
@@ -142,7 +143,7 @@ Read this article fully. Then:
         summary = (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
       }
       // Log a warning if too short (AI didn't comply) but still use it
-      if (summary.length < 200) {
+      if (summary.length < 250) {
         console.warn(`Short summary (${summary.length} chars) for: ${article.title.substring(0, 50)}`);
       }
 
