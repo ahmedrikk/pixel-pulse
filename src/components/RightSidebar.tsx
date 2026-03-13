@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Zap, Users, HelpCircle, ExternalLink, Radio, Trophy, Target } from "lucide-react";
+import { Zap, Users, HelpCircle, ExternalLink, Radio, Trophy, Target, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PredictionCard } from "./PredictionCard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +24,20 @@ function toPredictionMatch(m: PandaMatch) {
   };
 }
 
+// Placeholder leaderboard — will be replaced with real Supabase data
+const TOP_PLAYERS = [
+  { rank: 1, username: "ShadowReaper", xp: 12450 },
+  { rank: 2, username: "NeonBlade",    xp: 11200 },
+  { rank: 3, username: "PixelStorm",   xp: 9870  },
+  { rank: 4, username: "VoidWalker",   xp: 8540  },
+  { rank: 5, username: "CyberNinja",   xp: 7320  },
+  { rank: 6, username: "IronPhoenix",  xp: 6100  },
+  { rank: 7, username: "GhostFury",    xp: 5480  },
+  { rank: 8, username: "ArcticWolf",   xp: 4950  },
+  { rank: 9, username: "BlazeMaster",  xp: 4200  },
+  { rank: 10, username: "TitanX",      xp: 3750  },
+];
+
 export function RightSidebar() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
@@ -39,7 +53,7 @@ export function RightSidebar() {
 
   return (
     <aside className="w-full lg:w-72 space-y-4">
-      {/* Live Match Widget */}
+      {/* Live Esports Widget */}
       <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
         <div className="bg-gradient-to-r from-destructive/20 to-primary/10 p-4 border-b">
           <div className="flex items-center gap-2">
@@ -56,6 +70,7 @@ export function RightSidebar() {
             </span>
           </div>
         </div>
+
         <div className="p-4">
           {liveMatch ? (
             <>
@@ -109,11 +124,7 @@ export function RightSidebar() {
           {showUpcoming.length > 0 ? (
             <div className="space-y-3">
               {showUpcoming.map((match) => (
-                <PredictionCard
-                  key={match.id}
-                  match={match}
-                  compact
-                />
+                <PredictionCard key={match.id} match={match} compact />
               ))}
             </div>
           ) : (
@@ -135,7 +146,44 @@ export function RightSidebar() {
         </CardContent>
       </Card>
 
-      {/* Daily Trivia Widget */}
+      {/* XP Leaderboard */}
+      <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
+        <div className="bg-gradient-to-r from-yellow-500/15 to-primary/10 p-4 border-b">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-yellow-500" />
+            <h3 className="font-semibold">Top Players</h3>
+          </div>
+        </div>
+        <div className="p-3 space-y-1">
+          {TOP_PLAYERS.map((player) => (
+            <div
+              key={player.rank}
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-colors ${
+                player.rank <= 3 ? "bg-secondary/60" : "hover:bg-secondary/40"
+              }`}
+            >
+              <span className="w-5 text-center text-xs font-bold">
+                {player.rank <= 3 ? (
+                  <Crown className={`h-3.5 w-3.5 mx-auto ${
+                    player.rank === 1 ? "text-yellow-500" :
+                    player.rank === 2 ? "text-muted-foreground" :
+                    "text-orange-400"
+                  }`} />
+                ) : (
+                  <span className="text-muted-foreground">{player.rank}</span>
+                )}
+              </span>
+              <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold">
+                {player.username.slice(0, 2).toUpperCase()}
+              </div>
+              <span className="flex-1 text-sm font-medium truncate">{player.username}</span>
+              <span className="text-xs text-muted-foreground font-mono">{player.xp.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Daily Trivia */}
       <Link to="/trivia">
         <Card className="cursor-pointer hover:border-primary/50 transition-colors group">
           <CardContent className="p-4">
@@ -157,7 +205,7 @@ export function RightSidebar() {
         </Card>
       </Link>
 
-      {/* Friends Online — coming soon */}
+      {/* Friends Online */}
       <div className="bg-card rounded-lg border p-4 card-shadow">
         <h3 className="font-semibold mb-3 flex items-center gap-2">
           <Users className="h-4 w-4" />
