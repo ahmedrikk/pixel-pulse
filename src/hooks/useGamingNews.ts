@@ -249,7 +249,7 @@ async function processNewArticlesWithAI(articles: NewsItem[]): Promise<NewsItem[
           const aiTags = processed.processedTags || [];
           
           // Merge AI tags with smart tags
-          const mergedTags = mergeTags(aiTags, article.originalTags || article.tags, article.title, article.summary);
+          const mergedTags = mergeTags(aiTags, article.tags, article.title, article.summary);
 
           const processedArticle: NewsItem = {
             ...article,

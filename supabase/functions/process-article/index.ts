@@ -9,12 +9,12 @@ const corsHeaders = {
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
 
-// Recommended models for cost/performance balance
-// Fallback order: GPT-4o Mini → Claude Haiku → Llama
+// Fallback order: Hunter Alpha → GPT-4o Mini → Claude Haiku → Llama
 const MODELS = [
-  "openai/gpt-4o-mini",           // Fast, cheap, great for structured outputs
-  "anthropic/claude-3-haiku",      // Fast, good at following instructions
-  "meta-llama/llama-3.1-8b-instruct", // Free/cheap fallback
+  "openrouter/hunter-alpha",           // Primary: fast, low cost
+  "openai/gpt-4o-mini",               // Fallback 1: proven structured output
+  "anthropic/claude-3-haiku",          // Fallback 2: great at following instructions
+  "meta-llama/llama-3.1-8b-instruct", // Fallback 3: free/cheap
 ];
 
 interface ArticleInput {
@@ -169,7 +169,7 @@ Read this article fully. Then:
   console.error(`All models failed for article: ${article.title}`);
   return {
     processedTitle: article.title,
-    processedSummary: article.content.substring(0, 300) + "...",
+    processedSummary: article.content.length > 0 ? article.content : article.title,
     processedTags: []
   };
 }
@@ -208,7 +208,7 @@ serve(async (req) => {
             console.error(`Error processing article "${article.title}":`, error);
             return {
               processedTitle: article.title,
-              processedSummary: article.content.substring(0, 300) + "...",
+              processedSummary: article.content.length > 0 ? article.content : article.title,
               processedTags: []
             };
           }

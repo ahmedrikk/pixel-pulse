@@ -48,6 +48,7 @@ const App = () => (
                   <Route path="/reviews" element={<GameCatalog />} />
                   <Route path="/reviews/:gameId" element={<GameReview />} />
                   <Route path="/battle-pass" element={<BattlePass />} />
+                  <Route path="/notifications" element={<ComingSoon />} />
                   <Route path="/guides" element={<ComingSoon />} />
                   <Route path="/hardware" element={<ComingSoon />} />
                   <Route path="*" element={<NotFound />} />

@@ -63,7 +63,7 @@ export interface SteamProfile {
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   if (isDemoMode()) {
-    return DEMO_PROFILE as Profile;
+    return DEMO_PROFILE as unknown as Profile;
   }
   
   const { data, error } = await supabase
@@ -126,7 +126,7 @@ export async function getProfileByUsername(username: string): Promise<Profile | 
 
 export async function getCurrentUserProfile(): Promise<Profile | null> {
   if (isDemoMode()) {
-    return DEMO_PROFILE as Profile;
+    return DEMO_PROFILE as unknown as Profile;
   }
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -169,7 +169,7 @@ export async function getSocialAccounts(userId: string): Promise<SocialAccount[]
     console.error('Error fetching social accounts:', error);
     return [];
   }
-  return data || [];
+  return (data || []) as unknown as SocialAccount[];
 }
 
 export async function linkSocialAccount(
@@ -215,7 +215,7 @@ export async function linkSocialAccount(
     }
   }
 
-  return data;
+  return data as unknown as SocialAccount;
 }
 
 export async function unlinkSocialAccount(
