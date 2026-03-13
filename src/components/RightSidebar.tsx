@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { PredictionCard } from "./PredictionCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { useEsportsMatches } from "@/hooks/useEsportsMatches";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
 import type { EsportsMatch as PandaMatch } from "@/lib/pandascore";
 
 // Adapter: convert PandaScore EsportsMatch to the shape PredictionCard expects
@@ -24,19 +25,6 @@ function toPredictionMatch(m: PandaMatch) {
   };
 }
 
-// Placeholder leaderboard — will be replaced with real Supabase data
-const TOP_PLAYERS = [
-  { rank: 1, username: "ShadowReaper", xp: 12450 },
-  { rank: 2, username: "NeonBlade",    xp: 11200 },
-  { rank: 3, username: "PixelStorm",   xp: 9870  },
-  { rank: 4, username: "VoidWalker",   xp: 8540  },
-  { rank: 5, username: "CyberNinja",   xp: 7320  },
-  { rank: 6, username: "IronPhoenix",  xp: 6100  },
-  { rank: 7, username: "GhostFury",    xp: 5480  },
-  { rank: 8, username: "ArcticWolf",   xp: 4950  },
-  { rank: 9, username: "BlazeMaster",  xp: 4200  },
-  { rank: 10, username: "TitanX",      xp: 3750  },
-];
 
 export function RightSidebar() {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -45,6 +33,8 @@ export function RightSidebar() {
   const { liveMatches, upcomingMatches } = useEsportsMatches();
   const liveMatch = liveMatches[0] ?? null;
   const showUpcoming = upcomingMatches.slice(0, 2).map(toPredictionMatch);
+
+  const { data: leaderboard = [], isLoading: leaderboardLoading } = useLeaderboard();
 
   const handleAnswerSelect = (index: number) => {
     setSelectedAnswer(index);
@@ -155,31 +145,54 @@ export function RightSidebar() {
           </div>
         </div>
         <div className="p-3 space-y-1">
-          {TOP_PLAYERS.map((player) => (
-            <div
-              key={player.rank}
-              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-colors ${
-                player.rank <= 3 ? "bg-secondary/60" : "hover:bg-secondary/40"
-              }`}
-            >
-              <span className="w-5 text-center text-xs font-bold">
-                {player.rank <= 3 ? (
-                  <Crown className={`h-3.5 w-3.5 mx-auto ${
-                    player.rank === 1 ? "text-yellow-500" :
-                    player.rank === 2 ? "text-muted-foreground" :
-                    "text-orange-400"
-                  }`} />
-                ) : (
-                  <span className="text-muted-foreground">{player.rank}</span>
-                )}
-              </span>
-              <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold">
-                {player.username.slice(0, 2).toUpperCase()}
+          {leaderboardLoading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-2.5 py-1.5">
+                <div className="w-5 h-3 bg-secondary rounded animate-pulse" />
+                <div className="w-6 h-6 rounded-full bg-secondary animate-pulse" />
+                <div className="flex-1 h-3 bg-secondary rounded animate-pulse" />
+                <div className="w-12 h-3 bg-secondary rounded animate-pulse" />
               </div>
-              <span className="flex-1 text-sm font-medium truncate">{player.username}</span>
-              <span className="text-xs text-muted-foreground font-mono">{player.xp.toLocaleString()}</span>
-            </div>
-          ))}
+            ))
+          ) : leaderboard.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-3">
+              No players yet — be the first!
+            </p>
+          ) : (
+            leaderboard.map((player) => (
+              <div
+                key={player.rank}
+                className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-colors ${
+                  player.rank <= 3 ? "bg-secondary/60" : "hover:bg-secondary/40"
+                }`}
+              >
+                <span className="w-5 text-center text-xs font-bold">
+                  {player.rank <= 3 ? (
+                    <Crown className={`h-3.5 w-3.5 mx-auto ${
+                      player.rank === 1 ? "text-yellow-500" :
+                      player.rank === 2 ? "text-slate-400" :
+                      "text-orange-400"
+                    }`} />
+                  ) : (
+                    <span className="text-muted-foreground">{player.rank}</span>
+                  )}
+                </span>
+                {player.avatarUrl ? (
+                  <img
+                    src={player.avatarUrl}
+                    alt={player.username}
+                    className="w-6 h-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold">
+                    {player.username.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <span className="flex-1 text-sm font-medium truncate">{player.username}</span>
+                <span className="text-xs text-muted-foreground font-mono">{player.xp.toLocaleString()} XP</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
