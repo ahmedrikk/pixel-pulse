@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { CATEGORIES } from "@/data/mockNews";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 import { UserProfileCard } from "@/components/UserProfileCard";
-import { XPProgressBar } from "@/components/XPProgressBar";
+
 import { useXP } from "@/contexts/XPContext";
 import { Button } from "@/components/ui/button";
 
@@ -45,10 +45,6 @@ export function LeftSidebar() {
           </Link>
         ))}
 
-        {/* XP Progress Bar inside nav card */}
-        <div className="px-4 py-3 border-t border-border">
-          <XPProgressBar />
-        </div>
       </nav>
 
       {/* Battle Pass Widget */}
