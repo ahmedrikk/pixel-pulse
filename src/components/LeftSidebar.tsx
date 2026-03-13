@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { CATEGORIES } from "@/data/mockNews";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 import { UserProfileCard } from "@/components/UserProfileCard";
-import { XPProgressBar } from "@/components/XPProgressBar";
+
 import { useXP } from "@/contexts/XPContext";
 import { Button } from "@/components/ui/button";
 
