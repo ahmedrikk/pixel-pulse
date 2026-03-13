@@ -1,21 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { 
-  ExternalLink, 
-  Share2, 
-  Bookmark, 
-  MessageCircle, 
+import {
+  ExternalLink,
+  Share2,
+  Bookmark,
+  MessageCircle,
   Heart,
-  Clock,
-  MoreHorizontal,
-  Check,
   Link2,
   Twitter,
-  MessageSquare
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Article, XP_VALUES } from "@/types/feed";
 import { useTagFilter } from "@/contexts/TagFilterContext";
-import { useAuthGate, useGatedAction } from "@/contexts/AuthGateContext";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useXP } from "@/contexts/XPContext";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { toast } from "sonner";
@@ -33,28 +32,12 @@ interface EnhancedNewsCardProps {
   onCardView?: (cardId: string) => void;
 }
 
-// Quick emoji reactions
 const QUICK_REACTIONS = [
-  { emoji: "👍", key: "thumbsup", label: "Like" },
-  { emoji: "❤️", key: "heart", label: "Love" },
-  { emoji: "🔥", key: "fire", label: "Fire" },
-  { emoji: "😮", key: "wow", label: "Wow" },
+  { emoji: "👍", key: "thumbsup" },
+  { emoji: "🔥", key: "fire" },
+  { emoji: "😮", key: "wow" },
 ];
 
-// Format date to relative time
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-  
-  if (diffInHours < 1) return "Just now";
-  if (diffInHours < 24) return `${diffInHours}h ago`;
-  if (diffInHours < 48) return "Yesterday";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-// Last-resort guard: reject tags that are obviously not a named entity.
-// This catches AI slip-ups like "Update", "Gaming", "News" that still sneak through.
 const JUNK_TAGS = new Set([
   "update","updates","gaming","news","videogames","game","games",
   "entertainment","fun","action","adventure","horror","sport","sports",
@@ -62,11 +45,22 @@ const JUNK_TAGS = new Set([
   "multiplayer","singleplayer","coop","indie","streaming","trailer",
   "review","preview","rumor","leak","delay","dlc","remake","remaster",
 ]);
+
 function isSpecificTag(tag: string): boolean {
   return !JUNK_TAGS.has(tag.toLowerCase());
 }
 
-// Trim summary to max 280 characters at word boundary
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+  if (diffInHours < 48) return "Yesterday";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 function normaliseSummary(summary: string): string {
   if (!summary) return "";
   if (summary.length <= 280) return summary;
@@ -75,18 +69,36 @@ function normaliseSummary(summary: string): string {
   return (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
 }
 
+// Source name → short colour-coded abbreviation for the source dot
+const SOURCE_COLORS: Record<string, string> = {
+  ign: "bg-red-500",
+  gamespot: "bg-yellow-500",
+  kotaku: "bg-pink-500",
+  "pc gamer": "bg-blue-500",
+  eurogamer: "bg-orange-500",
+  polygon: "bg-purple-500",
+  "rock paper shotgun": "bg-green-500",
+  vg247: "bg-cyan-500",
+  "game rant": "bg-indigo-500",
+};
+
+function sourceColor(sourceName: string): string {
+  return SOURCE_COLORS[sourceName.toLowerCase()] ?? "bg-primary";
+}
+
 export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps) {
   const { setActiveTag } = useTagFilter();
   const { isAuthenticated, openAuthModal } = useAuthGate();
   const { addXP } = useXP();
   const { isBookmarked, toggleBookmark } = useBookmarks();
-  
+
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(article.likes || 0);
   const [showComments, setShowComments] = useState(false);
   const [userReactions, setUserReactions] = useState<Record<string, number>>(article.reactions || {});
   const [hasAwardedView, setHasAwardedView] = useState(false);
-  
+  const [imgError, setImgError] = useState(false);
+
   const cardRef = useRef<HTMLElement>(null);
   const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isVisibleRef = useRef(false);
@@ -94,291 +106,259 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
   const isCurrentlyBookmarked = isBookmarked(article.id);
 
-  // Handle tag click
-  const handleTagClick = (tag: string) => {
-    setActiveTag(tag);
-  };
+  const handleTagClick = (tag: string) => setActiveTag(tag);
 
-  // Handle like (auth-gated)
   const handleLike = useCallback(() => {
-    if (!isAuthenticated) {
-      openAuthModal("like", { articleId: article.id });
-      return;
-    }
-    
+    if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
     setLiked(!liked);
     setLikeCount(liked ? likeCount - 1 : likeCount + 1);
-    
-    if (!liked) {
-      addXP(XP_VALUES.REACT);
-      toast.success(`+${XP_VALUES.REACT} XP!`, { duration: 1500 });
-    }
+    if (!liked) { addXP(XP_VALUES.REACT); toast.success(`+${XP_VALUES.REACT} XP!`, { duration: 1500 }); }
   }, [isAuthenticated, liked, likeCount, article.id, openAuthModal, addXP]);
 
-  // Handle reaction (auth-gated)
   const handleReaction = useCallback((emoji: string) => {
-    if (!isAuthenticated) {
-      openAuthModal("react", { articleId: article.id });
-      return;
-    }
-    
-    setUserReactions(prev => ({
-      ...prev,
-      [emoji]: (prev[emoji] || 0) + 1,
-    }));
-    
+    if (!isAuthenticated) { openAuthModal("react", { articleId: article.id }); return; }
+    setUserReactions(prev => ({ ...prev, [emoji]: (prev[emoji] || 0) + 1 }));
     addXP(XP_VALUES.REACT);
     toast.success(`+${XP_VALUES.REACT} XP!`, { duration: 1500 });
   }, [isAuthenticated, article.id, openAuthModal, addXP]);
 
-  // Handle bookmark (auth-gated)
   const handleBookmark = useCallback(() => {
-    if (!isAuthenticated) {
-      openAuthModal("bookmark", { articleId: article.id });
-      return;
-    }
-    
+    if (!isAuthenticated) { openAuthModal("bookmark", { articleId: article.id }); return; }
     const newState = toggleBookmark(article);
     toast.success(newState ? "Saved to bookmarks" : "Removed from bookmarks");
   }, [isAuthenticated, article, openAuthModal, toggleBookmark]);
 
-  // Handle share
   const handleShare = useCallback(async (type: "copy" | "twitter" | "whatsapp") => {
     const url = article.sourceUrl;
     const text = `Check out: ${article.title}`;
-    
-    switch (type) {
-      case "copy":
-        await navigator.clipboard.writeText(url);
-        toast.success("Link copied to clipboard");
-        break;
-      case "twitter":
-        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, "_blank");
-        break;
-      case "whatsapp":
-        window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, "_blank");
-        break;
-    }
+    if (type === "copy") { await navigator.clipboard.writeText(url); toast.success("Link copied"); }
+    else if (type === "twitter") window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, "_blank");
+    else window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, "_blank");
   }, [article]);
 
-  // Award view XP after 5s dwell
   const awardViewXP = useCallback(() => {
     if (hasAwardedView) return;
     setHasAwardedView(true);
     addXP(XP_VALUES.VIEW_SUMMARY);
   }, [hasAwardedView, addXP]);
 
-  // Track card view
   useEffect(() => {
     const card = cardRef.current;
     if (!card) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             if (!isVisibleRef.current && !hasAwardedView) {
               isVisibleRef.current = true;
-              
-              // Notify parent component
               if (onCardView && !hasTriggeredViewRef.current) {
                 onCardView(article.id);
                 hasTriggeredViewRef.current = true;
               }
-              
-              // Start dwell timer
-              dwellTimerRef.current = setTimeout(() => {
-                awardViewXP();
-              }, 5000);
+              dwellTimerRef.current = setTimeout(awardViewXP, 5000);
             }
           } else {
             isVisibleRef.current = false;
-            if (dwellTimerRef.current) {
-              clearTimeout(dwellTimerRef.current);
-              dwellTimerRef.current = null;
-            }
+            if (dwellTimerRef.current) { clearTimeout(dwellTimerRef.current); dwellTimerRef.current = null; }
           }
         });
       },
       { threshold: 0.5 }
     );
-
     observer.observe(card);
-
     return () => {
       observer.disconnect();
-      if (dwellTimerRef.current) {
-        clearTimeout(dwellTimerRef.current);
-      }
+      if (dwellTimerRef.current) clearTimeout(dwellTimerRef.current);
     };
   }, [article.id, awardViewXP, hasAwardedView, onCardView]);
 
-  // Handle read full article
   const handleReadFull = useCallback(() => {
     addXP(XP_VALUES.READ_FULL_ARTICLE);
     toast.success(`+${XP_VALUES.READ_FULL_ARTICLE} XP!`, { duration: 1500 });
   }, [addXP]);
 
   const summaryText = normaliseSummary(article.summary);
-
-  // First specific (non-generic) tag for the blue badge and review prompt
-  const primaryTag = article.topicTags.find(isSpecificTag) ?? null;
-
-  // Show top 4 tags, all of them (including context tags like PS5)
-  const displayTags = article.topicTags.slice(0, 4);
+  const displayTags = article.topicTags.filter(isSpecificTag).slice(0, 3);
+  const dotColor = sourceColor(article.sourceName);
 
   return (
     <article
       ref={cardRef}
-      className="bg-card rounded-xl border overflow-hidden card-shadow hover:card-shadow-hover transition-all duration-200 group"
+      className="group bg-card border rounded-xl overflow-hidden transition-all duration-200 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5"
     >
-      {/* Hero Image */}
-      <div className="relative aspect-video overflow-hidden">
-        <img
-          src={article.heroImageUrl}
-          alt={article.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-        />
-        {primaryTag && (
-          <span className="absolute top-3 left-3 px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
-            #{primaryTag}
-          </span>
-        )}
-      </div>
+      {/* Main row: thumbnail + content */}
+      <div className="flex gap-0">
+        {/* Thumbnail */}
+        <a
+          href={article.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleReadFull}
+          className="relative flex-shrink-0 w-36 sm:w-44 overflow-hidden"
+          tabIndex={-1}
+        >
+          {!imgError ? (
+            <img
+              src={article.heroImageUrl}
+              alt=""
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div className="w-full h-full bg-muted flex items-center justify-center">
+              <span className="text-2xl opacity-30">🎮</span>
+            </div>
+          )}
+        </a>
 
-      {/* Content */}
-      <div className="p-5">
-        {/* Source Bar */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <span className="font-medium text-foreground">{article.sourceName}</span>
-          <span>•</span>
-          <span>{formatDate(article.publishedAt)}</span>
-          <span>•</span>
-          <span>by {article.author}</span>
-        </div>
+        {/* Content */}
+        <div className="flex flex-col flex-1 min-w-0 p-3 gap-1.5">
+          {/* Source row */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={cn("inline-block w-1.5 h-1.5 rounded-full flex-shrink-0", dotColor)} />
+            <span className="font-semibold text-foreground/80 truncate">{article.sourceName}</span>
+            <span className="opacity-40">·</span>
+            <span className="flex-shrink-0">{formatDate(article.publishedAt)}</span>
+            {displayTags[0] && (
+              <>
+                <span className="opacity-40 ml-auto">·</span>
+                <button
+                  onClick={() => handleTagClick(displayTags[0])}
+                  className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/15 text-primary hover:bg-primary/25 transition-colors flex-shrink-0"
+                >
+                  #{displayTags[0]}
+                </button>
+              </>
+            )}
+          </div>
 
-        {/* Headline */}
-        <h2 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors leading-tight line-clamp-2">
-          {article.title}
-        </h2>
+          {/* Title */}
+          <a
+            href={article.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleReadFull}
+            className="block"
+          >
+            <h2 className="text-sm font-bold leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+              {article.title}
+            </h2>
+          </a>
 
-        {/* Summary — fixed 4-line display, uniform across all cards */}
-        <div className="mb-4 h-[5.5rem] overflow-hidden">
-          <p className="text-muted-foreground leading-[1.375rem] line-clamp-4">
+          {/* Summary */}
+          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1">
             {summaryText}
           </p>
-        </div>
 
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {displayTags.map((tag) => (
+          {/* Bottom row: actions */}
+          <div className="flex items-center gap-0.5 mt-0.5 -mx-1">
+            {/* Reactions */}
+            {QUICK_REACTIONS.map(({ emoji, key }) => (
+              <button
+                key={key}
+                onClick={() => handleReaction(emoji)}
+                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs hover:bg-secondary/80 transition-colors"
+                title={key}
+              >
+                <span className="text-sm leading-none">{emoji}</span>
+                {userReactions[emoji] > 0 && (
+                  <span className="text-[10px] text-muted-foreground">{userReactions[emoji]}</span>
+                )}
+              </button>
+            ))}
+
+            <div className="w-px h-3 bg-border mx-1" />
+
+            {/* Like */}
             <button
-              key={tag}
-              onClick={() => handleTagClick(tag)}
-              className="px-2 py-1 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
-            >
-              #{tag}
-            </button>
-          ))}
-        </div>
-
-        {/* Reaction Row */}
-        <div className="flex items-center gap-1 mb-3">
-          {QUICK_REACTIONS.map(({ emoji, key }) => (
-            <button
-              key={key}
-              onClick={() => handleReaction(emoji)}
-              className="flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm"
-              title={key}
-            >
-              <span>{emoji}</span>
-              {userReactions[emoji] > 0 && (
-                <span className="text-xs text-muted-foreground">{userReactions[emoji]}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Action Bar */}
-        <div className="flex items-center justify-between pt-3 border-t">
-          <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={cn(
-                "gap-1",
-                liked ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500"
-              )}
               onClick={handleLike}
-            >
-              <Heart className={cn("h-4 w-4", liked && "fill-current")} />
-              <span className="text-xs">{likeCount}</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="gap-1 text-muted-foreground hover:text-primary"
-              onClick={() => setShowComments(!showComments)}
-            >
-              <MessageCircle className="h-4 w-4" />
-              <span className="text-xs">{article.comments}</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
               className={cn(
-                "text-muted-foreground hover:text-primary",
-                isCurrentlyBookmarked && "text-primary"
+                "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs transition-colors",
+                liked ? "text-red-500" : "text-muted-foreground hover:text-red-500 hover:bg-secondary/80"
               )}
-              onClick={handleBookmark}
             >
-              <Bookmark className={cn("h-4 w-4", isCurrentlyBookmarked && "fill-current")} />
-            </Button>
-            
+              <Heart className={cn("h-3 w-3", liked && "fill-current")} />
+              <span>{likeCount}</span>
+            </button>
+
+            {/* Comments */}
+            <button
+              onClick={() => setShowComments(!showComments)}
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs text-muted-foreground hover:text-primary hover:bg-secondary/80 transition-colors"
+            >
+              <MessageCircle className="h-3 w-3" />
+              <span>{article.comments}</span>
+            </button>
+
+            {/* Bookmark */}
+            <button
+              onClick={handleBookmark}
+              className={cn(
+                "px-1.5 py-0.5 rounded text-xs transition-colors",
+                isCurrentlyBookmarked
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-primary hover:bg-secondary/80"
+              )}
+            >
+              <Bookmark className={cn("h-3 w-3", isCurrentlyBookmarked && "fill-current")} />
+            </button>
+
+            {/* Share */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
-                  <Share2 className="h-4 w-4" />
-                </Button>
+                <button className="px-1.5 py-0.5 rounded text-xs text-muted-foreground hover:text-primary hover:bg-secondary/80 transition-colors">
+                  <Share2 className="h-3 w-3" />
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuItem onClick={() => handleShare("copy")}>
-                  <Link2 className="h-4 w-4 mr-2" />
-                  Copy Link
+                  <Link2 className="h-3.5 w-3.5 mr-2" /> Copy link
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleShare("twitter")}>
-                  <Twitter className="h-4 w-4 mr-2" />
-                  Share on X
+                  <Twitter className="h-3.5 w-3.5 mr-2" /> Share on X
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleShare("whatsapp")}>
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Share on WhatsApp
+                  <MessageSquare className="h-3.5 w-3.5 mr-2" /> WhatsApp
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
 
-          <Button asChild size="sm" className="gap-2" onClick={handleReadFull}>
-            <a href={article.sourceUrl} target="_blank" rel="noopener noreferrer">
-              Read Full Article
-              <ExternalLink className="h-3 w-3" />
+            {/* Extra tags (collapsed) */}
+            {displayTags.length > 1 && (
+              <div className="flex items-center gap-1 ml-auto">
+                {displayTags.slice(1).map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => handleTagClick(tag)}
+                    className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Read link */}
+            <a
+              href={article.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleReadFull}
+              className="ml-auto flex items-center gap-0.5 px-2 py-1 rounded bg-primary/10 text-primary text-[10px] font-semibold hover:bg-primary hover:text-primary-foreground transition-colors flex-shrink-0"
+            >
+              Read <ExternalLink className="h-2.5 w-2.5" />
             </a>
-          </Button>
+          </div>
         </div>
-
-        {/* Comments Section */}
-        {showComments && (
-          <EnhancedCommentSection
-            articleId={article.id}
-            className="mt-4"
-          />
-        )}
-
-        {/* Game Review Prompt disabled — too intrusive inline; move to dedicated Reviews page */}
       </div>
+
+      {/* Comments */}
+      {showComments && (
+        <div className="border-t px-3 pb-3">
+          <EnhancedCommentSection articleId={article.id} className="mt-3" />
+        </div>
+      )}
     </article>
   );
 }
