@@ -205,7 +205,8 @@ export async function getAllCachedArticles(): Promise<NewsItem[]> {
  */
 export async function cleanupExpiredArticles(): Promise<void> {
   try {
-    const { error } = await supabase.rpc('cleanup_expired_articles');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).rpc('cleanup_expired_articles');
     
     if (error) {
       // If RPC doesn't exist, fallback to delete

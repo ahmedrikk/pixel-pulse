@@ -8,7 +8,7 @@ interface Profile {
   username: string | null;
   avatar_url: string | null;
   banner_url: string | null;
-  bio: string | null;
+  about_me: string | null;
 }
 
 const DEFAULT_BANNER = "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&h=200&fit=crop";
@@ -24,7 +24,7 @@ export function UserProfileCard() {
       setIsLoggedIn(true);
       supabase
         .from("profiles")
-        .select("username, avatar_url, banner_url, bio")
+        .select("username, avatar_url, banner_url, about_me")
         .eq("id", user.id)
         .single()
         .then(({ data }) => setProfile(data));
@@ -106,8 +106,8 @@ export function UserProfileCard() {
 
       {/* Bio */}
       <div className="pt-10 px-5 pb-4">
-        {profile?.bio ? (
-          <p className="text-sm text-foreground leading-relaxed">{profile.bio}</p>
+        {profile?.about_me ? (
+          <p className="text-sm text-foreground leading-relaxed">{profile.about_me}</p>
         ) : (
           <p className="text-sm text-muted-foreground italic">No bio yet</p>
         )}

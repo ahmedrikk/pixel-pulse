@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Star, label: "Reviews", href: "/reviews" },
   { icon: Trophy, label: "Esports", href: "/esports" },
-  { icon: Swords, label: "Battle Pass", href: "/battle-pass" },
 ];
 
 export function LeftSidebar() {

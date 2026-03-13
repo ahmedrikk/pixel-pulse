@@ -2,9 +2,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useXP } from "@/contexts/XPContext";
 import { Sparkles } from "lucide-react";
 
-export function XPProgressBar() {
+export function XPProgressBar({ compact }: { compact?: boolean }) {
   const { state, floatingXPs, justLeveledUp } = useXP();
   const progress = (state.currentLevelXP / state.xpForNextLevel) * 100;
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2 w-36">
+        <span className="text-[10px] font-bold text-muted-foreground whitespace-nowrap">Lv{state.level}</span>
+        <div className="relative h-2 flex-1 rounded-full bg-secondary/60 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${progress}%`,
+              background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))",
+            }}
+          />
+        </div>
+        <span className="text-[10px] font-bold text-primary whitespace-nowrap">{state.totalXP} XP</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full">

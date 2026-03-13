@@ -433,11 +433,6 @@ export function generateSmartTags(title: string, content: string): string[] {
     .map(t => t.tag)
     .slice(0, 8);
 
-  // Ensure Gaming tag if we have gaming content
-  if (sortedTags.length > 0 && !sortedTags.includes("Gaming")) {
-    sortedTags.push("Gaming");
-  }
-
   return sortedTags;
 }
 

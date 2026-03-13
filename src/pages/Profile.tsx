@@ -611,8 +611,8 @@ export default function Profile() {
           <StatCard
             icon={<Trophy className="h-5 w-5 text-yellow-500" />}
             label="Tier"
-            value={String(profile?.tier || profile?.level || 1)}
-            sub={`${((profile?.xp_season || profile?.xp || 0) % XP_PER_TIER)} / ${XP_PER_TIER} XP to next`}
+            value={String((profile as any)?.tier || profile?.level || 1)}
+            sub={`${(((profile as any)?.xp_season || profile?.xp || 0) % XP_PER_TIER)} / ${XP_PER_TIER} XP to next`}
             highlight={true}
           />
           <StatCard

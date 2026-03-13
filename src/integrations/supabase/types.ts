@@ -12,563 +12,754 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
-      profiles: {
+      article_interactions: {
         Row: {
+          article_url: string
+          content: string | null
+          created_at: string | null
           id: string
-          username: string | null
-          display_name: string | null
-          email: string | null
-          avatar_url: string | null
-          about_me: string | null
-          created_at: string
-          updated_at: string
-          xp: number
-          level: number
-          daily_bonus_claimed_at: string | null
-          banner_url: string | null
-          nameplate_url: string | null
-          daily_streak: number | null
-          // Battle Pass XP fields
-          xp_today: number
-          xp_today_reset_date: string | null
-          xp_season: number
-          tier: number
-          streak_frozen: boolean
-          freeze_window_start: string | null
-          last_active_day: string | null
+          interaction_type: string
+          upvote_count: number
+          user_id: string
         }
         Insert: {
-          id: string
-          username?: string | null
-          display_name?: string | null
-          email?: string | null
-          avatar_url?: string | null
-          about_me?: string | null
-          created_at?: string
-          updated_at?: string
-          xp?: number
-          level?: number
-          daily_bonus_claimed_at?: string | null
-          banner_url?: string | null
-          nameplate_url?: string | null
-          daily_streak?: number | null
-          // Battle Pass XP fields
-          xp_today?: number
-          xp_today_reset_date?: string | null
-          xp_season?: number
-          tier?: number
-          streak_frozen?: boolean
-          freeze_window_start?: string | null
-          last_active_day?: string | null
+          article_url: string
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          interaction_type: string
+          upvote_count?: number
+          user_id: string
         }
         Update: {
+          article_url?: string
+          content?: string | null
+          created_at?: string | null
           id?: string
-          username?: string | null
+          interaction_type?: string
+          upvote_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_interactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      article_reads: {
+        Row: {
+          action_type: string
+          article_url: string
+          read_date: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          article_url: string
+          read_date?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          article_url?: string
+          read_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cached_articles: {
+        Row: {
+          ai_summary: string | null
+          ai_title: string | null
+          article_date: string
+          author: string
+          category: string
+          expires_at: string
+          fetched_at: string | null
+          id: string
+          image_url: string
+          likes: number | null
+          original_id: string
+          source: string
+          source_url: string
+          summary: string
+          tags: string[] | null
+          title: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          ai_title?: string | null
+          article_date: string
+          author?: string
+          category: string
+          expires_at: string
+          fetched_at?: string | null
+          id?: string
+          image_url: string
+          likes?: number | null
+          original_id: string
+          source: string
+          source_url: string
+          summary: string
+          tags?: string[] | null
+          title: string
+        }
+        Update: {
+          ai_summary?: string | null
+          ai_title?: string | null
+          article_date?: string
+          author?: string
+          category?: string
+          expires_at?: string
+          fetched_at?: string | null
+          id?: string
+          image_url?: string
+          likes?: number | null
+          original_id?: string
+          source?: string
+          source_url?: string
+          summary?: string
+          tags?: string[] | null
+          title?: string
+        }
+        Relationships: []
+      }
+      games: {
+        Row: {
+          cover_image: string | null
+          description: string | null
+          expires_at: string
+          genres: string[] | null
+          id: string
+          metacritic_score: number | null
+          name: string
+          opencritic_id: number | null
+          opencritic_score: number | null
+          platforms: string[] | null
+          rawg_rating: number | null
+          release_date: string | null
+          slug: string
+          steam_appid: number | null
+          trending: boolean | null
+        }
+        Insert: {
+          cover_image?: string | null
+          description?: string | null
+          expires_at: string
+          genres?: string[] | null
+          id: string
+          metacritic_score?: number | null
+          name: string
+          opencritic_id?: number | null
+          opencritic_score?: number | null
+          platforms?: string[] | null
+          rawg_rating?: number | null
+          release_date?: string | null
+          slug: string
+          steam_appid?: number | null
+          trending?: boolean | null
+        }
+        Update: {
+          cover_image?: string | null
+          description?: string | null
+          expires_at?: string
+          genres?: string[] | null
+          id?: string
+          metacritic_score?: number | null
+          name?: string
+          opencritic_id?: number | null
+          opencritic_score?: number | null
+          platforms?: string[] | null
+          rawg_rating?: number | null
+          release_date?: string | null
+          slug?: string
+          steam_appid?: number | null
+          trending?: boolean | null
+        }
+        Relationships: []
+      }
+      predictions: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_correct: boolean | null
+          match_id: number
+          predicted_team: string
+          resolved_at: string | null
+          user_id: string
+          xp_bonus: number
+          xp_participation: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_correct?: boolean | null
+          match_id: number
+          predicted_team: string
+          resolved_at?: string | null
+          user_id: string
+          xp_bonus?: number
+          xp_participation?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_correct?: boolean | null
+          match_id?: number
+          predicted_team?: string
+          resolved_at?: string | null
+          user_id?: string
+          xp_bonus?: number
+          xp_participation?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "predictions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          about_me: string | null
+          avatar_url: string | null
+          banner_url: string | null
+          created_at: string | null
+          daily_bonus_claimed_at: string | null
+          daily_streak: number | null
+          display_name: string | null
+          email: string | null
+          freeze_window_start: string | null
+          id: string
+          last_active_day: string | null
+          level: number | null
+          nameplate_url: string | null
+          streak_frozen: boolean
+          tier: number
+          updated_at: string | null
+          username: string | null
+          xp: number | null
+          xp_season: number
+          xp_today: number
+          xp_today_reset_date: string | null
+        }
+        Insert: {
+          about_me?: string | null
+          avatar_url?: string | null
+          banner_url?: string | null
+          created_at?: string | null
+          daily_bonus_claimed_at?: string | null
+          daily_streak?: number | null
           display_name?: string | null
           email?: string | null
-          avatar_url?: string | null
-          about_me?: string | null
-          created_at?: string
-          updated_at?: string
-          xp?: number
-          level?: number
-          daily_bonus_claimed_at?: string | null
-          banner_url?: string | null
+          freeze_window_start?: string | null
+          id: string
+          last_active_day?: string | null
+          level?: number | null
           nameplate_url?: string | null
-          daily_streak?: number | null
-          // Battle Pass XP fields
+          streak_frozen?: boolean
+          tier?: number
+          updated_at?: string | null
+          username?: string | null
+          xp?: number | null
+          xp_season?: number
           xp_today?: number
           xp_today_reset_date?: string | null
-          xp_season?: number
-          tier?: number
-          streak_frozen?: boolean
+        }
+        Update: {
+          about_me?: string | null
+          avatar_url?: string | null
+          banner_url?: string | null
+          created_at?: string | null
+          daily_bonus_claimed_at?: string | null
+          daily_streak?: number | null
+          display_name?: string | null
+          email?: string | null
           freeze_window_start?: string | null
+          id?: string
           last_active_day?: string | null
+          level?: number | null
+          nameplate_url?: string | null
+          streak_frozen?: boolean
+          tier?: number
+          updated_at?: string | null
+          username?: string | null
+          xp?: number | null
+          xp_season?: number
+          xp_today?: number
+          xp_today_reset_date?: string | null
         }
         Relationships: []
       }
       seasons: {
         Row: {
+          end_date: string
           id: number
+          is_active: boolean
           name: string
           start_date: string
-          end_date: string
-          is_active: boolean
         }
         Insert: {
+          end_date: string
           id: number
+          is_active?: boolean
           name: string
           start_date: string
-          end_date: string
-          is_active?: boolean
         }
         Update: {
+          end_date?: string
           id?: number
+          is_active?: boolean
           name?: string
           start_date?: string
-          end_date?: string
-          is_active?: boolean
         }
         Relationships: []
-      }
-      xp_events: {
-        Row: {
-          id: string
-          user_id: string
-          action_type: string
-          ref_id: string
-          xp_awarded: number
-          multiplier_applied: number | null
-          event_date: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          action_type: string
-          ref_id?: string
-          xp_awarded: number
-          multiplier_applied?: number | null
-          event_date?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          action_type?: string
-          ref_id?: string
-          xp_awarded?: number
-          multiplier_applied?: number | null
-          event_date?: string
-          created_at?: string
-        }
-        Relationships: [{ foreignKeyName: "xp_events_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] }]
-      }
-      trivia_questions: {
-        Row: {
-          id: string
-          question: string
-          options: Json
-          correct_index: number
-          topic: string | null
-          generated_at: string
-        }
-        Insert: {
-          id?: string
-          question: string
-          options: Json
-          correct_index: number
-          topic?: string | null
-          generated_at?: string
-        }
-        Update: {
-          id?: string
-          question?: string
-          options?: Json
-          correct_index?: number
-          topic?: string | null
-          generated_at?: string
-        }
-        Relationships: []
-      }
-      trivia_user_seen: {
-        Row: {
-          user_id: string
-          question_id: string
-          seen_at: string
-        }
-        Insert: {
-          user_id: string
-          question_id: string
-          seen_at?: string
-        }
-        Update: {
-          user_id?: string
-          question_id?: string
-          seen_at?: string
-        }
-        Relationships: [
-          { foreignKeyName: "trivia_user_seen_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] },
-          { foreignKeyName: "trivia_user_seen_question_id_fkey"; columns: ["question_id"]; referencedRelation: "trivia_questions"; referencedColumns: ["id"] }
-        ]
-      }
-      trivia_attempts: {
-        Row: {
-          id: string
-          user_id: string
-          quiz_date: string
-          questions_json: Json
-          answers_json: Json | null
-          score: number | null
-          xp_awarded: number
-          completed_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          quiz_date: string
-          questions_json: Json
-          answers_json?: Json | null
-          score?: number | null
-          xp_awarded?: number
-          completed_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          quiz_date?: string
-          questions_json?: Json
-          answers_json?: Json | null
-          score?: number | null
-          xp_awarded?: number
-          completed_at?: string | null
-        }
-        Relationships: [{ foreignKeyName: "trivia_attempts_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] }]
-      }
-      predictions: {
-        Row: {
-          id: string
-          user_id: string
-          match_id: number
-          predicted_team: string
-          is_correct: boolean | null
-          xp_participation: number
-          xp_bonus: number
-          created_at: string
-          resolved_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          match_id: number
-          predicted_team: string
-          is_correct?: boolean | null
-          xp_participation?: number
-          xp_bonus?: number
-          created_at?: string
-          resolved_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          match_id?: number
-          predicted_team?: string
-          is_correct?: boolean | null
-          xp_participation?: number
-          xp_bonus?: number
-          created_at?: string
-          resolved_at?: string | null
-        }
-        Relationships: [{ foreignKeyName: "predictions_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] }]
-      }
-      article_reads: {
-        Row: {
-          user_id: string
-          article_url: string
-          action_type: string
-          read_date: string
-        }
-        Insert: {
-          user_id: string
-          article_url: string
-          action_type: string
-          read_date?: string
-        }
-        Update: {
-          user_id?: string
-          article_url?: string
-          action_type?: string
-          read_date?: string
-        }
-        Relationships: [{ foreignKeyName: "article_reads_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] }]
-      }
-      article_interactions: {
-        Row: {
-          id: string
-          user_id: string
-          article_url: string
-          interaction_type: 'react' | 'comment'
-          content: string | null
-          upvote_count: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          article_url: string
-          interaction_type: 'react' | 'comment'
-          content?: string | null
-          upvote_count?: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          article_url?: string
-          interaction_type?: 'react' | 'comment'
-          content?: string | null
-          upvote_count?: number
-          created_at?: string
-        }
-        Relationships: [{ foreignKeyName: "article_interactions_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] }]
-      }
-      user_rewards: {
-        Row: {
-          id: string
-          user_id: string
-          season_id: number
-          tier: number
-          reward_type: string
-          reward_value: string | null
-          claimed_at: string
-          redeemed_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          season_id: number
-          tier: number
-          reward_type: string
-          reward_value?: string | null
-          claimed_at?: string
-          redeemed_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          season_id?: number
-          tier?: number
-          reward_type?: string
-          reward_value?: string | null
-          claimed_at?: string
-          redeemed_at?: string | null
-        }
-        Relationships: [
-          { foreignKeyName: "user_rewards_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] },
-          { foreignKeyName: "user_rewards_season_id_fkey"; columns: ["season_id"]; referencedRelation: "seasons"; referencedColumns: ["id"] }
-        ]
-      }
-      user_titles: {
-        Row: {
-          user_id: string
-          active_title: string | null
-          unlocked_titles: string[]
-        }
-        Insert: {
-          user_id: string
-          active_title?: string | null
-          unlocked_titles?: string[]
-        }
-        Update: {
-          user_id?: string
-          active_title?: string | null
-          unlocked_titles?: string[]
-        }
-        Relationships: [{ foreignKeyName: "user_titles_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] }]
       }
       social_accounts: {
         Row: {
-          id: string
-          user_id: string
-          provider: 'steam' | 'epic' | 'discord' | 'twitch' | 'youtube'
-          provider_account_id: string
-          username: string | null
-          avatar_url: string | null
-          profile_url: string | null
           access_token: string | null
-          refresh_token: string | null
+          avatar_url: string | null
+          created_at: string | null
           expires_at: string | null
-          created_at: string
-          updated_at: string
+          id: string
+          profile_url: string | null
+          provider: string
+          provider_account_id: string
+          refresh_token: string | null
+          updated_at: string | null
+          user_id: string | null
+          username: string | null
         }
         Insert: {
-          id?: string
-          user_id: string
-          provider: 'steam' | 'epic' | 'discord' | 'twitch' | 'youtube'
-          provider_account_id: string
-          username?: string | null
-          avatar_url?: string | null
-          profile_url?: string | null
           access_token?: string | null
-          refresh_token?: string | null
+          avatar_url?: string | null
+          created_at?: string | null
           expires_at?: string | null
-          created_at?: string
-          updated_at?: string
+          id?: string
+          profile_url?: string | null
+          provider: string
+          provider_account_id: string
+          refresh_token?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          username?: string | null
         }
         Update: {
-          id?: string
-          user_id?: string
-          provider?: 'steam' | 'epic' | 'discord' | 'twitch' | 'youtube'
-          provider_account_id?: string
-          username?: string | null
-          avatar_url?: string | null
-          profile_url?: string | null
           access_token?: string | null
-          refresh_token?: string | null
+          avatar_url?: string | null
+          created_at?: string | null
           expires_at?: string | null
-          created_at?: string
-          updated_at?: string
+          id?: string
+          profile_url?: string | null
+          provider?: string
+          provider_account_id?: string
+          refresh_token?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          username?: string | null
         }
         Relationships: []
       }
       steam_profiles: {
         Row: {
-          id: string
-          user_id: string
-          steam_id: string
-          persona_name: string | null
-          profile_url: string | null
           avatar_full: string | null
           country_code: string | null
-          total_games: number
-          recent_playtime_2weeks: number
+          created_at: string | null
+          id: string
           last_synced: string | null
-          created_at: string
-          updated_at: string
+          persona_name: string | null
+          profile_url: string | null
+          recent_playtime_2weeks: number | null
+          steam_id: string
+          total_games: number | null
+          updated_at: string | null
+          user_id: string | null
         }
         Insert: {
-          id?: string
-          user_id: string
-          steam_id: string
-          persona_name?: string | null
-          profile_url?: string | null
           avatar_full?: string | null
           country_code?: string | null
-          total_games?: number
-          recent_playtime_2weeks?: number
+          created_at?: string | null
+          id?: string
           last_synced?: string | null
-          created_at?: string
-          updated_at?: string
+          persona_name?: string | null
+          profile_url?: string | null
+          recent_playtime_2weeks?: number | null
+          steam_id: string
+          total_games?: number | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
-          id?: string
-          user_id?: string
-          steam_id?: string
-          persona_name?: string | null
-          profile_url?: string | null
           avatar_full?: string | null
           country_code?: string | null
-          total_games?: number
-          recent_playtime_2weeks?: number
+          created_at?: string | null
+          id?: string
           last_synced?: string | null
-          created_at?: string
-          updated_at?: string
+          persona_name?: string | null
+          profile_url?: string | null
+          recent_playtime_2weeks?: number | null
+          steam_id?: string
+          total_games?: number | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
-      user_games: {
+      trivia_attempts: {
         Row: {
+          answers_json: Json | null
+          completed_at: string | null
           id: string
+          questions_json: Json
+          quiz_date: string
+          score: number | null
           user_id: string
-          game_name: string
-          platform: string | null
-          playtime_hours: number
-          is_favorite: boolean
-          added_at: string
-          image_url: string | null
+          xp_awarded: number
         }
         Insert: {
+          answers_json?: Json | null
+          completed_at?: string | null
           id?: string
+          questions_json: Json
+          quiz_date: string
+          score?: number | null
           user_id: string
-          game_name: string
-          platform?: string | null
-          playtime_hours?: number
-          is_favorite?: boolean
-          added_at?: string
+          xp_awarded?: number
         }
         Update: {
+          answers_json?: Json | null
+          completed_at?: string | null
           id?: string
+          questions_json?: Json
+          quiz_date?: string
+          score?: number | null
           user_id?: string
-          game_name?: string
+          xp_awarded?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trivia_attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trivia_questions: {
+        Row: {
+          correct_index: number
+          generated_at: string | null
+          id: string
+          options: Json
+          question: string
+          topic: string | null
+        }
+        Insert: {
+          correct_index: number
+          generated_at?: string | null
+          id?: string
+          options: Json
+          question: string
+          topic?: string | null
+        }
+        Update: {
+          correct_index?: number
+          generated_at?: string | null
+          id?: string
+          options?: Json
+          question?: string
+          topic?: string | null
+        }
+        Relationships: []
+      }
+      trivia_user_seen: {
+        Row: {
+          question_id: string
+          seen_at: string | null
+          user_id: string
+        }
+        Insert: {
+          question_id: string
+          seen_at?: string | null
+          user_id: string
+        }
+        Update: {
+          question_id?: string
+          seen_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trivia_user_seen_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "trivia_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trivia_user_seen_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_game_reviews: {
+        Row: {
+          created_at: string | null
+          game_id: string
+          helpful_votes: number | null
+          id: string
+          review_text: string | null
+          star_rating: number
+          tags: string[] | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          game_id: string
+          helpful_votes?: number | null
+          id?: string
+          review_text?: string | null
+          star_rating: number
+          tags?: string[] | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          game_id?: string
+          helpful_votes?: number | null
+          id?: string
+          review_text?: string | null
+          star_rating?: number
+          tags?: string[] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_game_reviews_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_games: {
+        Row: {
+          added_at: string | null
+          game_name: string
+          id: string
+          image_url: string | null
+          is_favorite: boolean | null
+          platform: string | null
+          playtime_hours: number | null
+          user_id: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          game_name: string
+          id?: string
+          image_url?: string | null
+          is_favorite?: boolean | null
           platform?: string | null
-          playtime_hours?: number
-          is_favorite?: boolean
-          added_at?: string
+          playtime_hours?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          game_name?: string
+          id?: string
+          image_url?: string | null
+          is_favorite?: boolean | null
+          platform?: string | null
+          playtime_hours?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
       user_news_preferences: {
         Row: {
+          created_at: string | null
           id: string
-          user_id: string
           tag: string
-          weight: number
-          created_at: string
+          user_id: string | null
+          weight: number | null
         }
         Insert: {
+          created_at?: string | null
           id?: string
-          user_id: string
           tag: string
-          weight?: number
-          created_at?: string
+          user_id?: string | null
+          weight?: number | null
         }
         Update: {
+          created_at?: string | null
           id?: string
-          user_id?: string
           tag?: string
-          weight?: number
-          created_at?: string
+          user_id?: string | null
+          weight?: number | null
         }
         Relationships: []
       }
-      cached_articles: {
+      user_rewards: {
         Row: {
+          claimed_at: string | null
           id: string
-          original_id: string
-          title: string
-          summary: string
-          source_url: string
-          image_url: string
-          category: string
-          source: string
-          author: string
-          ai_title: string | null
-          ai_summary: string | null
-          tags: string[] | null
-          likes: number
-          article_date: string
-          fetched_at: string
-          expires_at: string
+          redeemed_at: string | null
+          reward_type: string
+          reward_value: string | null
+          season_id: number
+          tier: number
+          user_id: string
         }
         Insert: {
+          claimed_at?: string | null
           id?: string
-          original_id: string
-          title: string
-          summary: string
-          source_url: string
-          image_url: string
-          category: string
-          source: string
-          author?: string
-          ai_title?: string | null
-          ai_summary?: string | null
-          tags?: string[] | null
-          likes?: number
-          article_date: string
-          fetched_at?: string
-          expires_at: string
+          redeemed_at?: string | null
+          reward_type: string
+          reward_value?: string | null
+          season_id: number
+          tier: number
+          user_id: string
         }
         Update: {
+          claimed_at?: string | null
           id?: string
-          original_id?: string
-          title?: string
-          summary?: string
-          source_url?: string
-          image_url?: string
-          category?: string
-          source?: string
-          author?: string
-          ai_title?: string | null
-          ai_summary?: string | null
-          tags?: string[] | null
-          likes?: number
-          article_date?: string
-          fetched_at?: string
-          expires_at?: string
+          redeemed_at?: string | null
+          reward_type?: string
+          reward_value?: string | null
+          season_id?: number
+          tier?: number
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_rewards_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_rewards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_titles: {
+        Row: {
+          active_title: string | null
+          unlocked_titles: string[]
+          user_id: string
+        }
+        Insert: {
+          active_title?: string | null
+          unlocked_titles?: string[]
+          user_id: string
+        }
+        Update: {
+          active_title?: string | null
+          unlocked_titles?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_titles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      xp_events: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          event_date: string
+          id: string
+          multiplier_applied: number | null
+          ref_id: string
+          user_id: string
+          xp_awarded: number
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          event_date?: string
+          id?: string
+          multiplier_applied?: number | null
+          ref_id?: string
+          user_id: string
+          xp_awarded: number
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          event_date?: string
+          id?: string
+          multiplier_applied?: number | null
+          ref_id?: string
+          user_id?: string
+          xp_awarded?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "xp_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -576,12 +767,22 @@ export type Database = {
     }
     Functions: {
       append_unlocked_title: {
-        Args: { uid: string; title: string }
-        Returns: void
+        Args: { title: string; uid: string }
+        Returns: undefined
+      }
+      cleanup_expired_articles: { Args: never; Returns: undefined }
+      increment_helpful_votes: {
+        Args: { review_id: string }
+        Returns: undefined
       }
       increment_xp: {
-        Args: { uid: string; delta_today: number; delta_season: number; delta_lifetime: number }
-        Returns: void
+        Args: {
+          delta_lifetime: number
+          delta_season: number
+          delta_today: number
+          uid: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
@@ -599,118 +800,121 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
