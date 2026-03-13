@@ -5,16 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// OpenRouter API configuration
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
+// Groq API configuration
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 
-// Fallback order: Hunter Alpha → GPT-4o Mini → Claude Haiku → Llama
+// Fallback order: 70B (quality) → 8B (speed)
 const MODELS = [
-  "openrouter/hunter-alpha",           // Primary: fast, low cost
-  "openai/gpt-4o-mini",               // Fallback 1: proven structured output
-  "anthropic/claude-3-haiku",          // Fallback 2: great at following instructions
-  "meta-llama/llama-3.1-8b-instruct", // Fallback 3: free/cheap
+  "llama-3.3-70b-versatile",  // Primary: best quality, fast on Groq
+  "llama-3.1-8b-instant",     // Fallback: ultra-fast
 ];
 
 interface ArticleInput {
@@ -82,22 +80,20 @@ Read this article fully. Then:
 1. Write the SUMMARY — count the characters. Must land between 270 and 280. If the source snippet is short, use your knowledge of the game/studio/event to pad it out with relevant context. A short source is NOT an excuse for a short summary.
 2. Extract TAGS as a named entity agent — only proper nouns: game titles, character names, real people, studios, events. Zero generic category words. Ask yourself for each tag: "Is this a specific named thing from this article?" If no, remove it.`;
 
-  if (!OPENROUTER_API_KEY) {
-    throw new Error("OPENROUTER_API_KEY secret is not set in Supabase");
+  if (!GROQ_API_KEY) {
+    throw new Error("GROQ_API_KEY secret is not set in Supabase");
   }
 
   // Try each model in order
   for (const model of MODELS) {
     try {
       console.log(`Trying model: ${model} for article: ${article.title.substring(0, 50)}...`);
-      
-      const response = await fetch(OPENROUTER_API_URL, {
+
+      const response = await fetch(GROQ_API_URL, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Authorization": `Bearer ${GROQ_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://pixel-pulse.app", // Your app URL for OpenRouter leaderboard
-          "X-Title": "Pixel Pulse Gaming News",
         },
         body: JSON.stringify({
           model: model,

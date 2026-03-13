@@ -1,21 +1,19 @@
 /**
- * OpenRouter API Client
- * Direct client for generating smart hashtags using OpenRouter
- * Used as fallback when Supabase edge function is unavailable
+ * Groq API Client
+ * Client-side fallback for article processing when Supabase edge function is unavailable
  */
 
 import { NewsItem } from "@/data/mockNews";
 
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // API key from environment variable (GitHub Secret)
-const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY || "";
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
 
 // Models to try in order of preference
 const MODELS = [
-  "openai/gpt-4o-mini",
-  "anthropic/claude-3-haiku",
-  "meta-llama/llama-3.1-8b-instruct",
+  "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
 ];
 
 interface OpenRouterResponse {
@@ -30,7 +28,7 @@ interface OpenRouterResponse {
  * Check if OpenRouter is configured
  */
 export function isOpenRouterConfigured(): boolean {
-  return !!OPENROUTER_API_KEY && OPENROUTER_API_KEY !== "";
+  return !!GROQ_API_KEY && GROQ_API_KEY !== "";
 }
 
 /**
@@ -64,13 +62,11 @@ Generate hashtags:`;
 
   for (const model of MODELS) {
     try {
-      const response = await fetch(OPENROUTER_API_URL, {
+      const response = await fetch(GROQ_API_URL, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Authorization": `Bearer ${GROQ_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": window.location.origin,
-          "X-Title": "Pixel Pulse",
         },
         body: JSON.stringify({
           model,
