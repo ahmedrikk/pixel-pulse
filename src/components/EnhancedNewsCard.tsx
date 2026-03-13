@@ -21,7 +21,6 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EnhancedCommentSection } from "./EnhancedCommentSection";
-import { GameReviewPrompt } from "./GameReviewPrompt";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,7 +86,6 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const [showComments, setShowComments] = useState(false);
   const [userReactions, setUserReactions] = useState<Record<string, number>>(article.reactions || {});
   const [hasAwardedView, setHasAwardedView] = useState(false);
-  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   
   const cardRef = useRef<HTMLElement>(null);
   const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -166,15 +164,9 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   // Award view XP after 5s dwell
   const awardViewXP = useCallback(() => {
     if (hasAwardedView) return;
-    
     setHasAwardedView(true);
     addXP(XP_VALUES.VIEW_SUMMARY);
-    
-    // Only show review prompt when article has a real specific game tag
-    if (article.topicTags.some(isSpecificTag)) {
-      setShowReviewPrompt(true);
-    }
-  }, [hasAwardedView, addXP, article.gameTags.length]);
+  }, [hasAwardedView, addXP]);
 
   // Track card view
   useEffect(() => {
@@ -385,21 +377,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           />
         )}
 
-        {/* Game Review Prompt — only when we have a real specific game name */}
-        {showReviewPrompt && primaryTag && (
-          <GameReviewPrompt
-            articleId={article.id}
-            gameId={primaryTag}
-            gameName={primaryTag}
-            gameCoverUrl={article.heroImageUrl}
-            isVisible={showReviewPrompt}
-            onDismiss={() => setShowReviewPrompt(false)}
-            onSubmit={(review) => {
-              console.log("Review submitted:", review);
-              setShowReviewPrompt(false);
-            }}
-          />
-        )}
+        {/* Game Review Prompt disabled — too intrusive inline; move to dedicated Reviews page */}
       </div>
     </article>
   );
