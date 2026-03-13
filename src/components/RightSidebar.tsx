@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { Zap, Users, HelpCircle, ExternalLink, Radio, Swords } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Zap, Users, HelpCircle, ExternalLink, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useXP } from "@/contexts/XPContext";
 import { FRIENDS_ONLINE, TRIVIA_QUESTION, LIVE_MATCH } from "@/data/mockNews";
 
 
