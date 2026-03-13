@@ -54,6 +54,45 @@ export function RightSidebar() {
         </div>
       </div>
 
+      {/* Battle Pass Widget */}
+      <div className="bg-card rounded-lg border overflow-hidden card-shadow">
+        <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-4 border-b">
+          <div className="flex items-center gap-2">
+            <Swords className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">Battle Pass</h3>
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30">
+              <span className="text-lg font-black text-primary">{state.level}</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold">Level {state.level}</p>
+              <p className="text-xs text-muted-foreground">Season of the Seraph</p>
+            </div>
+          </div>
+          <div className="relative h-2 w-full rounded-full bg-secondary/60 overflow-hidden mb-3">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${bpProgress}%`,
+                background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))",
+              }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            {state.currentLevelXP} / {state.xpForNextLevel} XP to next level
+          </p>
+          <Button asChild variant="secondary" className="w-full gap-2">
+            <Link to="/battle-pass">
+              Explore Battle Pass
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+          </Button>
+        </div>
+      </div>
+
       {/* Live Events */}
       <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
         <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-4 border-b">
