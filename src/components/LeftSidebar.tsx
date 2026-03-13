@@ -45,10 +45,6 @@ export function LeftSidebar() {
           </Link>
         ))}
 
-        {/* XP Progress Bar inside nav card */}
-        <div className="px-4 py-3 border-t border-border">
-          <XPProgressBar />
-        </div>
       </nav>
 
       {/* Battle Pass Widget */}
