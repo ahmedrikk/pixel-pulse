@@ -7,8 +7,10 @@ import { FRIENDS_ONLINE, TRIVIA_QUESTION, LIVE_MATCH } from "@/data/mockNews";
 
 
 export function RightSidebar() {
+  const { state } = useXP();
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const bpProgress = (state.currentLevelXP / state.xpForNextLevel) * 100;
 
   const handleAnswerSelect = (index: number) => {
     setSelectedAnswer(index);
