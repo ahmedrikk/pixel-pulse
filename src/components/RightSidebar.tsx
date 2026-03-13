@@ -85,6 +85,46 @@ export function RightSidebar() {
         </div>
       </div>
 
+      {/* XP Leaderboard */}
+      <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
+        <div className="bg-gradient-to-r from-yellow-500/15 to-primary/10 p-4 border-b">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-yellow-500" />
+            <h3 className="font-semibold">Top Players</h3>
+          </div>
+        </div>
+        <div className="p-3 space-y-1">
+          {TOP_PLAYERS.map((player) => (
+            <div
+              key={player.rank}
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md transition-colors ${
+                player.rank <= 3 ? "bg-secondary/60" : "hover:bg-secondary/40"
+              }`}
+            >
+              <span className={`w-5 text-center text-xs font-bold ${
+                player.rank === 1 ? "text-yellow-500" :
+                player.rank === 2 ? "text-muted-foreground" :
+                player.rank === 3 ? "text-orange-400" :
+                "text-muted-foreground"
+              }`}>
+                {player.rank <= 3 ? (
+                  <Crown className={`h-3.5 w-3.5 mx-auto ${
+                    player.rank === 1 ? "text-yellow-500" :
+                    player.rank === 2 ? "text-muted-foreground" :
+                    "text-orange-400"
+                  }`} />
+                ) : player.rank}
+              </span>
+              <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold">
+                {player.username.slice(0, 2).toUpperCase()}
+              </div>
+              <span className="flex-1 text-sm font-medium truncate">{player.username}</span>
+              <span className="text-xs text-muted-foreground font-mono">{player.xp.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Friends Online */}
       <div className="bg-card rounded-lg border p-4 card-shadow">
         <h3 className="font-semibold mb-3 flex items-center gap-2">
