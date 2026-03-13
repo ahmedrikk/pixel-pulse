@@ -1,9 +1,11 @@
-import { Home, Star, Trophy, Swords } from "lucide-react";
+import { Home, Star, Trophy, Swords, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CATEGORIES } from "@/data/mockNews";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 import { UserProfileCard } from "@/components/UserProfileCard";
 import { XPProgressBar } from "@/components/XPProgressBar";
+import { useXP } from "@/contexts/XPContext";
+import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
