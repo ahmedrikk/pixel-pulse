@@ -15,6 +15,8 @@ const NAV_ITEMS = [
 ];
 
 export function LeftSidebar() {
+  const { state } = useXP();
+  const bpProgress = (state.currentLevelXP / state.xpForNextLevel) * 100;
   const { activeTag, setActiveTag } = useTagFilter();
 
   const handleTagClick = (tagId: string) => {
