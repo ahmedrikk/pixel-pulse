@@ -28,8 +28,9 @@ export function RightSidebar() {
 
   return (
     <aside className="w-full lg:w-72 space-y-4">
-      {/* Live Match Widget */}
+      {/* Esports Widget */}
       <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
+        {/* Live Now Section */}
         <div className="bg-gradient-to-r from-destructive/20 to-primary/10 p-4 border-b">
           <div className="flex items-center gap-2">
             <Radio className="h-5 w-5 text-destructive animate-pulse" />
@@ -45,7 +46,7 @@ export function RightSidebar() {
             </span>
           </div>
         </div>
-        <div className="p-4">
+        <div className="p-4 border-b">
           <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
             {LIVE_MATCH.tournamentName}
           </p>
@@ -61,26 +62,31 @@ export function RightSidebar() {
             </a>
           </Button>
         </div>
-      </div>
 
-      {/* Live Events */}
-      <div className="bg-card rounded-lg border overflow-hidden card-shadow dark:neon-border">
-        <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-4 border-b">
+        {/* Upcoming Event Section */}
+        <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-3 border-b">
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary animate-pulse-glow" />
-            <h3 className="font-semibold">Upcoming Event</h3>
+            <h3 className="font-semibold text-sm">Upcoming Event</h3>
           </div>
         </div>
-        <div className="p-4">
+        <div className="p-4 border-b">
           <h4 className="font-bold mb-1">League of Legends Worlds</h4>
-          <p className="text-sm text-muted-foreground mb-3">
+          <p className="text-sm text-muted-foreground mb-2">
             Semifinals: T1 vs. Gen.G
           </p>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>🕐 Starts in 2 hours</span>
           </div>
-          <Button variant="secondary" className="w-full gap-2">
-            Set Reminder
+        </div>
+
+        {/* Full Schedule Button */}
+        <div className="p-3">
+          <Button variant="secondary" asChild className="w-full gap-2">
+            <a href="/esports">
+              Check Full Schedule
+              <ExternalLink className="h-3 w-3" />
+            </a>
           </Button>
         </div>
       </div>
