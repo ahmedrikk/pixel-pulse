@@ -1,7 +1,20 @@
 import { useState } from "react";
-import { Zap, Users, HelpCircle, ExternalLink, Radio } from "lucide-react";
+import { Zap, Users, HelpCircle, ExternalLink, Radio, Trophy, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FRIENDS_ONLINE, TRIVIA_QUESTION, LIVE_MATCH } from "@/data/mockNews";
+
+const TOP_PLAYERS = [
+  { rank: 1, username: "ShadowReaper", xp: 12450 },
+  { rank: 2, username: "NeonBlade", xp: 11200 },
+  { rank: 3, username: "PixelStorm", xp: 9870 },
+  { rank: 4, username: "VoidWalker", xp: 8540 },
+  { rank: 5, username: "CyberNinja", xp: 7320 },
+  { rank: 6, username: "IronPhoenix", xp: 6100 },
+  { rank: 7, username: "GhostFury", xp: 5480 },
+  { rank: 8, username: "ArcticWolf", xp: 4950 },
+  { rank: 9, username: "BlazeMaster", xp: 4200 },
+  { rank: 10, username: "TitanX", xp: 3750 },
+];
 
 
 export function RightSidebar() {
