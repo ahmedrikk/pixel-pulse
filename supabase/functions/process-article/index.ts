@@ -185,11 +185,11 @@ async function processArticleWithOpenRouter(article: ArticleInput): Promise<Proc
 
 1. TITLE (under 60 chars): Sharp, factual headline. No clickbait.
 
-2. SUMMARY (EXACTLY 270–280 characters):
-   - Count EVERY character including spaces. Must land between 270 and 280. Not 100. Not 200. Not 269. Not 281. 270–280.
+2. SUMMARY (EXACTLY 100 words):
+   - Count every word. Must be exactly 100 words — not 60, not 80, not 120. 100.
    - Lead with the most important fact: who, what, when, why it matters.
    - News-wire style: dense, direct, no filler phrases ("In this article…", "According to…").
-   - If the content is thin, draw on your knowledge of the game/studio/franchise to add context.
+   - If the content is thin, draw on your knowledge of the game/studio/franchise to fill it out.
    - One tight paragraph. No bullet points. No quotes.
 
 3. TAGS — named entities only:
@@ -220,7 +220,7 @@ ${contentForAI.substring(0, 7000)}
 
 ---
 TASK:
-1. Write the SUMMARY. Count the characters — it MUST be 270–280. Thin content is not an excuse for a short summary; expand with relevant context from your knowledge.
+1. Write the SUMMARY. Count every word — it MUST be exactly 100 words. Thin content is not an excuse for a short summary; expand with relevant context from your knowledge.
 2. Extract TAGS — proper nouns only. No generic words.`;
 
   if (!GROQ_API_KEY) {
@@ -272,15 +272,17 @@ TASK:
         continue;
       }
 
-      // Enforce 280-char hard cap at word boundary
-      let summary: string = parsedResult.summary || article.content.substring(0, 280);
-      if (summary.length > 280) {
-        const cut = summary.substring(0, 279);
-        const lastSpace = cut.lastIndexOf(" ");
-        summary = (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
+      // Hard cap at 110 words (trim if AI overshoots)
+      let summary: string = parsedResult.summary || article.content;
+      const words = summary.trim().split(/\s+/);
+      if (words.length > 110) {
+        summary = words.slice(0, 100).join(" ") + "…";
       }
-      if (summary.length < 250) {
-        console.warn(`Short summary (${summary.length} chars) for: ${article.title.substring(0, 50)}`);
+      const wordCount = summary.trim().split(/\s+/).length;
+      if (wordCount < 80) {
+        console.warn(`Short summary (${wordCount} words) for: ${article.title.substring(0, 50)}`);
+      } else {
+        console.log(`  Summary: ${wordCount} words`);
       }
 
       const tags: string[] = Array.isArray(parsedResult.tags)

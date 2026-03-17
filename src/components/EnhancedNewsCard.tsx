@@ -63,10 +63,8 @@ function formatDate(dateString: string): string {
 
 function normaliseSummary(summary: string): string {
   if (!summary) return "";
-  if (summary.length <= 280) return summary;
-  const cut = summary.substring(0, 279);
-  const lastSpace = cut.lastIndexOf(" ");
-  return (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
+  // Word cap is already enforced upstream (cap100Words); just return as-is
+  return summary;
 }
 
 // Source name → short colour-coded abbreviation for the source dot
@@ -247,7 +245,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           </a>
 
           {/* Summary */}
-          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1">
+          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-4 flex-1">
             {summaryText}
           </p>
 

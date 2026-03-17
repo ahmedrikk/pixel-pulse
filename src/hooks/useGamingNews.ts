@@ -50,12 +50,12 @@ function stripHtml(html: string): string {
   return doc.body.textContent || "";
 }
 
-// Enforce 280-character hard cap at word boundary
+// Enforce 100-word hard cap
 function cap280(text: string): string {
-  if (!text || text.length <= 280) return text;
-  const cut = text.substring(0, 279);
-  const lastSpace = cut.lastIndexOf(" ");
-  return (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
+  if (!text) return "";
+  const words = text.trim().split(/\s+/);
+  if (words.length <= 100) return text;
+  return words.slice(0, 100).join(" ") + "…";
 }
 
 // Extract image from HTML content
