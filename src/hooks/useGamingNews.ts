@@ -241,13 +241,13 @@ async function processNewArticlesWithAI(articles: NewsItem[]): Promise<NewsItem[
 
     if (data?.processedArticles) {
       const processedArticles: NewsItem[] = [];
-      const aiUpdates: { sourceUrl: string; aiTitle?: string; aiSummary?: string; tags: string[] }[] = [];
+      const aiUpdates: { sourceUrl: string; aiTitle?: string; aiSummary?: string; tags: string[]; ogImage?: string | null }[] = [];
 
       articles.forEach((article, index) => {
         if (index < data.processedArticles.length) {
           const processed = data.processedArticles[index];
           const aiTags = processed.processedTags || [];
-          
+
           // Merge AI tags with smart tags
           const mergedTags = mergeTags(aiTags, article.tags, article.title, article.summary);
 
@@ -256,6 +256,8 @@ async function processNewArticlesWithAI(articles: NewsItem[]): Promise<NewsItem[
             title: processed.processedTitle || article.title,
             summary: cap280(processed.processedSummary || article.summary),
             tags: mergedTags,
+            // Prefer OG image from full page fetch over RSS image
+            imageUrl: processed.ogImage || article.imageUrl,
           };
 
           processedArticles.push(processedArticle);
@@ -266,6 +268,7 @@ async function processNewArticlesWithAI(articles: NewsItem[]): Promise<NewsItem[
             aiTitle: processed.processedTitle,
             aiSummary: processed.processedSummary,
             tags: mergedTags,
+            ogImage: processed.ogImage,
           });
         } else {
           processedArticles.push(article);

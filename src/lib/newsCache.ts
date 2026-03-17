@@ -16,6 +16,7 @@ export interface CachedArticle {
   summary: string;
   source_url: string;
   image_url: string;
+  og_image_url: string | null;
   category: string;
   source: string;
   author: string;
@@ -68,7 +69,8 @@ function toNewsItem(article: CachedArticle): NewsItem {
     title: article.ai_title || article.title,
     summary: cap280(article.ai_summary || article.summary),
     sourceUrl: article.source_url,
-    imageUrl: article.image_url,
+    // Prefer OG image (from full page fetch) over RSS feed image
+    imageUrl: article.og_image_url || article.image_url,
     category: article.category,
     timestamp: article.article_date,
     source: article.source,
@@ -149,20 +151,25 @@ export async function saveArticlesToCache(articles: NewsItem[]): Promise<void> {
  * Update cached articles with AI-processed data
  */
 export async function updateArticlesWithAI(
-  articles: { sourceUrl: string; aiTitle?: string; aiSummary?: string; tags: string[] }[]
+  articles: { sourceUrl: string; aiTitle?: string; aiSummary?: string; tags: string[]; ogImage?: string | null }[]
 ): Promise<void> {
   if (articles.length === 0) return;
 
   try {
-    // Update each article individually (could be batched in the future)
     for (const article of articles) {
+      const updatePayload: Record<string, unknown> = {
+        ai_title: article.aiTitle || null,
+        ai_summary: article.aiSummary || null,
+        tags: article.tags,
+      };
+      // Only write og_image_url when we actually got one (don't overwrite with null)
+      if (article.ogImage) {
+        updatePayload.og_image_url = article.ogImage;
+      }
+
       const { error } = await supabase
         .from('cached_articles')
-        .update({
-          ai_title: article.aiTitle || null,
-          ai_summary: article.aiSummary || null,
-          tags: article.tags,
-        })
+        .update(updatePayload)
         .eq('source_url', article.sourceUrl);
 
       if (error) {
