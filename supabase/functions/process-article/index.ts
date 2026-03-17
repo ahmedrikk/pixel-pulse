@@ -19,6 +19,61 @@ interface ArticleInput {
   title: string;
   content: string;
   source: string;
+  sourceUrl?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Full-article content fetcher
+// Runs server-side (no CORS), 8s timeout, strips HTML to plain text.
+// Returns null on any failure so the caller can fall back to RSS snippet.
+// ---------------------------------------------------------------------------
+async function fetchFullArticleContent(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; PixelPulseBot/1.0; +https://pixel-pulse.app)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    const text = stripHtml(html);
+    // Only use if we got something meaningfully longer than a typical RSS snippet
+    return text.length > 300 ? text.substring(0, 8000) : null;
+  } catch {
+    return null;
+  }
+}
+
+function stripHtml(html: string): string {
+  return html
+    // Remove <script> and <style> blocks entirely
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
+    // Remove nav/header/footer/aside noise (crude but effective)
+    .replace(/<(nav|header|footer|aside|menu)\b[^<]*(?:(?!<\/\1>)[\s\S])*<\/\1>/gi, " ")
+    // Strip remaining tags
+    .replace(/<[^>]+>/g, " ")
+    // Decode common HTML entities
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&mdash;/g, "—")
+    .replace(/&ndash;/g, "–")
+    // Collapse whitespace
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 interface ProcessedArticle {
@@ -28,57 +83,69 @@ interface ProcessedArticle {
 }
 
 /**
- * Process a single article with OpenRouter
- * Tries multiple models if one fails
+ * Process a single article with Groq.
+ * Tries to fetch full article content first; falls back to RSS snippet.
+ * Tries multiple models if one fails.
  */
 async function processArticleWithOpenRouter(article: ArticleInput): Promise<ProcessedArticle> {
-  const systemPrompt = `You are an expert gaming news editor, SEO specialist, and hashtag strategist.
-You are an intelligent content agent. Your job is to deeply read a gaming news article and extract three things:
+  // --- Step 1: Attempt to fetch the full article body server-side ---
+  let richContent: string | null = null;
+  if (article.sourceUrl) {
+    console.log(`Fetching full content for: ${article.sourceUrl}`);
+    richContent = await fetchFullArticleContent(article.sourceUrl);
+    if (richContent) {
+      console.log(`✓ Got full content (${richContent.length} chars) for: ${article.title.substring(0, 50)}`);
+    } else {
+      console.log(`  Full fetch failed/skipped — using RSS snippet (${article.content.length} chars)`);
+    }
+  }
 
-1. **TITLE** (under 60 chars): A sharp, factual headline. No clickbait.
+  const contentForAI = richContent ?? article.content;
+  const contentNote = richContent
+    ? `Full article text (${richContent.length} chars scraped from source):`
+    : `RSS snippet (${article.content.length} chars — short; use your knowledge to expand):`;
 
-2. **SUMMARY** (EXACTLY 270–280 characters): Dense, fact-first summary.
-   - Count every character including spaces. It MUST be between 270 and 280 chars. Not 100. Not 200. 270–280.
-   - If the source text is short (under 200 chars), you MUST expand it using your own knowledge of the topic, franchise, developer, or context. Do not just restate the headline.
-   - Write like a news wire: pack in who, what, when, where, why it matters — all in one tight paragraph.
-   - No bullet points. No quotes. No "In this article..." filler. Start with the subject directly.
+  const systemPrompt = `You are a gaming news editor and named-entity extractor. Given an article, produce three things:
 
-3. **TAGS** — Act as a named entity extractor. Read the article and pull out the real-world proper nouns that define what this article is about. Think:
-   - What game(s) are mentioned by name? → "ResidentEvil2", "GTA6", "Minecraft"
-   - What characters appear? → "Mario", "MasterChief", "Kratos", "Pikachu"
-   - What studios/publishers are named? → "Capcom", "Nintendo", "RockstarGames"
-   - What real people (streamers, devs, executives)? → "HideoKojima", "Ninja", "xQc"
-   - What specific events or tournaments? → "GameAwards2025", "IEM", "VCT"
-   - What platform ONLY if the article is specifically about hardware? → "PS5", "Switch2"
+1. TITLE (under 60 chars): Sharp, factual headline. No clickbait.
 
-   AGENT RULE — ask yourself: "If someone searched this tag, would they find THIS article?" If yes, include it. If not, drop it.
+2. SUMMARY (EXACTLY 270–280 characters):
+   - Count EVERY character including spaces. Must land between 270 and 280. Not 100. Not 200. Not 269. Not 281. 270–280.
+   - Lead with the most important fact: who, what, when, why it matters.
+   - News-wire style: dense, direct, no filler phrases ("In this article…", "According to…").
+   - If the content is thin, draw on your knowledge of the game/studio/franchise to add context.
+   - One tight paragraph. No bullet points. No quotes.
 
-   ABSOLUTE BANS — never output any of these under any circumstances:
-   Gaming, News, VideoGames, Game, Games, Update, Updates, Entertainment,
-   RPG, FPS, Action, Adventure, Puzzle, Horror, Strategy, Simulation, Sports,
-   Racing, Fighting, Platformer, MOBA, Roguelike, Sandbox, OpenWorld, Multiplayer,
-   SinglePlayer, CoOp, Streaming, Twitch, YouTube, PCGaming, MobileGaming,
-   NewRelease, Gameplay, Review, Preview, Trailer, Rumor, Leak, Delay
+3. TAGS — named entities only:
+   - Game titles → "ResidentEvil2", "GTA6", "Minecraft"
+   - Characters → "Mario", "MasterChief", "Kratos"
+   - Studios/publishers → "Capcom", "Nintendo", "RockstarGames"
+   - Real people (devs, streamers, executives) → "HideoKojima", "Ninja"
+   - Specific events/tournaments → "GameAwards2025", "EVO2025"
+   - Platform ONLY if the article is about hardware → "PS5", "Switch2"
+   Rule: "Would someone searching this tag find THIS article?" If no, drop it.
 
-   FORMAT: PascalCase, no # symbol, 4–7 tags total.
+   BANNED TAGS (never output): Gaming, News, VideoGames, Game, Games, Update, Updates,
+   Entertainment, RPG, FPS, Action, Adventure, Puzzle, Horror, Strategy, Simulation,
+   Sports, Racing, Fighting, Platformer, MOBA, Roguelike, Sandbox, OpenWorld,
+   Multiplayer, SinglePlayer, CoOp, Streaming, Twitch, YouTube, PCGaming,
+   MobileGaming, NewRelease, Gameplay, Review, Preview, Trailer, Rumor, Leak, Delay
 
-Respond ONLY with valid JSON — no markdown, no explanation:
-{"title": "...", "summary": "...", "tags": ["Tag1", "Tag2", "Tag3"]}`;
+   FORMAT: PascalCase, no # symbol, 4–7 tags.
 
-  const userPrompt = `Analyze this gaming article carefully.
+Respond ONLY with valid JSON, no markdown:
+{"title": "...", "summary": "...", "tags": ["Tag1", "Tag2"]}`;
 
-Article Title: ${article.title}
+  const userPrompt = `Article Title: ${article.title}
 Source: ${article.source}
 
-Full Article Content:
-${article.content.substring(0, 6000)}
+${contentNote}
+${contentForAI.substring(0, 7000)}
 
 ---
-
-Read this article fully. Then:
-
-1. Write the SUMMARY — count the characters. Must land between 270 and 280. If the source snippet is short, use your knowledge of the game/studio/event to pad it out with relevant context. A short source is NOT an excuse for a short summary.
-2. Extract TAGS as a named entity agent — only proper nouns: game titles, character names, real people, studios, events. Zero generic category words. Ask yourself for each tag: "Is this a specific named thing from this article?" If no, remove it.`;
+TASK:
+1. Write the SUMMARY. Count the characters — it MUST be 270–280. Thin source content is not an excuse for a short summary; expand with relevant context from your knowledge.
+2. Extract TAGS — proper nouns only. No generic words.`;
 
   if (!GROQ_API_KEY) {
     throw new Error("GROQ_API_KEY secret is not set in Supabase");
