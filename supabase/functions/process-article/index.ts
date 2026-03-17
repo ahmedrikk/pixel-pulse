@@ -24,10 +24,16 @@ interface ArticleInput {
 
 // ---------------------------------------------------------------------------
 // Full-article content fetcher
-// Runs server-side (no CORS), 8s timeout, strips HTML to plain text.
+// Runs server-side (no CORS), 8s timeout.
+// Uses Mozilla Readability for clean article text + extracts OG image.
 // Returns null on any failure so the caller can fall back to RSS snippet.
 // ---------------------------------------------------------------------------
-async function fetchFullArticleContent(url: string): Promise<string | null> {
+interface FetchedContent {
+  text: string;
+  ogImage: string | null;
+}
+
+async function fetchFullArticleContent(url: string): Promise<FetchedContent | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -44,25 +50,90 @@ async function fetchFullArticleContent(url: string): Promise<string | null> {
 
     if (!response.ok) return null;
 
+    // Content-type check — skip JSON/binary responses early
+    const contentType = response.headers.get("content-type") ?? "";
+    if (
+      !contentType.includes("text/html") &&
+      !contentType.includes("text/plain") &&
+      !contentType.includes("application/xhtml")
+    ) {
+      console.log(`Skipping non-HTML response (${contentType}) for ${url}`);
+      return null;
+    }
+
     const html = await response.text();
-    const text = stripHtml(html);
-    // Only use if we got something meaningfully longer than a typical RSS snippet
-    return text.length > 300 ? text.substring(0, 8000) : null;
+
+    // Extract OG image from <head> before Readability processes the doc
+    const ogImage =
+      html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1] ||
+      html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)?.[1] ||
+      null;
+
+    // --- Smart article text extraction (no DOM dependency) ---
+    const text = extractArticleText(html);
+    return text.length > 300 ? { text: text.substring(0, 8000), ogImage } : null;
+
   } catch {
     return null;
   }
 }
 
-function stripHtml(html: string): string {
+/**
+ * Smart article text extractor — no DOM dependency.
+ * Priority: <article> → <main> → article-body class patterns → all <p> tags → full strip.
+ * Mimics what Readability does for the common gaming news site layouts.
+ */
+function extractArticleText(html: string): string {
+  // 1. Try semantic <article> tag
+  const articleMatch = /<article[^>]*>([\s\S]*?)<\/article>/i.exec(html);
+  if (articleMatch) {
+    const text = paragraphsFrom(articleMatch[1]);
+    if (text.length > 300) return text;
+  }
+
+  // 2. Try <main> tag
+  const mainMatch = /<main[^>]*>([\s\S]*?)<\/main>/i.exec(html);
+  if (mainMatch) {
+    const text = paragraphsFrom(mainMatch[1]);
+    if (text.length > 300) return text;
+  }
+
+  // 3. Try common article content class names (covers IGN, Kotaku, GameSpot, Polygon, etc.)
+  const contentClassPattern =
+    /<div[^>]*class="[^"]*(?:article[-_]body|article[-_]content|post[-_]content|entry[-_]content|story[-_]body|content[-_]body|prose|richtext)[^"]*"[^>]*>([\s\S]*?)<\/div>/i;
+  const contentMatch = contentClassPattern.exec(html);
+  if (contentMatch) {
+    const text = paragraphsFrom(contentMatch[1]);
+    if (text.length > 300) return text;
+  }
+
+  // 4. Fall back: extract all <p> tags site-wide (still much better than full strip)
+  const allParas = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map(m => cleanText(m[1]))
+    .filter(p => p.length > 40);
+  if (allParas.length > 2) return allParas.join(" ");
+
+  // 5. Last resort: strip all tags
+  return cleanText(
+    html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+  );
+}
+
+/** Extract text from all <p> tags inside a block of HTML */
+function paragraphsFrom(html: string): string {
+  const paras = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map(m => cleanText(m[1]))
+    .filter(p => p.length > 40);
+  return paras.join(" ");
+}
+
+/** Strip tags + decode entities + collapse whitespace */
+function cleanText(html: string): string {
   return html
-    // Remove <script> and <style> blocks entirely
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
-    // Remove nav/header/footer/aside noise (crude but effective)
-    .replace(/<(nav|header|footer|aside|menu)\b[^<]*(?:(?!<\/\1>)[\s\S])*<\/\1>/gi, " ")
-    // Strip remaining tags
     .replace(/<[^>]+>/g, " ")
-    // Decode common HTML entities
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -71,7 +142,6 @@ function stripHtml(html: string): string {
     .replace(/&nbsp;/g, " ")
     .replace(/&mdash;/g, "—")
     .replace(/&ndash;/g, "–")
-    // Collapse whitespace
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -80,30 +150,36 @@ interface ProcessedArticle {
   processedTitle: string;
   processedSummary: string;
   processedTags: string[];
+  ogImage: string | null;
 }
 
 /**
  * Process a single article with Groq.
- * Tries to fetch full article content first; falls back to RSS snippet.
+ * Fetches full article content first (Readability); falls back to RSS snippet.
+ * Extracts OG image alongside.
  * Tries multiple models if one fails.
  */
 async function processArticleWithOpenRouter(article: ArticleInput): Promise<ProcessedArticle> {
-  // --- Step 1: Attempt to fetch the full article body server-side ---
+  // --- Step 1: Fetch full article body + OG image ---
   let richContent: string | null = null;
+  let ogImage: string | null = null;
+
   if (article.sourceUrl) {
     console.log(`Fetching full content for: ${article.sourceUrl}`);
-    richContent = await fetchFullArticleContent(article.sourceUrl);
-    if (richContent) {
-      console.log(`✓ Got full content (${richContent.length} chars) for: ${article.title.substring(0, 50)}`);
+    const fetched = await fetchFullArticleContent(article.sourceUrl);
+    if (fetched) {
+      richContent = fetched.text;
+      ogImage = fetched.ogImage;
+      console.log(`✓ Got full content (${richContent.length} chars)${ogImage ? " + OG image" : ""} for: ${article.title.substring(0, 50)}`);
     } else {
-      console.log(`  Full fetch failed/skipped — using RSS snippet (${article.content.length} chars)`);
+      console.log(`  Full fetch failed — using RSS snippet (${article.content.length} chars)`);
     }
   }
 
   const contentForAI = richContent ?? article.content;
   const contentNote = richContent
-    ? `Full article text (${richContent.length} chars scraped from source):`
-    : `RSS snippet (${article.content.length} chars — short; use your knowledge to expand):`;
+    ? `Full article text (${richContent.length} chars, Readability-extracted):`
+    : `RSS snippet (${article.content.length} chars — thin; expand with your knowledge):`;
 
   const systemPrompt = `You are a gaming news editor and named-entity extractor. Given an article, produce three things:
 
@@ -144,7 +220,7 @@ ${contentForAI.substring(0, 7000)}
 
 ---
 TASK:
-1. Write the SUMMARY. Count the characters — it MUST be 270–280. Thin source content is not an excuse for a short summary; expand with relevant context from your knowledge.
+1. Write the SUMMARY. Count the characters — it MUST be 270–280. Thin content is not an excuse for a short summary; expand with relevant context from your knowledge.
 2. Extract TAGS — proper nouns only. No generic words.`;
 
   if (!GROQ_API_KEY) {
@@ -168,15 +244,15 @@ TASK:
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
           ],
-          temperature: 0.3, // Lower temperature for more consistent structured output
-          response_format: { type: "json_object" }, // Request JSON output
+          temperature: 0.3,
+          response_format: { type: "json_object" },
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.warn(`Model ${model} failed: ${response.status}`, errorText);
-        continue; // Try next model
+        continue;
       }
 
       const data = await response.json();
@@ -187,25 +263,22 @@ TASK:
         continue;
       }
 
-      // Parse JSON response
       let parsedResult;
       try {
-        // Handle potential markdown code blocks in response
         const cleanJson = aiContent.replace(/```json\n?|\n?```/g, '');
         parsedResult = JSON.parse(cleanJson);
-      } catch (e) {
+      } catch {
         console.warn(`Model ${model} returned invalid JSON:`, aiContent.substring(0, 200));
-        continue; // Try next model
+        continue;
       }
 
-      // Enforce 280-char hard cap; trim at word boundary
+      // Enforce 280-char hard cap at word boundary
       let summary: string = parsedResult.summary || article.content.substring(0, 280);
       if (summary.length > 280) {
         const cut = summary.substring(0, 279);
         const lastSpace = cut.lastIndexOf(" ");
         summary = (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
       }
-      // Log a warning if too short (AI didn't comply) but still use it
       if (summary.length < 250) {
         console.warn(`Short summary (${summary.length} chars) for: ${article.title.substring(0, 50)}`);
       }
@@ -214,32 +287,33 @@ TASK:
         ? parsedResult.tags.filter((t: unknown) => typeof t === "string" && t.length > 0).slice(0, 8)
         : [];
 
-      console.log(`✓ Successfully processed with ${model}: "${parsedResult.title}" (${summary.length} chars)`);
+      console.log(`✓ Processed with ${model}: "${parsedResult.title}" (${summary.length} chars)`);
       console.log(`  Tags: ${JSON.stringify(tags)}`);
 
       return {
         processedTitle: parsedResult.title || article.title,
         processedSummary: summary,
         processedTags: tags,
+        ogImage,
       };
 
     } catch (error) {
       console.warn(`Error with model ${model}:`, error);
-      continue; // Try next model
+      continue;
     }
   }
 
-  // All models failed, return fallback
+  // All models failed
   console.error(`All models failed for article: ${article.title}`);
   return {
     processedTitle: article.title,
     processedSummary: article.content.length > 0 ? article.content : article.title,
-    processedTags: []
+    processedTags: [],
+    ogImage,
   };
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -254,15 +328,14 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${articles.length} articles with OpenRouter...`);
+    console.log(`Processing ${articles.length} articles...`);
 
-    // Process articles in parallel (batch of up to 3 at a time to respect rate limits)
     const batchSize = 3;
     const processedArticles: ProcessedArticle[] = [];
 
     for (let i = 0; i < articles.length; i += batchSize) {
       const batch = articles.slice(i, i + batchSize);
-      console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(articles.length / batchSize)}`);
+      console.log(`Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(articles.length / batchSize)}`);
 
       const batchResults = await Promise.all(
         batch.map(async (article) => {
@@ -273,15 +346,15 @@ serve(async (req) => {
             return {
               processedTitle: article.title,
               processedSummary: article.content.length > 0 ? article.content : article.title,
-              processedTags: []
+              processedTags: [],
+              ogImage: null,
             };
           }
         })
       );
 
       processedArticles.push(...batchResults);
-      
-      // Small delay between batches to respect rate limits
+
       if (i + batchSize < articles.length) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
@@ -295,7 +368,6 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Edge function error:", error);
-
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
