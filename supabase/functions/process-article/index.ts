@@ -9,10 +9,11 @@ const corsHeaders = {
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 
-// Fallback order: 70B (quality) → 8B (speed)
+// Fallback order: Qwen QwQ 32B (reasoning, precise) → Llama 70B → Llama 8B
 const MODELS = [
-  "llama-3.3-70b-versatile",  // Primary: best quality, fast on Groq
-  "llama-3.1-8b-instant",     // Fallback: ultra-fast
+  "qwen-qwq-32b",             // Primary: reasoning model, best at following exact instructions
+  "llama-3.3-70b-versatile",  // Fallback: reliable generalist
+  "llama-3.1-8b-instant",     // Last resort: ultra-fast
 ];
 
 interface ArticleInput {
