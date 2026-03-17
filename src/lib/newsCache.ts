@@ -53,11 +53,11 @@ function toDbFormat(article: NewsItem, expiresAt: Date): Omit<CachedArticle, 'id
   };
 }
 
-function cap280(text: string): string {
-  if (!text || text.length <= 280) return text;
-  const cut = text.substring(0, 279);
-  const lastSpace = cut.lastIndexOf(" ");
-  return (lastSpace > 200 ? cut.substring(0, lastSpace) : cut) + "…";
+function cap100Words(text: string): string {
+  if (!text) return "";
+  const words = text.trim().split(/\s+/);
+  if (words.length <= 100) return text;
+  return words.slice(0, 100).join(" ") + "…";
 }
 
 /**
@@ -67,7 +67,7 @@ function toNewsItem(article: CachedArticle): NewsItem {
   return {
     id: article.original_id,
     title: article.ai_title || article.title,
-    summary: cap280(article.ai_summary || article.summary),
+    summary: cap100Words(article.ai_summary || article.summary),
     sourceUrl: article.source_url,
     // Prefer OG image (from full page fetch) over RSS feed image
     imageUrl: article.og_image_url || article.image_url,
