@@ -266,7 +266,10 @@ TASK:
 
       let parsedResult;
       try {
-        const cleanJson = aiContent.replace(/```json\n?|\n?```/g, '');
+        // Strip Qwen QwQ reasoning blocks (<think>...</think>) before parsing JSON
+        const withoutThinking = aiContent.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+        // Strip markdown code fences
+        const cleanJson = withoutThinking.replace(/```json\n?|\n?```/g, "").trim();
         parsedResult = JSON.parse(cleanJson);
       } catch {
         console.warn(`Model ${model} returned invalid JSON:`, aiContent.substring(0, 200));
