@@ -10,6 +10,7 @@ import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds
 import { motion, AnimatePresence } from "framer-motion";
 import { XPProgressBar } from "@/components/XPProgressBar";
 import { Navbar } from "@/components/Navbar";
+import { BottomNavBar } from "@/components/BottomNavBar";
 
 type TabType = "live" | "upcoming" | "results";
 
@@ -456,7 +457,7 @@ export default function Esports() {
   const navigate = useNavigate();
   const [activeGame, setActiveGame] = useState("all");
   const [activeTab, setActiveTab] = useState<TabType>("live");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
 
   // Sync activeGame with route param
   useEffect(() => {
@@ -481,8 +482,8 @@ export default function Esports() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} isMobileMenuOpen={isMobileMenuOpen} />
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <Navbar />
 
       <main className="container py-6 max-w-4xl">
         {/* XP Bar */}
@@ -518,6 +519,7 @@ export default function Esports() {
           )}
         </AnimatePresence>
       </main>
+      <BottomNavBar />
     </div>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { FEATURED_GAME, TOP_REVIEWERS, type GameReview as ReviewType } from "@/data/gameReviewData";
 import { Navbar } from "@/components/Navbar";
+import { BottomNavBar } from "@/components/BottomNavBar";
 
 const platformIcons: Record<string, React.ReactNode> = {
   PC: <Monitor className="h-5 w-5" />,
@@ -166,11 +167,11 @@ export default function GameReview() {
 
   const overallScore = Object.values(game.scores).reduce((a, b) => a + b, 0) / Object.values(game.scores).length;
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} isMobileMenuOpen={mobileMenuOpen} />
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <Navbar />
 
       {/* Hero */}
       <div className="relative h-[420px] md:h-[480px] overflow-hidden">
@@ -403,6 +404,7 @@ export default function GameReview() {
           </AnimatePresence>
         </div>
       </div>
+      <BottomNavBar />
     </div>
   );
 }
