@@ -481,8 +481,8 @@ export default function Esports() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} isMobileMenuOpen={isMobileMenuOpen} />
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <Navbar />
 
       <main className="container py-6 max-w-4xl">
         {/* XP Bar */}
@@ -518,6 +518,7 @@ export default function Esports() {
           )}
         </AnimatePresence>
       </main>
+      <BottomNavBar />
     </div>
   );
 }
