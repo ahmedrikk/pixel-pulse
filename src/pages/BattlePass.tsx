@@ -569,7 +569,7 @@ export default function BattlePass() {
                           <div className="h-[20px]" />
                           <span className="text-[9px] font-semibold text-muted-foreground/40">{t.tier}</span>
                           <div
-                            className="bp-card relative w-[85px] h-[98px] rounded-xl flex flex-col items-center justify-center gap-1.5 border-2 opacity-40 cursor-not-allowed overflow-hidden"
+                            className="bp-card relative w-[68px] h-[80px] md:w-[85px] md:h-[98px] rounded-xl flex flex-col items-center justify-center gap-1 md:gap-1.5 border-2 opacity-40 cursor-not-allowed overflow-hidden"
                             style={{
                               background: "hsl(var(--secondary))",
                               borderColor: "hsl(var(--border))",
