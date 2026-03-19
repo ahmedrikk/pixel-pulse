@@ -889,6 +889,7 @@ export default function BattlePass() {
         .bp-scroll::-webkit-scrollbar-track { background: transparent; }
         .bp-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
       `}</style>
+      <BottomNavBar />
     </div>
   );
 }

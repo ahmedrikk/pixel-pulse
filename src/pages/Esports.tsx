@@ -10,6 +10,7 @@ import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds
 import { motion, AnimatePresence } from "framer-motion";
 import { XPProgressBar } from "@/components/XPProgressBar";
 import { Navbar } from "@/components/Navbar";
+import { BottomNavBar } from "@/components/BottomNavBar";
 
 type TabType = "live" | "upcoming" | "results";
 

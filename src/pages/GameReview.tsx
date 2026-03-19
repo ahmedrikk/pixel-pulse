@@ -403,6 +403,7 @@ export default function GameReview() {
           </AnimatePresence>
         </div>
       </div>
+      <BottomNavBar />
     </div>
   );
 }
