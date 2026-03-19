@@ -451,12 +451,12 @@ function GameView({ gameId, onWatchLive }: { gameId: string; onWatchLive: () => 
    Main Esports Page
    ═══════════════════════════════════════════════ */
 export default function Esports() {
-  const { theme, toggleTheme } = useTheme();
   const { addXP } = useXP();
   const { gameId } = useParams<{ gameId?: string }>();
   const navigate = useNavigate();
   const [activeGame, setActiveGame] = useState("all");
   const [activeTab, setActiveTab] = useState<TabType>("live");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Sync activeGame with route param
   useEffect(() => {
