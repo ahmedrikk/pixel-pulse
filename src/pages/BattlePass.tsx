@@ -645,7 +645,7 @@ export default function BattlePass() {
                         <p className="text-sm text-muted-foreground font-medium">
                           {(selected.xp - CURRENT_XP).toLocaleString()} XP away
                         </p>
-                        <p className="text-[11px] text-muted-foreground/60">
+                        <p className="text-[11px] text-muted-foreground/60 hidden sm:block">
                           ≈ {Math.ceil((selected.xp - CURRENT_XP) / 200)} days at avg pace
                         </p>
                       </div>
