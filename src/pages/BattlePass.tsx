@@ -266,8 +266,8 @@ export default function BattlePass() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navbar onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} isMobileMenuOpen={isMobileMenuOpen} />
+    <div className="min-h-screen bg-background text-foreground pb-16 md:pb-0">
+      <Navbar />
 
       {/* Season Info Bar */}
       <div className="sticky top-[calc(3.5rem+3rem)] md:top-14 z-40 flex items-center justify-between px-4 md:px-6 py-2 bg-card border-b border-border shadow-sm">
