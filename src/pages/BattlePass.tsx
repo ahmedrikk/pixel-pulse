@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   Home, Lock, Trophy, Zap, Star, Gift, Shield, Crown,
-  ChevronRight, ChevronLeft, Clock, Flame, Award, Sparkles, Target, ArrowLeft,
+  ChevronRight, ChevronLeft, Clock, Flame, Award, Sparkles, Target,
 } from "lucide-react";
 import { useXP } from "@/contexts/XPContext";
+import { Navbar } from "@/components/Navbar";
 
 // ─── TYPES ──────────────────────────────────────────────────
 type RewardType = "badge" | "title" | "coupon" | "frame" | "cosmetic" | "milestone" | "ultimate";
@@ -228,6 +229,7 @@ function FloatingXPIndicator({ amount }: { amount: number }) {
 export default function BattlePass() {
   const [selectedTier, setSelectedTier] = useState(14);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(true);
   const trackRef = useRef<HTMLDivElement>(null);
   const seasonEnd = useMemo(() => new Date(Date.now() + 63 * 86400000), []);
@@ -264,31 +266,21 @@ export default function BattlePass() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* ─── HEADER ─── */}
-      <header className="sticky top-0 z-50 flex flex-col md:flex-row md:h-14 items-start md:items-center justify-between px-4 md:px-6 py-2 md:py-0 bg-card border-b border-border shadow-sm gap-1 md:gap-0">
-        <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
-          <Link
-            to="/"
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-medium hidden sm:inline">Home</span>
-          </Link>
-          <div className="w-px h-5 bg-border" />
-          <div className="flex items-center gap-1.5">
-            <Flame className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-            <span className="font-bold text-foreground tracking-tight text-sm md:text-base">GAME PULSE</span>
-          </div>
+      <Navbar onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} isMobileMenuOpen={isMobileMenuOpen} />
+
+      {/* Season Info Bar */}
+      <div className="sticky top-[calc(3.5rem+3rem)] md:top-14 z-40 flex items-center justify-between px-4 md:px-6 py-2 bg-card border-b border-border shadow-sm">
+        <div className="flex items-center gap-2">
+          <Flame className="w-4 h-4 text-primary" />
+          <span className="font-bold text-foreground tracking-tight text-sm">GAME PULSE</span>
           <span className="text-xs font-bold text-primary ml-1">S1</span>
-          <div className="ml-auto flex items-center gap-2 md:hidden">
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 border border-primary/20">
-              <Trophy className="w-3 h-3 text-primary" />
-              <span className="text-[10px] font-bold text-primary">RANK {CURRENT_TIER}</span>
-            </div>
+          <div className="flex md:hidden items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 ml-2">
+            <Trophy className="w-3 h-3 text-primary" />
+            <span className="text-[10px] font-bold text-primary">RANK {CURRENT_TIER}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 md:gap-4 w-full md:w-auto justify-between md:justify-end">
-          <div className="flex items-center gap-1.5 text-xs md:text-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs">
             <Clock className="w-3 h-3 text-muted-foreground" />
             <span className="text-muted-foreground">Ends:</span>
             <span className="font-bold text-foreground tabular-nums">
@@ -300,7 +292,7 @@ export default function BattlePass() {
             <span className="text-xs font-bold text-primary">RANK {CURRENT_TIER}</span>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* ─── MOBILE RANK CARD ─── */}
       <div className="md:hidden p-4 bg-card border-b border-border">
