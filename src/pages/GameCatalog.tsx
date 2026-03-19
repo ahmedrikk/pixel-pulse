@@ -102,8 +102,8 @@ export default function GameCatalog() {
   const trendingGames = CATALOG_GAMES.filter((g) => g.trending);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} isMobileMenuOpen={mobileMenuOpen} />
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
         {/* Page Header */}
