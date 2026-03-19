@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { FEATURED_GAME, TOP_REVIEWERS, type GameReview as ReviewType } from "@/data/gameReviewData";
 import { Navbar } from "@/components/Navbar";
+import { BottomNavBar } from "@/components/BottomNavBar";
 
 const platformIcons: Record<string, React.ReactNode> = {
   PC: <Monitor className="h-5 w-5" />,
