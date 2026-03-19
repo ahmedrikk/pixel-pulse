@@ -482,28 +482,7 @@ export default function Esports() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-[hsl(var(--nav-bg))] backdrop-blur-sm">
-        <div className="container flex h-14 items-center gap-4">
-          <Link to="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-            <TrendingUp className="h-6 w-6 text-primary" />
-            <span className="hidden sm:inline">
-              Level<span className="text-primary">Up</span><span className="text-accent">XP</span>
-            </span>
-          </Link>
-          <span className="text-muted-foreground hidden sm:inline">/ Esports Tracker</span>
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5 text-primary" />}
-            </Button>
-          </div>
-        </div>
-      </header>
+      <Navbar onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} isMobileMenuOpen={isMobileMenuOpen} />
 
       <main className="container py-6 max-w-4xl">
         {/* XP Bar */}
