@@ -167,7 +167,7 @@ export default function GameReview() {
 
   const overallScore = Object.values(game.scores).reduce((a, b) => a + b, 0) / Object.values(game.scores).length;
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">

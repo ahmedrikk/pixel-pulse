@@ -88,7 +88,7 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
 export default function GameCatalog() {
   const [activeGenre, setActiveGenre] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
 
   const filteredGames = CATALOG_GAMES.filter((game) => {
     const matchesGenre = activeGenre === "all" || game.genre === activeGenre;

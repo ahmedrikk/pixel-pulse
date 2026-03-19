@@ -457,7 +457,7 @@ export default function Esports() {
   const navigate = useNavigate();
   const [activeGame, setActiveGame] = useState("all");
   const [activeTab, setActiveTab] = useState<TabType>("live");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
 
   // Sync activeGame with route param
   useEffect(() => {

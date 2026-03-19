@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Navbar } from "@/components/Navbar";
 import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { NewsFeed } from "@/components/NewsFeed";
