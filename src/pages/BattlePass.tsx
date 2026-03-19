@@ -686,7 +686,7 @@ export default function BattlePass() {
                     {!unlocked && (
                       <Lock className="absolute top-2 right-2 w-3 h-3 text-muted-foreground/40" />
                     )}
-                    <span className="text-4xl block mb-2">{r.icon}</span>
+                    <span className="text-3xl md:text-4xl block mb-2">{r.icon}</span>
                     <p className="text-xs font-bold text-foreground mb-0.5">{r.name}</p>
                     <p className="text-[10px] font-semibold" style={{ color: rarityColor }}>
                       {r.rarity}
