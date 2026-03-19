@@ -632,7 +632,7 @@ export default function BattlePass() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end justify-center">
+                  <div className="flex flex-col items-start md:items-end justify-center">
                     <p className="text-3xl font-black" style={{ color: selectedTheme.border }}>
                       {selected.xp.toLocaleString()} XP
                     </p>
