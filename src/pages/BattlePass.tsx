@@ -669,7 +669,7 @@ export default function BattlePass() {
                 return (
                   <motion.div
                     key={r.name}
-                    className="bp-card rounded-xl border bg-card p-5 text-center cursor-pointer relative overflow-hidden"
+                    className="bp-card rounded-xl border bg-card p-3 md:p-5 text-center cursor-pointer relative overflow-hidden"
                     style={{
                       opacity: unlocked ? 1 : 0.55,
                       borderColor: unlocked ? rarityColor + "40" : "hsl(var(--border))",
