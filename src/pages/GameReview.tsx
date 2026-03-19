@@ -169,8 +169,8 @@ export default function GameReview() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} isMobileMenuOpen={mobileMenuOpen} />
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <Navbar />
 
       {/* Hero */}
       <div className="relative h-[420px] md:h-[480px] overflow-hidden">
