@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useXP } from "@/contexts/XPContext";
 import { Navbar } from "@/components/Navbar";
+import { BottomNavBar } from "@/components/BottomNavBar";
 
 // ─── TYPES ──────────────────────────────────────────────────
 type RewardType = "badge" | "title" | "coupon" | "frame" | "cosmetic" | "milestone" | "ultimate";
@@ -229,7 +230,7 @@ function FloatingXPIndicator({ amount }: { amount: number }) {
 export default function BattlePass() {
   const [selectedTier, setSelectedTier] = useState(14);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
   const [showDetail, setShowDetail] = useState(true);
   const trackRef = useRef<HTMLDivElement>(null);
   const seasonEnd = useMemo(() => new Date(Date.now() + 63 * 86400000), []);
@@ -265,8 +266,8 @@ export default function BattlePass() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Navbar onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} isMobileMenuOpen={isMobileMenuOpen} />
+    <div className="min-h-screen bg-background text-foreground pb-16 md:pb-0">
+      <Navbar />
 
       {/* Season Info Bar */}
       <div className="sticky top-[calc(3.5rem+3rem)] md:top-14 z-40 flex items-center justify-between px-4 md:px-6 py-2 bg-card border-b border-border shadow-sm">
@@ -888,6 +889,7 @@ export default function BattlePass() {
         .bp-scroll::-webkit-scrollbar-track { background: transparent; }
         .bp-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
       `}</style>
+      <BottomNavBar />
     </div>
   );
 }

@@ -1,31 +1,21 @@
-import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { NewsFeed } from "@/components/NewsFeed";
 import { RightSidebar } from "@/components/RightSidebar";
-import { MobileMenu } from "@/components/MobileMenu";
+import { BottomNavBar } from "@/components/BottomNavBar";
 import { TagFilterProvider } from "@/contexts/TagFilterContext";
 import { SoftBlockAuthModal } from "@/components/SoftBlockAuthModal";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { useXP } from "@/contexts/XPContext";
 
 const Index = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { addXP } = useXP();
   const { shouldShowModal, dismiss, trackCardView } = useEngagementTracker(addXP);
 
   return (
     <TagFilterProvider>
-      <div className="min-h-screen bg-background">
-        <Navbar
-          onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          isMobileMenuOpen={isMobileMenuOpen}
-        />
-
-        <MobileMenu
-          isOpen={isMobileMenuOpen}
-          onClose={() => setIsMobileMenuOpen(false)}
-        />
+      <div className="min-h-screen bg-background pb-16 md:pb-0">
+        <Navbar />
 
         <div className="container py-6">
           <div className="flex gap-6">
@@ -47,6 +37,7 @@ const Index = () => {
           </div>
         </div>
 
+        <BottomNavBar />
         <SoftBlockAuthModal isOpen={shouldShowModal} onDismiss={dismiss} />
       </div>
     </TagFilterProvider>
