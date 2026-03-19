@@ -502,7 +502,7 @@ export default function BattlePass() {
 
                           <motion.button
                             onClick={() => selectTier(t.tier)}
-                            className="bp-card relative w-[85px] h-[98px] rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer border-2 overflow-hidden"
+                            className="bp-card relative w-[68px] h-[80px] md:w-[85px] md:h-[98px] rounded-xl flex flex-col items-center justify-center gap-1 md:gap-1.5 cursor-pointer border-2 overflow-hidden"
                             style={{
                               background: t.unlocked ? theme.bg : "hsl(var(--secondary))",
                               borderColor: isSelected ? theme.border : t.unlocked ? theme.border + "60" : "hsl(var(--border))",
