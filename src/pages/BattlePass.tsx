@@ -265,33 +265,37 @@ export default function BattlePass() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* ─── HEADER ─── */}
-      <header className="sticky top-0 z-50 h-14 flex items-center justify-between px-6 bg-card border-b border-border shadow-sm">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-50 flex flex-col md:flex-row md:h-14 items-start md:items-center justify-between px-4 md:px-6 py-2 md:py-0 bg-card border-b border-border shadow-sm gap-1 md:gap-0">
+        <div className="flex items-center gap-2 md:gap-3 w-full md:w-auto">
           <Link
             to="/"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-medium">Home</span>
+            <span className="text-sm font-medium hidden sm:inline">Home</span>
           </Link>
           <div className="w-px h-5 bg-border" />
-          <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-primary" />
-            <span className="font-bold text-foreground tracking-tight">GAME PULSE</span>
+          <div className="flex items-center gap-1.5">
+            <Flame className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+            <span className="font-bold text-foreground tracking-tight text-sm md:text-base">GAME PULSE</span>
           </div>
-          <div className="w-px h-5 bg-border" />
-          <span className="text-sm text-muted-foreground font-medium">BATTLE PASS</span>
-          <span className="text-sm font-bold text-primary">S1</span>
+          <span className="text-xs font-bold text-primary ml-1">S1</span>
+          <div className="ml-auto flex items-center gap-2 md:hidden">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 border border-primary/20">
+              <Trophy className="w-3 h-3 text-primary" />
+              <span className="text-[10px] font-bold text-primary">RANK {CURRENT_TIER}</span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">Ends in:</span>
+        <div className="flex items-center gap-2 md:gap-4 w-full md:w-auto justify-between md:justify-end">
+          <div className="flex items-center gap-1.5 text-xs md:text-sm">
+            <Clock className="w-3 h-3 text-muted-foreground" />
+            <span className="text-muted-foreground">Ends:</span>
             <span className="font-bold text-foreground tabular-nums">
               {countdown.d}d {countdown.h}h {countdown.m}m
             </span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
             <Trophy className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-bold text-primary">RANK {CURRENT_TIER}</span>
           </div>
