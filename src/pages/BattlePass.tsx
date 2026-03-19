@@ -699,9 +699,9 @@ export default function BattlePass() {
           </section>
 
           {/* ─── BOTTOM: QUESTS + BONUSES ─── */}
-          <section className="p-6 grid grid-cols-3 gap-6">
+          <section className="p-3 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             {/* Daily Quests */}
-            <div className="col-span-2">
+            <div className="md:col-span-2">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
