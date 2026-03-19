@@ -425,13 +425,13 @@ export default function BattlePass() {
         {/* ─── MAIN CONTENT ─── */}
         <main className="flex-1 min-h-[calc(100vh-56px)] overflow-x-hidden">
           {/* ─── HORIZONTAL PROGRESSION TRACK ─── */}
-          <section className="border-b border-border bg-card/50 p-6 pb-4">
-            <div className="flex items-center justify-between mb-4">
+          <section className="border-b border-border bg-card/50 p-3 md:p-6 pb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-2">
               <div className="flex items-center gap-2">
-                <Award className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-bold text-foreground">Progression Track</h2>
+                <Award className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                <h2 className="text-base md:text-lg font-bold text-foreground">Progression Track</h2>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1 md:gap-2 flex-wrap">
                 {ACTS.map((act) => (
                   <span
                     key={act.num}
