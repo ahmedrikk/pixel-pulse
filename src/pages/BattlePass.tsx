@@ -860,7 +860,7 @@ export default function BattlePass() {
       </div>
 
       {/* Floating XP indicators */}
-      <div className="fixed bottom-8 left-[280px] z-50 pointer-events-none flex justify-center w-[calc(100%-280px)]">
+      <div className="fixed bottom-8 left-0 md:left-[280px] z-50 pointer-events-none flex justify-center w-full md:w-[calc(100%-280px)]">
         <AnimatePresence>
           {floatingXPs.map((f) => (
             <FloatingXPIndicator key={f.id} amount={f.amount} />
