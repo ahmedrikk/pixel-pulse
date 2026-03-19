@@ -598,15 +598,15 @@ export default function BattlePass() {
                 {...fadeUp}
                 className="p-6 border-b border-border"
               >
-                <div
-                  className="rounded-2xl p-6 flex gap-6 border shadow-sm"
+               <div
+                  className="rounded-2xl p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 border shadow-sm"
                   style={{
                     background: selectedTheme.bg,
                     borderColor: selectedTheme.border + "40",
                   }}
                 >
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className="text-sm font-bold" style={{ color: selectedTheme.border }}>
                         TIER {selected.tier}
                       </span>
