@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Radio, Clock, Trophy, ChevronRight, ExternalLink, Calendar } from "lucide-react";
+import { ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/contexts/ThemeContext";
