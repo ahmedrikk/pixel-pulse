@@ -657,12 +657,12 @@ export default function BattlePass() {
           </AnimatePresence>
 
           {/* ─── REWARD GRID ─── */}
-          <section className="p-6 border-b border-border">
-            <div className="flex items-center gap-2 mb-4">
-              <Gift className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-bold text-foreground">Detailed Rewards</h2>
+          <section className="p-3 md:p-6 border-b border-border">
+            <div className="flex items-center gap-2 mb-3 md:mb-4">
+              <Gift className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              <h2 className="text-base md:text-lg font-bold text-foreground">Detailed Rewards</h2>
             </div>
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3">
               {REWARD_GRID.map((r) => {
                 const unlocked = r.level <= CURRENT_TIER;
                 const rarityColor = RARITY_COLORS[r.rarity] || "hsl(var(--muted-foreground))";
