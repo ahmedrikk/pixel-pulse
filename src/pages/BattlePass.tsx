@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   Home, Lock, Trophy, Zap, Star, Gift, Shield, Crown,
-  ChevronRight, ChevronLeft, Clock, Flame, Award, Sparkles, Target, ArrowLeft,
+  ChevronRight, ChevronLeft, Clock, Flame, Award, Sparkles, Target,
 } from "lucide-react";
 import { useXP } from "@/contexts/XPContext";
+import { Navbar } from "@/components/Navbar";
 
 // ─── TYPES ──────────────────────────────────────────────────
 type RewardType = "badge" | "title" | "coupon" | "frame" | "cosmetic" | "milestone" | "ultimate";
