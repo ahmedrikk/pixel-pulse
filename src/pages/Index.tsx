@@ -10,22 +10,13 @@ import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { useXP } from "@/contexts/XPContext";
 
 const Index = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { addXP } = useXP();
   const { shouldShowModal, dismiss, trackCardView } = useEngagementTracker(addXP);
 
   return (
     <TagFilterProvider>
-      <div className="min-h-screen bg-background">
-        <Navbar
-          onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          isMobileMenuOpen={isMobileMenuOpen}
-        />
-
-        <MobileMenu
-          isOpen={isMobileMenuOpen}
-          onClose={() => setIsMobileMenuOpen(false)}
-        />
+      <div className="min-h-screen bg-background pb-16 md:pb-0">
+        <Navbar />
 
         <div className="container py-6">
           <div className="flex gap-6">
@@ -47,6 +38,7 @@ const Index = () => {
           </div>
         </div>
 
+        <BottomNavBar />
         <SoftBlockAuthModal isOpen={shouldShowModal} onDismiss={dismiss} />
       </div>
     </TagFilterProvider>
