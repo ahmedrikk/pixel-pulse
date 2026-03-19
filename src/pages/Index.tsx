@@ -3,7 +3,7 @@ import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { NewsFeed } from "@/components/NewsFeed";
 import { RightSidebar } from "@/components/RightSidebar";
-import { MobileMenu } from "@/components/MobileMenu";
+import { BottomNavBar } from "@/components/BottomNavBar";
 import { TagFilterProvider } from "@/contexts/TagFilterContext";
 import { SoftBlockAuthModal } from "@/components/SoftBlockAuthModal";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
