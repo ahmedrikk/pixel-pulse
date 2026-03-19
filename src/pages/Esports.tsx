@@ -1,15 +1,15 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink, Calendar } from "lucide-react";
+import { Radio, Clock, Trophy, ChevronRight, ExternalLink, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useXP } from "@/contexts/XPContext";
-import { Sun, Moon } from "lucide-react";
 import { GAME_FILTERS, ESPORTS_MATCHES, type EsportsMatch, type EsportsTeam } from "@/data/esportsData";
 import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { XPProgressBar } from "@/components/XPProgressBar";
+import { Navbar } from "@/components/Navbar";
 
 type TabType = "live" | "upcoming" | "results";
 
