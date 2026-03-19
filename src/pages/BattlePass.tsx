@@ -230,7 +230,7 @@ function FloatingXPIndicator({ amount }: { amount: number }) {
 export default function BattlePass() {
   const [selectedTier, setSelectedTier] = useState(14);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
   const [showDetail, setShowDetail] = useState(true);
   const trackRef = useRef<HTMLDivElement>(null);
   const seasonEnd = useMemo(() => new Date(Date.now() + 63 * 86400000), []);
