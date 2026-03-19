@@ -212,6 +212,7 @@ export default function GameCatalog() {
           )}
         </div>
       </div>
+      <BottomNavBar />
     </div>
   );
 }
