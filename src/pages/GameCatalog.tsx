@@ -4,6 +4,7 @@ import { Star, TrendingUp, Monitor, Gamepad2, Search, Flame } from "lucide-react
 import { Link } from "react-router-dom";
 import { CATALOG_GAMES, GENRES, type CatalogGame } from "@/data/gameCatalogData";
 import { Navbar } from "@/components/Navbar";
+import { BottomNavBar } from "@/components/BottomNavBar";
 import { Input } from "@/components/ui/input";
 
 const platformIcons: Record<string, React.ReactNode> = {
