@@ -302,9 +302,34 @@ export default function BattlePass() {
         </div>
       </header>
 
+      {/* ─── MOBILE RANK CARD ─── */}
+      <div className="md:hidden p-4 bg-card border-b border-border">
+        <div className="flex items-center gap-4">
+          <motion.div
+            className="w-16 h-16 rounded-xl bg-card border-2 border-primary/30 shadow-lg flex items-center justify-center shrink-0"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+          >
+            <span className="text-2xl font-black text-primary">{CURRENT_TIER}</span>
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-bold text-foreground">RANK {CURRENT_TIER}</h2>
+            <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Season of the Ember</p>
+            <div className="mt-2">
+              <div className="flex justify-between text-[10px] mb-1">
+                <span className="font-semibold text-foreground">Season XP</span>
+                <span className="text-muted-foreground">{CURRENT_XP.toLocaleString()} / {SEASON_XP_MAX.toLocaleString()}</span>
+              </div>
+              <XPBar percent={(CURRENT_XP / SEASON_XP_MAX) * 100} delay={400} className="h-2" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="flex">
         {/* ─── RANK TOWER (Left Panel) ─── */}
-        <aside className="w-[280px] min-h-[calc(100vh-56px)] sticky top-14 border-r border-border bg-card flex flex-col shrink-0">
+        <aside className="hidden md:flex w-[280px] min-h-[calc(100vh-56px)] sticky top-14 border-r border-border bg-card flex-col shrink-0">
           {/* Banner image */}
           <div className="relative h-40 overflow-hidden">
             <img
