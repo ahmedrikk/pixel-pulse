@@ -270,7 +270,7 @@ export default function BattlePass() {
       <Navbar />
 
       {/* Season Info Bar */}
-      <div className="sticky top-[calc(3.5rem+3rem)] md:top-14 z-40 flex items-center justify-between px-4 md:px-6 py-2 bg-card border-b border-border shadow-sm">
+      <div className="flex items-center justify-between px-4 md:px-6 py-2 bg-card border-b border-border shadow-sm">
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4 text-primary" />
           <span className="font-bold text-foreground tracking-tight text-sm">GAME PULSE</span>
