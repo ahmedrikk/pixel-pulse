@@ -4,6 +4,7 @@ import { Star, TrendingUp, Monitor, Gamepad2, Search, Flame } from "lucide-react
 import { Link } from "react-router-dom";
 import { useGameCatalog, type CatalogGame } from "@/hooks/useGameCatalog";
 import { SiteLayout } from "@/components/SiteLayout";
+import { BottomNavBar } from "@/components/BottomNavBar";
 import { Input } from "@/components/ui/input";
 
 const GENRES = [
@@ -119,7 +120,7 @@ export default function GameCatalog() {
 
   return (
     <SiteLayout>
-      <div className="space-y-8">
+      <div className="space-y-8 pb-16 md:pb-0">
         {/* Page Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-3xl md:text-4xl font-black text-foreground">
@@ -246,6 +247,7 @@ export default function GameCatalog() {
           )}
         </div>
       </div>
+      <BottomNavBar />
     </SiteLayout>
   );
 }

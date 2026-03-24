@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
   Home, Lock, Trophy, Zap, Star, Gift, Shield, Crown,
-  ChevronRight, ChevronLeft, Clock, Flame, Award, Sparkles, Target, ArrowLeft,
+  ChevronRight, ChevronLeft, Clock, Flame, Award, Sparkles, Target,
 } from "lucide-react";
 import { useXP } from "@/contexts/XPContext";
+import { Navbar } from "@/components/Navbar";
+import { BottomNavBar } from "@/components/BottomNavBar";
 
 // ─── TYPES ──────────────────────────────────────────────────
 type RewardType = "badge" | "title" | "coupon" | "frame" | "cosmetic" | "milestone" | "ultimate";
@@ -228,6 +230,7 @@ function FloatingXPIndicator({ amount }: { amount: number }) {
 export default function BattlePass() {
   const [selectedTier, setSelectedTier] = useState(14);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
+  
   const [showDetail, setShowDetail] = useState(true);
   const trackRef = useRef<HTMLDivElement>(null);
   const seasonEnd = useMemo(() => new Date(Date.now() + 63 * 86400000), []);
@@ -263,44 +266,63 @@ export default function BattlePass() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* ─── HEADER ─── */}
-      <header className="sticky top-0 z-50 h-14 flex items-center justify-between px-6 bg-card border-b border-border shadow-sm">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm font-medium">Home</span>
-          </Link>
-          <div className="w-px h-5 bg-border" />
-          <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-primary" />
-            <span className="font-bold text-foreground tracking-tight">GAME PULSE</span>
+    <div className="min-h-screen bg-background text-foreground pb-16 md:pb-0">
+      <Navbar />
+
+      {/* Season Info Bar */}
+      <div className="flex items-center justify-between px-4 md:px-6 py-2 bg-card border-b border-border shadow-sm">
+        <div className="flex items-center gap-2">
+          <Flame className="w-4 h-4 text-primary" />
+          <span className="font-bold text-foreground tracking-tight text-sm">GAME PULSE</span>
+          <span className="text-xs font-bold text-primary ml-1">S1</span>
+          <div className="flex md:hidden items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 ml-2">
+            <Trophy className="w-3 h-3 text-primary" />
+            <span className="text-[10px] font-bold text-primary">RANK {CURRENT_TIER}</span>
           </div>
-          <div className="w-px h-5 bg-border" />
-          <span className="text-sm text-muted-foreground font-medium">BATTLE PASS</span>
-          <span className="text-sm font-bold text-primary">S1</span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">Ends in:</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs">
+            <Clock className="w-3 h-3 text-muted-foreground" />
+            <span className="text-muted-foreground">Ends:</span>
             <span className="font-bold text-foreground tabular-nums">
               {countdown.d}d {countdown.h}h {countdown.m}m
             </span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
             <Trophy className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-bold text-primary">RANK {CURRENT_TIER}</span>
           </div>
         </div>
-      </header>
+      </div>
+
+      {/* ─── MOBILE RANK CARD ─── */}
+      <div className="md:hidden p-4 bg-card border-b border-border">
+        <div className="flex items-center gap-4">
+          <motion.div
+            className="w-16 h-16 rounded-xl bg-card border-2 border-primary/30 shadow-lg flex items-center justify-center shrink-0"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+          >
+            <span className="text-2xl font-black text-primary">{CURRENT_TIER}</span>
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-bold text-foreground">RANK {CURRENT_TIER}</h2>
+            <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Season of the Ember</p>
+            <div className="mt-2">
+              <div className="flex justify-between text-[10px] mb-1">
+                <span className="font-semibold text-foreground">Season XP</span>
+                <span className="text-muted-foreground">{CURRENT_XP.toLocaleString()} / {SEASON_XP_MAX.toLocaleString()}</span>
+              </div>
+              <XPBar percent={(CURRENT_XP / SEASON_XP_MAX) * 100} delay={400} className="h-2" />
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="flex">
         {/* ─── RANK TOWER (Left Panel) ─── */}
-        <aside className="w-[280px] min-h-[calc(100vh-56px)] sticky top-14 border-r border-border bg-card flex flex-col shrink-0">
+        <aside className="hidden md:flex w-[280px] min-h-[calc(100vh-56px)] sticky top-14 border-r border-border bg-card flex-col shrink-0">
           {/* Banner image */}
           <div className="relative h-40 overflow-hidden">
             <img
@@ -396,13 +418,13 @@ export default function BattlePass() {
         {/* ─── MAIN CONTENT ─── */}
         <main className="flex-1 min-h-[calc(100vh-56px)] overflow-x-hidden">
           {/* ─── HORIZONTAL PROGRESSION TRACK ─── */}
-          <section className="border-b border-border bg-card/50 p-6 pb-4">
-            <div className="flex items-center justify-between mb-4">
+          <section className="border-b border-border bg-card/50 p-3 md:p-6 pb-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-2">
               <div className="flex items-center gap-2">
-                <Award className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-bold text-foreground">Progression Track</h2>
+                <Award className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                <h2 className="text-base md:text-lg font-bold text-foreground">Progression Track</h2>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-1 md:gap-2 flex-wrap">
                 {ACTS.map((act) => (
                   <span
                     key={act.num}
@@ -473,7 +495,7 @@ export default function BattlePass() {
 
                           <motion.button
                             onClick={() => selectTier(t.tier)}
-                            className="bp-card relative w-[85px] h-[98px] rounded-xl flex flex-col items-center justify-center gap-1.5 cursor-pointer border-2 overflow-hidden"
+                            className="bp-card relative w-[68px] h-[80px] md:w-[85px] md:h-[98px] rounded-xl flex flex-col items-center justify-center gap-1 md:gap-1.5 cursor-pointer border-2 overflow-hidden"
                             style={{
                               background: t.unlocked ? theme.bg : "hsl(var(--secondary))",
                               borderColor: isSelected ? theme.border : t.unlocked ? theme.border + "60" : "hsl(var(--border))",
@@ -540,7 +562,7 @@ export default function BattlePass() {
                           <div className="h-[20px]" />
                           <span className="text-[9px] font-semibold text-muted-foreground/40">{t.tier}</span>
                           <div
-                            className="bp-card relative w-[85px] h-[98px] rounded-xl flex flex-col items-center justify-center gap-1.5 border-2 opacity-40 cursor-not-allowed overflow-hidden"
+                            className="bp-card relative w-[68px] h-[80px] md:w-[85px] md:h-[98px] rounded-xl flex flex-col items-center justify-center gap-1 md:gap-1.5 border-2 opacity-40 cursor-not-allowed overflow-hidden"
                             style={{
                               background: "hsl(var(--secondary))",
                               borderColor: "hsl(var(--border))",
@@ -569,15 +591,15 @@ export default function BattlePass() {
                 {...fadeUp}
                 className="p-6 border-b border-border"
               >
-                <div
-                  className="rounded-2xl p-6 flex gap-6 border shadow-sm"
+               <div
+                  className="rounded-2xl p-4 md:p-6 flex flex-col md:flex-row gap-4 md:gap-6 border shadow-sm"
                   style={{
                     background: selectedTheme.bg,
                     borderColor: selectedTheme.border + "40",
                   }}
                 >
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className="text-sm font-bold" style={{ color: selectedTheme.border }}>
                         TIER {selected.tier}
                       </span>
@@ -603,8 +625,8 @@ export default function BattlePass() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end justify-center">
-                    <p className="text-3xl font-black" style={{ color: selectedTheme.border }}>
+                  <div className="flex flex-col items-start md:items-end justify-center">
+                    <p className="text-2xl md:text-3xl font-black" style={{ color: selectedTheme.border }}>
                       {selected.xp.toLocaleString()} XP
                     </p>
                     {selected.unlocked ? (
@@ -616,7 +638,7 @@ export default function BattlePass() {
                         <p className="text-sm text-muted-foreground font-medium">
                           {(selected.xp - CURRENT_XP).toLocaleString()} XP away
                         </p>
-                        <p className="text-[11px] text-muted-foreground/60">
+                        <p className="text-[11px] text-muted-foreground/60 hidden sm:block">
                           ≈ {Math.ceil((selected.xp - CURRENT_XP) / 200)} days at avg pace
                         </p>
                       </div>
@@ -628,19 +650,19 @@ export default function BattlePass() {
           </AnimatePresence>
 
           {/* ─── REWARD GRID ─── */}
-          <section className="p-6 border-b border-border">
-            <div className="flex items-center gap-2 mb-4">
-              <Gift className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-bold text-foreground">Detailed Rewards</h2>
+          <section className="p-3 md:p-6 border-b border-border">
+            <div className="flex items-center gap-2 mb-3 md:mb-4">
+              <Gift className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              <h2 className="text-base md:text-lg font-bold text-foreground">Detailed Rewards</h2>
             </div>
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3">
               {REWARD_GRID.map((r) => {
                 const unlocked = r.level <= CURRENT_TIER;
                 const rarityColor = RARITY_COLORS[r.rarity] || "hsl(var(--muted-foreground))";
                 return (
                   <motion.div
                     key={r.name}
-                    className="bp-card rounded-xl border bg-card p-5 text-center cursor-pointer relative overflow-hidden"
+                    className="bp-card rounded-xl border bg-card p-3 md:p-5 text-center cursor-pointer relative overflow-hidden"
                     style={{
                       opacity: unlocked ? 1 : 0.55,
                       borderColor: unlocked ? rarityColor + "40" : "hsl(var(--border))",
@@ -657,7 +679,7 @@ export default function BattlePass() {
                     {!unlocked && (
                       <Lock className="absolute top-2 right-2 w-3 h-3 text-muted-foreground/40" />
                     )}
-                    <span className="text-4xl block mb-2">{r.icon}</span>
+                    <span className="text-3xl md:text-4xl block mb-2">{r.icon}</span>
                     <p className="text-xs font-bold text-foreground mb-0.5">{r.name}</p>
                     <p className="text-[10px] font-semibold" style={{ color: rarityColor }}>
                       {r.rarity}
@@ -670,9 +692,9 @@ export default function BattlePass() {
           </section>
 
           {/* ─── BOTTOM: QUESTS + BONUSES ─── */}
-          <section className="p-6 grid grid-cols-3 gap-6">
+          <section className="p-3 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             {/* Daily Quests */}
-            <div className="col-span-2">
+            <div className="md:col-span-2">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-primary" />
@@ -831,7 +853,7 @@ export default function BattlePass() {
       </div>
 
       {/* Floating XP indicators */}
-      <div className="fixed bottom-8 left-[280px] z-50 pointer-events-none flex justify-center w-[calc(100%-280px)]">
+      <div className="fixed bottom-8 left-0 md:left-[280px] z-50 pointer-events-none flex justify-center w-full md:w-[calc(100%-280px)]">
         <AnimatePresence>
           {floatingXPs.map((f) => (
             <FloatingXPIndicator key={f.id} amount={f.amount} />
@@ -867,6 +889,7 @@ export default function BattlePass() {
         .bp-scroll::-webkit-scrollbar-track { background: transparent; }
         .bp-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
       `}</style>
+      <BottomNavBar />
     </div>
   );
 }
