@@ -15,6 +15,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { trackComment, trackReaction } from "@/lib/xpService";
 import { useGameDetails } from "@/hooks/useGameDetails";
 import { useUserReviews, useSubmitReview } from "@/hooks/useGameReviews";
+import { BottomNavBar } from "@/components/BottomNavBar";
 
 const platformIcons: Record<string, React.ReactNode> = {
   PC: <Monitor className="h-5 w-5" />,
@@ -378,6 +379,7 @@ export default function GameReview() {
           </AnimatePresence>
         </div>
       </div>
+      <BottomNavBar />
     </SiteLayout>
   );
 }

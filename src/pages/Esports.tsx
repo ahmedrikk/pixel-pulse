@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, Calendar, X, Tv2 } from "lucide-react";
+import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink, Calendar, X, Tv2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -11,6 +11,8 @@ import { useEsportsMatches } from "@/hooks/useEsportsMatches";
 import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { XPProgressBar } from "@/components/XPProgressBar";
+import { Navbar } from "@/components/Navbar";
+import { BottomNavBar } from "@/components/BottomNavBar";
 
 type TabType = "live" | "upcoming" | "results";
 
@@ -626,7 +628,6 @@ function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, gameFilte
    Main Esports Page
    ═══════════════════════════════════════════════ */
 export default function Esports() {
-  const { theme, toggleTheme } = useTheme();
   const { addXP } = useXP();
   const { gameId } = useParams<{ gameId?: string }>();
   const navigate = useNavigate();
@@ -680,29 +681,8 @@ export default function Esports() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-[hsl(var(--nav-bg))] backdrop-blur-sm">
-        <div className="container flex h-14 items-center gap-4">
-          <Link to="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-            <TrendingUp className="h-6 w-6 text-primary" />
-            <span className="hidden sm:inline">
-              Level<span className="text-primary">Up</span><span className="text-accent">XP</span>
-            </span>
-          </Link>
-          <span className="text-muted-foreground hidden sm:inline">/ Esports Tracker</span>
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5 text-primary" />}
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <Navbar />
 
       <main className="container py-6 max-w-4xl">
         {/* XP Bar */}
@@ -768,6 +748,7 @@ export default function Esports() {
           <TwitchModal match={watchingMatch} onClose={() => setWatchingMatch(null)} />
         )}
       </AnimatePresence>
+      <BottomNavBar />
     </div>
   );
 }
