@@ -1,17 +1,10 @@
-import { X, Star, Trophy, Sun, Moon, Settings, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Star, Trophy, Sun, Moon, Settings, ChevronRight, LogIn, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-
-const MOCK_USER = {
-  initials: "GT",
-  displayName: "GamerTag_X",
-  handle: "@gamertag",
-  bio: "Indie game enthusiast & RPG lover. Always hunting for hidden gems. 🎮",
-  following: 142,
-  followers: 891,
-};
+import { supabase } from "@/integrations/supabase/client";
 
 const NAV_LINKS = [
   { icon: Star, label: "Reviews", href: "/reviews" },
@@ -25,8 +18,26 @@ interface ProfileDrawerProps {
 
 export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
   const { theme, toggleTheme } = useTheme();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   if (!isOpen) return null;
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Guest";
+  const handle = user?.email ? `@${user.email.split("@")[0]}` : "";
+  const initials = displayName.slice(0, 2).toUpperCase();
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    onClose();
+  }
 
   return (
     <div className="fixed inset-0 z-[60] md:hidden">
@@ -48,31 +59,41 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
         {/* Profile Section */}
         <div className="px-4 pb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-black text-foreground"
-            style={{ background: "linear-gradient(135deg, hsl(142 71% 45%), hsl(186 100% 50%))" }}>
-            {MOCK_USER.initials}
-          </div>
-          <h3 className="mt-3 font-bold text-base text-foreground">{MOCK_USER.displayName}</h3>
-          <p className="text-sm text-muted-foreground">{MOCK_USER.handle}</p>
-          <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{MOCK_USER.bio}</p>
-
-          {/* Followers / Following */}
-          <div className="flex items-center gap-4 mt-3">
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-bold text-foreground">{MOCK_USER.following}</span>
-              <span className="text-sm text-muted-foreground">Following</span>
+          {user?.user_metadata?.avatar_url ? (
+            <img
+              src={user.user_metadata.avatar_url}
+              className="w-12 h-12 rounded-full object-cover"
+              alt={displayName}
+            />
+          ) : (
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-black text-foreground"
+              style={{ background: "linear-gradient(135deg, hsl(142 71% 45%), hsl(186 100% 50%))" }}
+            >
+              {initials}
             </div>
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-bold text-foreground">{MOCK_USER.followers}</span>
-              <span className="text-sm text-muted-foreground">Followers</span>
-            </div>
-          </div>
+          )}
+          <h3 className="mt-3 font-bold text-base text-foreground">{displayName}</h3>
+          {handle && <p className="text-sm text-muted-foreground">{handle}</p>}
         </div>
 
         <div className="border-t border-border" />
 
         {/* Navigation Links */}
         <nav className="py-2">
+          {user && (
+            <Link
+              to="/profile"
+              onClick={onClose}
+              className="flex items-center justify-between px-5 py-3.5 hover:bg-secondary transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <Settings className="h-5 w-5 text-foreground" />
+                <span className="font-medium text-foreground">My Profile</span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+          )}
           {NAV_LINKS.map((item) => (
             <Link
               key={item.label}
@@ -109,22 +130,26 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
         <div className="border-t border-border" />
 
-        {/* Settings */}
-        <Link
-          to="/settings"
-          onClick={onClose}
-          className="flex items-center gap-4 px-5 py-3.5 hover:bg-secondary transition-colors"
-        >
-          <Settings className="h-5 w-5 text-foreground" />
-          <span className="font-medium text-foreground">Settings and privacy</span>
-        </Link>
-
-        {/* Bottom Auth Buttons */}
+        {/* Bottom Auth */}
         <div className="mt-auto p-4 border-t border-border">
-          <div className="space-y-2">
-            <Button variant="outline" className="w-full">Log In</Button>
-            <Button className="w-full">Sign Up</Button>
-          </div>
+          {user ? (
+            <Button variant="outline" className="w-full gap-2" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
+              Log Out
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <Link to="/login" onClick={onClose}>
+                <Button variant="outline" className="w-full gap-2">
+                  <LogIn className="h-4 w-4" />
+                  Log In
+                </Button>
+              </Link>
+              <Link to="/login" onClick={onClose}>
+                <Button className="w-full">Sign Up</Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>
