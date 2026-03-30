@@ -112,7 +112,7 @@ function stripHtml(html: string): string {
 // ---------------------------------------------------------------------------
 const SYSTEM_PROMPT = `You are a gaming news editor and named-entity extractor. Given an article, produce three things:
 
-1. TITLE (under 60 chars): Sharp, factual headline. No clickbait.
+1. TITLE: Return the original article title EXACTLY as given. Do not shorten, rephrase, or change it in any way.
 
 2. SUMMARY (EXACTLY 100 words):
    - Count every word. Must be exactly 100 words — not 60, not 80, not 120. 100.
@@ -317,7 +317,7 @@ serve(async (req) => {
           category:     "Gaming",
           source:       item.source,
           author:       item.author,
-          ai_title:     ai?.processedTitle  ?? item.title,
+          ai_title:     item.title, // always use original title, never let AI shorten it
           ai_summary:   ai?.processedSummary ?? null,
           tags:         ai?.processedTags   ?? [],
           likes:        0,
