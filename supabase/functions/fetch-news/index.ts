@@ -120,34 +120,27 @@ function stripHtml(html: string): string {
 // ---------------------------------------------------------------------------
 // Groq AI processing
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are a gaming news editor and named-entity extractor. Given an article, produce three things:
+const SYSTEM_PROMPT = `You are a gaming news editor. Given an article, return JSON with three fields.
 
-1. TITLE: Return the original article title EXACTLY as given. Do not shorten, rephrase, or change it in any way.
+TITLE: Copy the original title EXACTLY. Do not change a single word.
 
-2. SUMMARY (EXACTLY 100 words):
-   - Count every word. Must be exactly 100 words — not 60, not 80, not 120. 100.
-   - Lead with the most important fact: who, what, when, why it matters.
-   - News-wire style: dense, direct, no filler phrases ("In this article…", "According to…").
-   - If the content is thin, draw on your knowledge of the game/studio/franchise to fill it out.
-   - One tight paragraph. No bullet points. No quotes.
+SUMMARY: Write EXACTLY 60 words — like the Inshorts app style.
+- Count every single word before responding. Must be 55–65 words. No exceptions.
+- Start immediately with the key fact. No "In this article", no "According to".
+- Dense, punchy, news-wire style. One paragraph. No bullets, no quotes.
+- If source content is thin, use your knowledge of the game/franchise to fill it out to 60 words.
+- End at a complete sentence.
 
-3. TAGS — named entities only:
-   - Game titles → "ResidentEvil2", "GTA6", "Minecraft"
-   - Characters → "Mario", "MasterChief", "Kratos"
-   - Studios/publishers → "Capcom", "Nintendo", "RockstarGames"
-   - Real people → "HideoKojima", "Ninja"
-   - Specific events → "GameAwards2025", "EVO2025"
-   - Platform ONLY if article is about hardware → "PS5", "Switch2"
+TAGS: Named entities only — game titles, studios, real people, specific events.
+- Game titles: "ResidentEvil2", "GTA6" (PascalCase, no spaces)
+- Studios: "Capcom", "RockstarGames"
+- People: "HideoKojima", "JackBlack"
+- Events: "GameAwards2025"
+- Platform ONLY if the article is specifically about hardware: "PS5", "Switch2"
+- BANNED: Gaming, News, Game, Games, Update, Entertainment, RPG, FPS, Action, Review, Preview, Trailer, Rumor, Leak, Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming
+- 3–6 tags, PascalCase, no # symbol.
 
-   BANNED: Gaming, News, VideoGames, Game, Games, Update, Updates, Entertainment,
-   RPG, FPS, Action, Adventure, Puzzle, Horror, Strategy, Simulation, Sports, Racing,
-   Fighting, Platformer, MOBA, Roguelike, Sandbox, OpenWorld, Multiplayer, SinglePlayer,
-   CoOp, Streaming, Twitch, YouTube, PCGaming, MobileGaming, NewRelease, Gameplay,
-   Review, Preview, Trailer, Rumor, Leak, Delay
-
-   FORMAT: PascalCase, no # symbol, 4–7 tags.
-
-Respond ONLY with valid JSON, no markdown:
+Respond ONLY with valid JSON:
 {"title": "...", "summary": "...", "tags": ["Tag1", "Tag2"]}`;
 
 async function processWithGroq(title: string, content: string, source: string): Promise<{
@@ -164,9 +157,9 @@ Content:
 ${content.substring(0, 7000)}
 
 ---
-TASK:
-1. Write the SUMMARY. Count every word — it MUST be exactly 100 words. Thin content is not an excuse; expand with relevant context.
-2. Extract TAGS — proper nouns only. No generic words.`;
+Write the SUMMARY in EXACTLY 60 words (55–65 is acceptable). Count carefully.
+If content is thin, use your gaming knowledge to reach 60 words.
+Then extract TAGS (named entities only).`;
 
   for (const model of MODELS) {
     try {
@@ -202,17 +195,24 @@ TASK:
       let parsed: { title?: string; summary?: string; tags?: unknown[] };
       try { parsed = JSON.parse(clean); } catch { continue; }
 
-      // Enforce word count — hard trim at 100, warn if < 80
+      // Enforce word count — hard trim at 65 words
       let summary = (parsed.summary ?? "").trim();
-      const words = summary.split(/\s+/);
-      if (words.length > 100) summary = words.slice(0, 100).join(" ") + "…";
-      if (words.length < 80) console.warn(`  ⚠ Short summary (${words.length} words) for "${title.substring(0, 40)}"`);
+      const words = summary.split(/\s+/).filter(Boolean);
+      if (words.length > 65) summary = words.slice(0, 60).join(" ");
+      const wordCount = words.length;
+      console.log(`  words: ${wordCount}`);
 
       const tags = Array.isArray(parsed.tags)
         ? (parsed.tags as unknown[]).filter((t): t is string => typeof t === "string" && t.length > 0).slice(0, 8)
         : [];
 
-      console.log(`  ✓ ${model}: "${(parsed.title ?? title).substring(0, 50)}" | ${summary.trim().split(/\s+/).length} words | tags: ${tags.join(", ")}`);
+      // If too short, try one more time with an explicit expansion prompt
+      if (wordCount < 40) {
+        console.warn(`  ⚠ Only ${wordCount} words, retrying with expansion prompt...`);
+        continue; // try next model / retry
+      }
+
+      console.log(`  ✓ ${model}: ${wordCount} words | tags: ${tags.join(", ")}`);
       return { processedTitle: parsed.title || title, processedSummary: summary, processedTags: tags };
 
     } catch (err) {

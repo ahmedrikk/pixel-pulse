@@ -214,9 +214,9 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           {article.title}
         </h2>
 
-        {/* Summary — 100 words, uniform across all cards */}
-        <div className="mb-4">
-          <p className="text-muted-foreground leading-relaxed">
+        {/* Summary — fixed height, Inshorts-style uniform display */}
+        <div className="mb-4 min-h-[7rem]">
+          <p className="text-muted-foreground leading-relaxed line-clamp-5">
             {summaryText}
           </p>
         </div>
