@@ -117,6 +117,34 @@ function stripHtml(html: string): string {
     .replace(/\s+/g, " ").trim();
 }
 
+// Clean Jina markdown output — strips nav links, URLs, formatting, leaving plain prose
+// ---------------------------------------------------------------------------
+function cleanJinaText(raw: string): string {
+  const lines = raw.split("\n").map(l => l
+    // Remove markdown links [text](url) → text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    // Remove bare URLs
+    .replace(/https?:\/\/\S+/g, "")
+    // Remove markdown bold/italic
+    .replace(/\*{1,3}([^*]*)\*{1,3}/g, "$1")
+    .replace(/_{1,2}([^_]*)_{1,2}/g, "$1")
+    // Remove markdown headers
+    .replace(/^#{1,6}\s+/, "")
+    // Remove list markers
+    .replace(/^\s*[-*+]\s+/, "")
+    // Trim whitespace
+    .trim()
+  ).filter(line =>
+    line.length >= 25 &&          // skip short nav items / menu entries
+    !/^[|>]/.test(line) &&        // skip tables and blockquotes
+    !line.startsWith("Copyright") &&
+    !line.startsWith("©") &&
+    !/^(Home|Menu|Skip|Search|Login|Sign in|Subscribe|Newsletter|Share|Follow)/i.test(line)
+  );
+
+  return lines.join(" ").replace(/\s+/g, " ").trim();
+}
+
 // ---------------------------------------------------------------------------
 // Groq AI processing
 // ---------------------------------------------------------------------------
@@ -280,10 +308,13 @@ serve(async (req) => {
         console.log(`Processing: "${item.title.substring(0, 60)}"`);
 
         // 1. Fetch full article text via Jina AI Reader
-        const { text: jinaText, image: jinaImage } = await fetchWithJina(item.link);
+        const { text: jinaRaw, image: jinaImage } = await fetchWithJina(item.link);
 
-        // 2. Build summary: first 60 words from Jina, fallback to RSS description
-        const sourceText = jinaText.length > 100 ? jinaText : stripHtml(item.description);
+        // 2. Clean Jina markdown → strip nav links, bare URLs, short menu lines
+        const jinaClean = jinaRaw.length > 100 ? cleanJinaText(jinaRaw) : "";
+
+        // 3. Build summary: first 60 words from cleaned Jina, fallback to RSS description
+        const sourceText = jinaClean.length > 80 ? jinaClean : stripHtml(item.description);
         const summary60 = extractWords(sourceText, 60);
 
         // 3. AI extracts tags only (fast, reliable)
