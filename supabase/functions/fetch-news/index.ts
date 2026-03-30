@@ -40,11 +40,19 @@ interface RssItem {
   source: string;
 }
 
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, " ");
+}
+
 function extractCDATA(block: string, tag: string): string {
   const cdataRe = new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`, "i");
   const plainRe  = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i");
   const m = block.match(cdataRe) || block.match(plainRe);
-  return m ? m[1].trim() : "";
+  return m ? decodeHtmlEntities(m[1].trim()) : "";
 }
 
 function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
@@ -53,9 +61,11 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
     const block = match[1];
 
     const title = extractCDATA(block, "title");
-    const link  = block.match(/<link>(.*?)<\/link>/i)?.[1]?.trim()
-                || block.match(/<link[^>]+href="([^"]+)"/i)?.[1]?.trim()
-                || "";
+    const link  = decodeHtmlEntities(
+                    block.match(/<link>(.*?)<\/link>/i)?.[1]?.trim()
+                 || block.match(/<link[^>]+href="([^"]+)"/i)?.[1]?.trim()
+                 || ""
+                  );
     if (!title || !link) continue;
 
     const pubDate = extractCDATA(block, "pubDate") || new Date().toISOString();
