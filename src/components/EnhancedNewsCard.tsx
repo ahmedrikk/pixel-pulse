@@ -173,9 +173,9 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       ref={cardRef}
       className="bg-card rounded-xl border overflow-hidden card-shadow hover:card-shadow-hover transition-all duration-200 group"
     >
-      {/* Hero Image — always present, gradient fallback keeps card structure uniform */}
-      <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-muted to-muted/40">
-        {!imgError && article.heroImageUrl && (
+      {/* Hero Image */}
+      {!imgError && article.heroImageUrl ? (
+        <div className="relative aspect-video overflow-hidden">
           <img
             src={article.heroImageUrl}
             alt={article.title}
@@ -183,13 +183,21 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             loading="lazy"
             onError={() => setImgError(true)}
           />
-        )}
-        {primaryTag && (
-          <span className="absolute top-3 left-3 px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
-            #{primaryTag}
-          </span>
-        )}
-      </div>
+          {primaryTag && (
+            <span className="absolute top-3 left-3 px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
+              #{primaryTag}
+            </span>
+          )}
+        </div>
+      ) : (
+        primaryTag && (
+          <div className="px-5 pt-4">
+            <span className="px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
+              #{primaryTag}
+            </span>
+          </div>
+        )
+      )}
 
       {/* Content */}
       <div className="p-5">
