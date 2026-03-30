@@ -120,46 +120,36 @@ function stripHtml(html: string): string {
 // ---------------------------------------------------------------------------
 // Groq AI processing
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are a gaming news editor. Given an article, return JSON with three fields.
+// AI is only used for TAG extraction — not summaries.
+// Summaries are extracted directly from article text (guaranteed consistent length).
+const TAGS_PROMPT = `You extract named entities from gaming news articles.
 
-TITLE: Copy the original title EXACTLY. Do not change a single word.
+Return ONLY a JSON array of tags — named entities only:
+- Game titles: "ResidentEvil4", "GTA6", "CrimsonDesert" (PascalCase)
+- Studios/publishers: "Capcom", "FromSoftware", "RockstarGames"
+- Real people: "HideoKojima", "JackBlack", "ElonMusk"
+- Specific events: "EVO2025", "GameAwards2025"
+- Platform ONLY if article is about hardware: "PS5", "Switch2"
 
-SUMMARY: Write EXACTLY 60 words — like the Inshorts app style.
-- Count every single word before responding. Must be 55–65 words. No exceptions.
-- Start immediately with the key fact. No "In this article", no "According to".
-- Dense, punchy, news-wire style. One paragraph. No bullets, no quotes.
-- If source content is thin, use your knowledge of the game/franchise to fill it out to 60 words.
-- End at a complete sentence.
+BANNED (do not include): Gaming, News, Game, Games, Update, Updates, Entertainment,
+RPG, FPS, Action, Adventure, Horror, Review, Preview, Trailer, Rumor, Leak,
+Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming, Esports
 
-TAGS: Named entities only — game titles, studios, real people, specific events.
-- Game titles: "ResidentEvil2", "GTA6" (PascalCase, no spaces)
-- Studios: "Capcom", "RockstarGames"
-- People: "HideoKojima", "JackBlack"
-- Events: "GameAwards2025"
-- Platform ONLY if the article is specifically about hardware: "PS5", "Switch2"
-- BANNED: Gaming, News, Game, Games, Update, Entertainment, RPG, FPS, Action, Review, Preview, Trailer, Rumor, Leak, Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming
-- 3–6 tags, PascalCase, no # symbol.
+Rules: PascalCase, no # symbol, 3–6 tags max.
+Respond ONLY with a JSON array: ["Tag1", "Tag2", "Tag3"]`;
 
-Respond ONLY with valid JSON:
-{"title": "...", "summary": "...", "tags": ["Tag1", "Tag2"]}`;
+// Extract first N words from plain text — guaranteed consistent length
+function extractWords(text: string, count: number): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= count) return words.join(" ");
+  return words.slice(0, count).join(" ");
+}
 
-async function processWithGroq(title: string, content: string, source: string): Promise<{
-  processedTitle: string;
-  processedSummary: string;
-  processedTags: string[];
-} | null> {
-  if (!GROQ_API_KEY) return null;
+// AI extracts tags only — fast, reliable, no word-count games
+async function extractTagsWithGroq(title: string, content: string): Promise<string[]> {
+  if (!GROQ_API_KEY) return [];
 
-  const userPrompt = `Article Title: ${title}
-Source: ${source}
-
-Content:
-${content.substring(0, 7000)}
-
----
-Write the SUMMARY in EXACTLY 60 words (55–65 is acceptable). Count carefully.
-If content is thin, use your gaming knowledge to reach 60 words.
-Then extract TAGS (named entities only).`;
+  const userPrompt = `Title: ${title}\n\nContent (first 1000 chars):\n${content.substring(0, 1000)}`;
 
   for (const model of MODELS) {
     try {
@@ -172,54 +162,40 @@ Then extract TAGS (named entities only).`;
         body: JSON.stringify({
           model,
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: TAGS_PROMPT },
             { role: "user",   content: userPrompt },
           ],
-          temperature: 0.3,
-          response_format: { type: "json_object" },
+          temperature: 0.1,
+          max_tokens: 100,
         }),
       });
 
-      if (!res.ok) { console.warn(`Model ${model} HTTP ${res.status}`); continue; }
+      if (!res.ok) continue;
 
       const data = await res.json();
-      const raw  = data.choices?.[0]?.message?.content?.trim();
-      if (!raw) continue;
-
-      // Strip Qwen QwQ reasoning blocks
-      const clean = raw
+      const raw = (data.choices?.[0]?.message?.content ?? "")
         .replace(/<think>[\s\S]*?<\/think>/gi, "")
         .replace(/```json\n?|\n?```/g, "")
         .trim();
 
-      let parsed: { title?: string; summary?: string; tags?: unknown[] };
-      try { parsed = JSON.parse(clean); } catch { continue; }
+      // Parse JSON array
+      const match = raw.match(/\[[\s\S]*\]/);
+      if (!match) continue;
+      const tags = JSON.parse(match[0]);
+      if (!Array.isArray(tags)) continue;
 
-      // Enforce word count — hard trim at 65 words
-      let summary = (parsed.summary ?? "").trim();
-      const words = summary.split(/\s+/).filter(Boolean);
-      if (words.length > 65) summary = words.slice(0, 60).join(" ");
-      const wordCount = words.length;
-      console.log(`  words: ${wordCount}`);
+      const clean = tags
+        .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
+        .slice(0, 6);
 
-      const tags = Array.isArray(parsed.tags)
-        ? (parsed.tags as unknown[]).filter((t): t is string => typeof t === "string" && t.length > 0).slice(0, 8)
-        : [];
-
-      // If too short, try one more time with an explicit expansion prompt
-      if (wordCount < 40) {
-        console.warn(`  ⚠ Only ${wordCount} words, retrying with expansion prompt...`);
-        continue; // try next model / retry
-      }
-
-      console.log(`  ✓ ${model}: ${wordCount} words | tags: ${tags.join(", ")}`);
-      return { processedTitle: parsed.title || title, processedSummary: summary, processedTags: tags };
+      console.log(`  tags (${model}): ${clean.join(", ")}`);
+      return clean;
 
     } catch (err) {
-      console.warn(`Model ${model} error:`, err);
+      console.warn(`Tag extraction error (${model}):`, err);
     }
   }
-  return null;
+  return [];
 }
 
 // ---------------------------------------------------------------------------
@@ -303,33 +279,32 @@ serve(async (req) => {
       try {
         console.log(`Processing: "${item.title.substring(0, 60)}"`);
 
-        // Fetch full article text via Jina AI Reader (with 1 retry on failure)
-        let { text: jinaText, image: jinaImage } = await fetchWithJina(item.link);
-        if (jinaText.length < 200) {
-          console.log(`  Jina returned thin content, retrying...`);
-          await new Promise(r => setTimeout(r, 2000));
-          const retry = await fetchWithJina(item.link);
-          if (retry.text.length > jinaText.length) ({ text: jinaText, image: jinaImage } = retry);
-        }
-        const contentForAI = jinaText.length > 200 ? jinaText : stripHtml(item.description);
+        // 1. Fetch full article text via Jina AI Reader
+        const { text: jinaText, image: jinaImage } = await fetchWithJina(item.link);
 
-        // AI processing via Groq
-        const ai = await processWithGroq(item.title, contentForAI, item.source);
+        // 2. Build summary: first 60 words from Jina, fallback to RSS description
+        const sourceText = jinaText.length > 100 ? jinaText : stripHtml(item.description);
+        const summary60 = extractWords(sourceText, 60);
 
-        // Upsert into Supabase
+        // 3. AI extracts tags only (fast, reliable)
+        const tags = await extractTagsWithGroq(item.title, sourceText);
+
+        console.log(`  summary: ${summary60.split(/\s+/).length} words | tags: ${tags.join(", ")}`);
+
+        // 4. Upsert into Supabase
         const { error } = await supabase.from("cached_articles").upsert({
           original_id:  `${item.source}-${item.link.substring(item.link.length - 60)}`,
           title:        item.title,
-          summary:      stripHtml(item.description).substring(0, 500),
+          summary:      summary60,
           source_url:   item.link,
           image_url:    item.enclosureUrl ?? "",
           og_image_url: jinaImage,
           category:     "Gaming",
           source:       item.source,
           author:       item.author,
-          ai_title:     item.title, // always use original title, never let AI shorten it
-          ai_summary:   ai?.processedSummary ?? null,
-          tags:         ai?.processedTags   ?? [],
+          ai_title:     item.title,
+          ai_summary:   summary60,
+          tags:         tags,
           likes:        0,
           article_date: (() => { try { return new Date(item.pubDate).toISOString(); } catch { return new Date().toISOString(); } })(),
           expires_at:   expiresAt.toISOString(),
