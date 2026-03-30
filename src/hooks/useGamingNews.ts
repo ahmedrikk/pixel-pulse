@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { NewsItem } from "@/data/mockNews";
+import { INITIAL_NEWS, NewsItem } from "@/data/mockNews";
 import { supabase } from "@/integrations/supabase/client";
 import { getAllCachedArticles, shouldRefreshCache } from "@/lib/newsCache";
 
@@ -76,6 +76,12 @@ export function useGamingNews() {
       if (count === 0) {
         // Empty — trigger server fetch and wait for results
         await triggerFetch();
+        // If still empty after fetch (function failed), show fallback
+        const afterFetch = await loadFromDB();
+        if (afterFetch === 0) {
+          console.warn("Cache still empty after fetch, using fallback data");
+          setNews(INITIAL_NEWS);
+        }
       } else {
         setIsLoading(false);
         // Cache exists — check if stale and refresh in background

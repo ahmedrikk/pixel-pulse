@@ -192,9 +192,11 @@ TASK:
       let parsed: { title?: string; summary?: string; tags?: unknown[] };
       try { parsed = JSON.parse(clean); } catch { continue; }
 
-      let summary = parsed.summary ?? "";
-      const words = summary.trim().split(/\s+/);
-      if (words.length > 110) summary = words.slice(0, 100).join(" ") + "…";
+      // Enforce word count — hard trim at 100, warn if < 80
+      let summary = (parsed.summary ?? "").trim();
+      const words = summary.split(/\s+/);
+      if (words.length > 100) summary = words.slice(0, 100).join(" ") + "…";
+      if (words.length < 80) console.warn(`  ⚠ Short summary (${words.length} words) for "${title.substring(0, 40)}"`);
 
       const tags = Array.isArray(parsed.tags)
         ? (parsed.tags as unknown[]).filter((t): t is string => typeof t === "string" && t.length > 0).slice(0, 8)
@@ -278,12 +280,12 @@ serve(async (req) => {
 
   console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
 
-  // Step 3: Process new articles — Jina + Groq — in batches of 3
+  // Step 3: Process new articles — Jina + Groq — in batches of 5
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24);
   let processed = 0;
 
-  const BATCH = 3;
+  const BATCH = 5;
   for (let i = 0; i < newItems.length; i += BATCH) {
     const batch = newItems.slice(i, i + BATCH);
 
@@ -291,8 +293,14 @@ serve(async (req) => {
       try {
         console.log(`Processing: "${item.title.substring(0, 60)}"`);
 
-        // Fetch full article text via Jina AI Reader
-        const { text: jinaText, image: jinaImage } = await fetchWithJina(item.link);
+        // Fetch full article text via Jina AI Reader (with 1 retry on failure)
+        let { text: jinaText, image: jinaImage } = await fetchWithJina(item.link);
+        if (jinaText.length < 200) {
+          console.log(`  Jina returned thin content, retrying...`);
+          await new Promise(r => setTimeout(r, 2000));
+          const retry = await fetchWithJina(item.link);
+          if (retry.text.length > jinaText.length) ({ text: jinaText, image: jinaImage } = retry);
+        }
         const contentForAI = jinaText.length > 200 ? jinaText : stripHtml(item.description);
 
         // AI processing via Groq
@@ -325,9 +333,9 @@ serve(async (req) => {
       }
     }));
 
-    // Brief pause between batches
+    // 1s pause between batches to respect Groq rate limits
     if (i + BATCH < newItems.length) {
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
 
