@@ -117,32 +117,36 @@ function stripHtml(html: string): string {
     .replace(/\s+/g, " ").trim();
 }
 
-// Clean Jina markdown output — strips nav links, URLs, formatting, leaving plain prose
+// Strip all markdown syntax from Jina output (Kimi's comprehensive version)
 // ---------------------------------------------------------------------------
-function cleanJinaText(raw: string): string {
-  const lines = raw.split("\n").map(l => l
-    // Remove markdown links [text](url) → text
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    // Remove bare URLs
-    .replace(/https?:\/\/\S+/g, "")
-    // Remove markdown bold/italic
-    .replace(/\*{1,3}([^*]*)\*{1,3}/g, "$1")
-    .replace(/_{1,2}([^_]*)_{1,2}/g, "$1")
-    // Remove markdown headers
-    .replace(/^#{1,6}\s+/, "")
-    // Remove list markers
-    .replace(/^\s*[-*+]\s+/, "")
-    // Trim whitespace
-    .trim()
-  ).filter(line =>
-    line.length >= 25 &&          // skip short nav items / menu entries
-    !/^[|>]/.test(line) &&        // skip tables and blockquotes
-    !line.startsWith("Copyright") &&
-    !line.startsWith("©") &&
-    !/^(Home|Menu|Skip|Search|Login|Sign in|Subscribe|Newsletter|Share|Follow)/i.test(line)
-  );
+function stripMarkdown(md: string): string {
+  return md
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")          // remove images ![alt](url)
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")          // links [text](url) → text
+    .replace(/(\*\*\*|___)(.+?)\1/gs, "$2")           // ***bold italic***
+    .replace(/(\*\*|__)(.+?)\1/gs, "$2")              // **bold**
+    .replace(/(\*|_)(.+?)\1/gs, "$2")                 // *italic*
+    .replace(/```[\s\S]*?```/g, "")                   // code blocks
+    .replace(/`([^`]+)`/g, "$1")                      // inline code
+    .replace(/^#{1,6}\s+/gm, "")                      // headers
+    .replace(/^>\s*/gm, "")                           // blockquotes
+    .replace(/^---+$/gm, "")                          // horizontal rules
+    .replace(/^[-*+]\s+/gm, "")                       // unordered lists
+    .replace(/^\d+\.\s+/gm, "")                       // ordered lists
+    .replace(/https?:\/\/\S+/g, "")                   // bare URLs
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  return lines.join(" ").replace(/\s+/g, " ").trim();
+// Then filter out navigation lines that Jina often pulls from site headers/footers
+function cleanJinaText(raw: string): string {
+  const stripped = stripMarkdown(raw);
+  const lines = stripped.split(/[.!?]\s+|\n/).map(s => s.trim()).filter(line =>
+    line.length >= 25 &&
+    !/^(Home|Menu|Skip|Search|Log\s?[io]n|Sign\s?(in|up)|Subscribe|Newsletter|Share|Follow|Copyright|©|Cookie|Privacy|Terms)/i.test(line) &&
+    !/^[|>]/.test(line)
+  );
+  return lines.join(". ").replace(/\s+/g, " ").trim();
 }
 
 // ---------------------------------------------------------------------------
