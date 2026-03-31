@@ -56,8 +56,8 @@ function toDbFormat(article: NewsItem, expiresAt: Date): Omit<CachedArticle, 'id
 function cap100Words(text: string): string {
   if (!text) return "";
   const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= 65) return text;
-  return words.slice(0, 60).join(" ");
+  if (words.length <= 100) return text;
+  return words.slice(0, 100).join(" ");
 }
 
 /**

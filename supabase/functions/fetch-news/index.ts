@@ -259,7 +259,7 @@ serve(async (req) => {
         console.log(`Processing: "${item.title.substring(0, 60)}"`);
 
         // RSS description → clean plain text (cap at 80 words, strip boilerplate)
-        const rssDesc = firstWords(stripHtml(item.description), 80);
+        const rssDesc = firstWords(stripHtml(item.description), 100);
         // Fall back to title if description is genuinely empty (e.g. PCGamer)
         const summary = rssDesc.length > 20 ? rssDesc : item.title;
 
