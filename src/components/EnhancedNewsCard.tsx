@@ -58,10 +58,6 @@ function isSpecificTag(tag: string): boolean {
   return !JUNK_TAGS.has(tag.toLowerCase());
 }
 
-// Word cap enforced upstream; just return as-is
-function normaliseSummary(summary: string): string {
-  return summary || "";
-}
 
 export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps) {
   const { setActiveTag } = useTagFilter();
@@ -164,7 +160,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
   const [imgError, setImgError] = useState(false);
 
-  const summaryText = normaliseSummary(article.summary);
+  const summaryText = article.summary || "";
   const primaryTag = article.topicTags.find(isSpecificTag) ?? null;
   const displayTags = article.topicTags.slice(0, 4);
 
@@ -215,9 +211,9 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           {article.title}
         </h2>
 
-        {/* Summary — fixed height, overflow hidden (no ellipsis), Inshorts-style */}
-        <div className="mb-4 h-[7rem] overflow-hidden">
-          <p className="text-muted-foreground leading-relaxed">
+        {/* Summary — 4-line clamp for uniform card height */}
+        <div className="mb-4">
+          <p className="text-muted-foreground leading-relaxed line-clamp-4">
             {summaryText}
           </p>
         </div>
