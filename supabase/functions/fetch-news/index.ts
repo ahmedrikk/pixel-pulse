@@ -11,14 +11,14 @@ const corsHeaders = {
 // ---------------------------------------------------------------------------
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
-const MODELS = ["qwen-qwq-32b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 
 const RSS_FEEDS = [
   { url: "https://www.ign.com/rss/articles/feed?tags=news", source: "IGN" },
   { url: "https://www.gamespot.com/feeds/news/",            source: "GameSpot" },
   { url: "https://kotaku.com/feed",                         source: "Kotaku" },
   { url: "https://www.polygon.com/rss/index.xml",           source: "Polygon" },
-  { url: "https://www.dexerto.com/feed",                    source: "Dexerto" },
+  { url: "https://www.dexerto.com/gaming/feed/",            source: "Dexerto" },
   { url: "https://www.sportskeeda.com/feed/esports",        source: "Sportskeeda" },
   { url: "https://www.eurogamer.net/feed/news",             source: "Eurogamer" },
   { url: "https://www.pcgamer.com/rss/",                    source: "PCGamer" },
@@ -68,8 +68,8 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
                   );
     if (!title || !link) continue;
 
-    const pubDate = extractCDATA(block, "pubDate") || new Date().toISOString();
-    const author  = extractCDATA(block, "dc:creator") || extractCDATA(block, "author") || "Staff Writer";
+    const pubDate     = extractCDATA(block, "pubDate") || new Date().toISOString();
+    const author      = extractCDATA(block, "dc:creator") || extractCDATA(block, "author") || "Staff Writer";
     const description = extractCDATA(block, "description") || extractCDATA(block, "content:encoded") || "";
     const enclosureUrl = block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] || null;
 
@@ -80,80 +80,66 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
 }
 
 // ---------------------------------------------------------------------------
-// Jina AI Reader — converts any URL to clean markdown text
-// ---------------------------------------------------------------------------
-async function fetchWithJina(url: string): Promise<{ text: string; image: string | null }> {
-  try {
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch(`https://r.jina.ai/${url}`, {
-      headers: { "Accept": "application/json", "X-Timeout": "10" },
-      signal: controller.signal,
-    });
-    clearTimeout(tid);
-    if (!res.ok) return { text: "", image: null };
-
-    const data = await res.json();
-    const text  = (data.data?.content ?? "").substring(0, 8000);
-    const images: Record<string, string> = data.data?.images ?? {};
-    const image = Object.keys(images)[0] ?? null;
-
-    console.log(`  Jina: ${text.length} chars${image ? " + image" : ""} for ${url.substring(0, 60)}`);
-    return { text, image };
-  } catch (e) {
-    console.warn(`  Jina failed for ${url.substring(0, 60)}:`, e);
-    return { text: "", image: null };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Strip HTML
+// Strip HTML tags from RSS description and remove common RSS boilerplate
 // ---------------------------------------------------------------------------
 function stripHtml(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
+    // Remove trailing "Read more", "… Source", "The post X appeared first on Y."
+    .replace(/\s*The post .+ appeared first on .+\.?\s*$/i, "")
+    .replace(/\s*(Read more|…\s*Source|Continue reading|Full story)[^.]*\.?\s*$/i, "")
     .replace(/\s+/g, " ").trim();
 }
 
-// Strip all markdown syntax from Jina output (Kimi's comprehensive version)
-// ---------------------------------------------------------------------------
-function stripMarkdown(md: string): string {
-  return md
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")          // remove images ![alt](url)
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")          // links [text](url) → text
-    .replace(/(\*\*\*|___)(.+?)\1/gs, "$2")           // ***bold italic***
-    .replace(/(\*\*|__)(.+?)\1/gs, "$2")              // **bold**
-    .replace(/(\*|_)(.+?)\1/gs, "$2")                 // *italic*
-    .replace(/```[\s\S]*?```/g, "")                   // code blocks
-    .replace(/`([^`]+)`/g, "$1")                      // inline code
-    .replace(/^#{1,6}\s+/gm, "")                      // headers
-    .replace(/^>\s*/gm, "")                           // blockquotes
-    .replace(/^---+$/gm, "")                          // horizontal rules
-    .replace(/^[-*+]\s+/gm, "")                       // unordered lists
-    .replace(/^\d+\.\s+/gm, "")                       // ordered lists
-    .replace(/https?:\/\/\S+/g, "")                   // bare URLs
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-// Then filter out navigation lines that Jina often pulls from site headers/footers
-function cleanJinaText(raw: string): string {
-  const stripped = stripMarkdown(raw);
-  const lines = stripped.split(/[.!?]\s+|\n/).map(s => s.trim()).filter(line =>
-    line.length >= 25 &&
-    !/^(Home|Menu|Skip|Search|Log\s?[io]n|Sign\s?(in|up)|Subscribe|Newsletter|Share|Follow|Copyright|©|Cookie|Privacy|Terms)/i.test(line) &&
-    !/^[|>]/.test(line)
-  );
-  return lines.join(". ").replace(/\s+/g, " ").trim();
+// First N words of a string
+function firstWords(text: string, n: number): string {
+  const words = text.split(/\s+/).filter(Boolean);
+  return words.length <= n ? words.join(" ") : words.slice(0, n).join(" ");
 }
 
 // ---------------------------------------------------------------------------
-// Groq AI processing
+// Jina AI Reader
+// - Always called for OG image
+// - Text content returned only as fallback when RSS description is empty
 // ---------------------------------------------------------------------------
-// AI is only used for TAG extraction — not summaries.
-// Summaries are extracted directly from article text (guaranteed consistent length).
+async function fetchJina(url: string): Promise<{ image: string | null; text: string }> {
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 12000);
+    const res = await fetch(`https://r.jina.ai/${url}`, {
+      headers: { "Accept": "application/json", "X-Timeout": "8" },
+      signal: controller.signal,
+    });
+    clearTimeout(tid);
+    if (!res.ok) return { image: null, text: "" };
+
+    const data = await res.json();
+    const images: Record<string, string> = data.data?.images ?? {};
+    const image = Object.keys(images)[0] ?? null;
+    // Take first 600 chars of Jina content for fallback summaries (enough for ~80 words)
+    const text = ((data.data?.content ?? "") as string).substring(0, 600);
+    if (image) console.log(`  OG image found`);
+    return { image, text };
+  } catch {
+    return { image: null, text: "" };
+  }
+}
+
+// Strip markdown links and headers from a short Jina snippet used as fallback summary
+function jinaSnippet(raw: string): string {
+  return raw
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^#{1,6}\s+.*/gm, "")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/\s+/g, " ").trim();
+}
+
+// ---------------------------------------------------------------------------
+// Groq — tags only
+// ---------------------------------------------------------------------------
 const TAGS_PROMPT = `You extract named entities from gaming news articles.
 
 Return ONLY a JSON array of tags — named entities only:
@@ -170,18 +156,10 @@ Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming, Esports
 Rules: PascalCase, no # symbol, 3–6 tags max.
 Respond ONLY with a JSON array: ["Tag1", "Tag2", "Tag3"]`;
 
-// Extract first N words from plain text — guaranteed consistent length
-function extractWords(text: string, count: number): string {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= count) return words.join(" ");
-  return words.slice(0, count).join(" ");
-}
-
-// AI extracts tags only — fast, reliable, no word-count games
-async function extractTagsWithGroq(title: string, content: string): Promise<string[]> {
+async function extractTagsWithGroq(title: string, description: string): Promise<string[]> {
   if (!GROQ_API_KEY) return [];
 
-  const userPrompt = `Title: ${title}\n\nContent (first 1000 chars):\n${content.substring(0, 1000)}`;
+  const userPrompt = `Title: ${title}\n\nDescription: ${description.substring(0, 500)}`;
 
   for (const model of MODELS) {
     try {
@@ -210,7 +188,6 @@ async function extractTagsWithGroq(title: string, content: string): Promise<stri
         .replace(/```json\n?|\n?```/g, "")
         .trim();
 
-      // Parse JSON array
       const match = raw.match(/\[[\s\S]*\]/);
       if (!match) continue;
       const tags = JSON.parse(match[0]);
@@ -298,7 +275,10 @@ serve(async (req) => {
 
   console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
 
-  // Step 3: Process new articles — Jina + Groq — in batches of 5
+  // Step 3: Process new articles in batches of 5
+  // Summary = RSS description (publisher-written, already clean plain text)
+  // Image   = Jina OG image (no content scraping)
+  // Tags    = Groq named-entity extraction
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24);
   let processed = 0;
@@ -311,35 +291,41 @@ serve(async (req) => {
       try {
         console.log(`Processing: "${item.title.substring(0, 60)}"`);
 
-        // 1. Fetch full article text via Jina AI Reader
-        const { text: jinaRaw, image: jinaImage } = await fetchWithJina(item.link);
+        // RSS description → clean plain text summary (cap at 80 words)
+        const rssDesc = firstWords(stripHtml(item.description), 80);
+        const hasDescription = rssDesc.length > 20;
 
-        // 2. Clean Jina markdown → strip nav links, bare URLs, short menu lines
-        const jinaClean = jinaRaw.length > 100 ? cleanJinaText(jinaRaw) : "";
+        // Jina: always fetch for OG image; text only used if RSS description is absent
+        const { image: ogImage, text: jinaRaw } = await fetchJina(item.link);
 
-        // 3. Build summary: first 60 words from cleaned Jina, fallback to RSS description
-        const sourceText = jinaClean.length > 80 ? jinaClean : stripHtml(item.description);
-        const summary60 = extractWords(sourceText, 60);
+        // Build summary: RSS description → Jina snippet → title fallback
+        let summary: string;
+        if (hasDescription) {
+          summary = rssDesc;
+        } else if (jinaRaw.length > 50) {
+          summary = firstWords(jinaSnippet(jinaRaw), 60);
+          console.log(`  No RSS description — using Jina snippet (${item.source})`);
+        } else {
+          summary = item.title;
+        }
 
-        // 3. AI extracts tags only (fast, reliable)
-        const tags = await extractTagsWithGroq(item.title, sourceText);
+        const tags = await extractTagsWithGroq(item.title, summary);
 
-        console.log(`  summary: ${summary60.split(/\s+/).length} words | tags: ${tags.join(", ")}`);
+        console.log(`  summary: ${summary.split(/\s+/).length} words | tags: ${tags.join(", ")}`);
 
-        // 4. Upsert into Supabase
         const { error } = await supabase.from("cached_articles").upsert({
           original_id:  `${item.source}-${item.link.substring(item.link.length - 60)}`,
           title:        item.title,
-          summary:      summary60,
+          summary,
           source_url:   item.link,
           image_url:    item.enclosureUrl ?? "",
-          og_image_url: jinaImage,
+          og_image_url: ogImage,
           category:     "Gaming",
           source:       item.source,
           author:       item.author,
           ai_title:     item.title,
-          ai_summary:   summary60,
-          tags:         tags,
+          ai_summary:   summary,
+          tags,
           likes:        0,
           article_date: (() => { try { return new Date(item.pubDate).toISOString(); } catch { return new Date().toISOString(); } })(),
           expires_at:   expiresAt.toISOString(),
@@ -353,7 +339,6 @@ serve(async (req) => {
       }
     }));
 
-    // 1s pause between batches to respect Groq rate limits
     if (i + BATCH < newItems.length) {
       await new Promise(r => setTimeout(r, 1000));
     }
