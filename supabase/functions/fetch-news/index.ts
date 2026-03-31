@@ -71,7 +71,12 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
     const pubDate     = extractCDATA(block, "pubDate") || new Date().toISOString();
     const author      = extractCDATA(block, "dc:creator") || extractCDATA(block, "author") || "Staff Writer";
     const description = extractCDATA(block, "description") || extractCDATA(block, "content:encoded") || "";
-    const enclosureUrl = block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] || null;
+    // Image: enclosure > media:content > first <img> in description HTML
+    const enclosureUrl =
+      block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] ||
+      block.match(/<media:content[^>]+url="([^"]+)"/i)?.[1] ||
+      description.match(/<img[^>]+src="([^"]+)"/i)?.[1] ||
+      null;
 
     items.push({ title, link, pubDate, author, description, enclosureUrl, source });
     if (items.length >= maxItems) break;
@@ -97,44 +102,6 @@ function stripHtml(html: string): string {
 function firstWords(text: string, n: number): string {
   const words = text.split(/\s+/).filter(Boolean);
   return words.length <= n ? words.join(" ") : words.slice(0, n).join(" ");
-}
-
-// ---------------------------------------------------------------------------
-// Jina AI Reader
-// - Always called for OG image
-// - Text content returned only as fallback when RSS description is empty
-// ---------------------------------------------------------------------------
-async function fetchJina(url: string): Promise<{ image: string | null; text: string }> {
-  try {
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 12000);
-    const res = await fetch(`https://r.jina.ai/${url}`, {
-      headers: { "Accept": "application/json", "X-Timeout": "8" },
-      signal: controller.signal,
-    });
-    clearTimeout(tid);
-    if (!res.ok) return { image: null, text: "" };
-
-    const data = await res.json();
-    const images: Record<string, string> = data.data?.images ?? {};
-    const image = Object.keys(images)[0] ?? null;
-    // Take first 600 chars of Jina content for fallback summaries (enough for ~80 words)
-    const text = ((data.data?.content ?? "") as string).substring(0, 600);
-    if (image) console.log(`  OG image found`);
-    return { image, text };
-  } catch {
-    return { image: null, text: "" };
-  }
-}
-
-// Strip markdown links and headers from a short Jina snippet used as fallback summary
-function jinaSnippet(raw: string): string {
-  return raw
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/^#{1,6}\s+.*/gm, "")
-    .replace(/https?:\/\/\S+/g, "")
-    .replace(/\s+/g, " ").trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -275,15 +242,15 @@ serve(async (req) => {
 
   console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
 
-  // Step 3: Process new articles in batches of 5
-  // Summary = RSS description (publisher-written, already clean plain text)
-  // Image   = Jina OG image (no content scraping)
+  // Step 3: Process new articles in batches of 10
+  // Summary = RSS description (publisher-written, clean plain text, capped at 80 words)
+  // Image   = RSS enclosure URL (already in the feed, no external fetch needed)
   // Tags    = Groq named-entity extraction
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24);
   let processed = 0;
 
-  const BATCH = 5;
+  const BATCH = 10;
   for (let i = 0; i < newItems.length; i += BATCH) {
     const batch = newItems.slice(i, i + BATCH);
 
@@ -291,27 +258,14 @@ serve(async (req) => {
       try {
         console.log(`Processing: "${item.title.substring(0, 60)}"`);
 
-        // RSS description → clean plain text summary (cap at 80 words)
+        // RSS description → clean plain text (cap at 80 words, strip boilerplate)
         const rssDesc = firstWords(stripHtml(item.description), 80);
-        const hasDescription = rssDesc.length > 20;
-
-        // Jina: always fetch for OG image; text only used if RSS description is absent
-        const { image: ogImage, text: jinaRaw } = await fetchJina(item.link);
-
-        // Build summary: RSS description → Jina snippet → title fallback
-        let summary: string;
-        if (hasDescription) {
-          summary = rssDesc;
-        } else if (jinaRaw.length > 50) {
-          summary = firstWords(jinaSnippet(jinaRaw), 60);
-          console.log(`  No RSS description — using Jina snippet (${item.source})`);
-        } else {
-          summary = item.title;
-        }
+        // Fall back to title if description is genuinely empty (e.g. PCGamer)
+        const summary = rssDesc.length > 20 ? rssDesc : item.title;
 
         const tags = await extractTagsWithGroq(item.title, summary);
 
-        console.log(`  summary: ${summary.split(/\s+/).length} words | tags: ${tags.join(", ")}`);
+        console.log(`  ${summary.split(/\s+/).length}w | tags: ${tags.join(", ")}`);
 
         const { error } = await supabase.from("cached_articles").upsert({
           original_id:  `${item.source}-${item.link.substring(item.link.length - 60)}`,
@@ -319,7 +273,7 @@ serve(async (req) => {
           summary,
           source_url:   item.link,
           image_url:    item.enclosureUrl ?? "",
-          og_image_url: ogImage,
+          og_image_url: null,
           category:     "Gaming",
           source:       item.source,
           author:       item.author,
