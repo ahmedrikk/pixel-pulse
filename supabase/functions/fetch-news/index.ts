@@ -90,8 +90,13 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
 function stripHtml(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
+    .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(parseInt(c, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, c) => String.fromCharCode(parseInt(c, 16)))
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/&rsquo;/g, "'").replace(/&lsquo;/g, "'")
+    .replace(/&rdquo;/g, '"').replace(/&ldquo;/g, '"')
+    .replace(/&mdash;/g, "—").replace(/&ndash;/g, "–")
     // Remove trailing "Read more", "… Source", "The post X appeared first on Y."
     .replace(/\s*The post .+ appeared first on .+\.?\s*$/i, "")
     .replace(/\s*(Read more|…\s*Source|Continue reading|Full story)[^.]*\.?\s*$/i, "")
@@ -102,6 +107,125 @@ function stripHtml(html: string): string {
 function firstWords(text: string, n: number): string {
   const words = text.split(/\s+/).filter(Boolean);
   return words.length <= n ? words.join(" ") : words.slice(0, n).join(" ");
+}
+
+// ---------------------------------------------------------------------------
+// Article scraper — fetches full article HTML and extracts clean body text.
+// Only called when RSS description is too short (< 50 words).
+// ---------------------------------------------------------------------------
+
+/** Strip tags + decode common HTML entities + collapse whitespace */
+function cleanText(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(parseInt(c, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, c) => String.fromCharCode(parseInt(c, 16)))
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/&mdash;/g, "—").replace(/&ndash;/g, "–").replace(/&apos;/g, "'")
+    .replace(/&rsquo;/g, "'").replace(/&lsquo;/g, "'")
+    .replace(/&rdquo;/g, '"').replace(/&ldquo;/g, '"')
+    .replace(/\s+/g, " ").trim();
+}
+
+/** Extract text from all <p> tags inside a block of HTML */
+function paragraphsFrom(html: string): string {
+  return [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map(m => cleanText(m[1]))
+    .filter(p => p.length > 40)
+    .join(" ");
+}
+
+/** Pull article body text from raw HTML using semantic tags then class names */
+function extractArticleText(html: string): string {
+  // Remove scripts/styles first
+  const stripped = html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ");
+
+  // 1. <article> tag
+  const articleMatch = /<article[^>]*>([\s\S]*?)<\/article>/i.exec(stripped);
+  if (articleMatch) { const t = paragraphsFrom(articleMatch[1]); if (t.length > 200) return t; }
+
+  // 2. <main> tag
+  const mainMatch = /<main[^>]*>([\s\S]*?)<\/main>/i.exec(stripped);
+  if (mainMatch) { const t = paragraphsFrom(mainMatch[1]); if (t.length > 200) return t; }
+
+  // 3. Common article body class names (IGN, Kotaku, GameSpot, Polygon, etc.)
+  const classMatch = /<div[^>]*class="[^"]*(?:article[-_]body|article[-_]content|post[-_]content|entry[-_]content|story[-_]body|content[-_]body|prose|richtext)[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(stripped);
+  if (classMatch) { const t = paragraphsFrom(classMatch[1]); if (t.length > 200) return t; }
+
+  // 4. All <p> tags site-wide
+  const allP = [...stripped.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map(m => cleanText(m[1]))
+    .filter(p => p.length > 40);
+  if (allP.length > 2) return allP.join(" ");
+
+  return "";
+}
+
+/** Remove common gaming-site boilerplate from scraped text */
+function removeBoilerplate(text: string): string {
+  return text
+    // Affiliate disclosures
+    .replace(/When you (purchase|buy) through links[^.]+\./gi, "")
+    .replace(/Here['']s how it works\s*\.?\s*/gi, "")
+    // Image credits: "(Image credit: Xbox)" and "Image credit: ZA/UM"
+    .replace(/\(?Image credit:[^)\n.]{0,80}\)?/gi, "")
+    .replace(/Image:\s*[^.|\n]{0,80}?(via\s+\w+\s*)?(?=[A-Z][a-z])/g, "")
+    // "X via Polygon/IGN/GameSpot" image attribution orphans
+    .replace(/[\w\s\/,]+via\s+(Polygon|IGN|GameSpot|Kotaku|RPS|Eurogamer|PCGamer|Dexerto|VG247|Gematsu)\s*/gi, "")
+    // Eurogamer/RPS comment counts and follow buttons
+    .replace(/\d+\s+comments?\s*/gi, "")
+    .replace(/News on\s+[A-Z][a-z]+\s+\d+,?\s+\d{4}\s*/gi, "")
+    .replace(/\bFollow\b\s*/g, "")
+    // Social share / follow buttons (PCGamer embeds these inline)
+    .replace(/(Flipboard|Pinterest|Reddit|Whatsapp|Facebook|Twitter|Email)\s+(Email\s+)?(Share this article\s*\d*\s*)?(Join the conversation\s*)?(Follow us\s*)?(Add us as[^.]+\.?)?/gi, "")
+    .replace(/Copy link\s*(Facebook|Twitter|X|Whatsapp|Reddit|Pinterest|Email)(\s+(Facebook|Twitter|X|Whatsapp|Reddit|Pinterest|Email))*/gi, "")
+    .replace(/Add us as a preferred source on[^.]+\.?/gi, "")
+    // Jump Links / Table of contents
+    .replace(/Jump Links?\s*/gi, "")
+    .replace(/Contents\s+\d+/gi, "")
+    // Timestamps like "Mar 31, 2026, 21:00" in middle of text
+    .replace(/\b[A-Z][a-z]{2}\s+\d{1,2},?\s+\d{4},?\s+\d{1,2}:\d{2}\b/g, "")
+    // Subscription / newsletter prompts (PCGamer, RPS)
+    .replace(/Unlock instant access to[^.]+\./gi, "")
+    .replace(/By submitting your information you agree to[^.]+\./gi, "")
+    .replace(/Sign up to[^.]+newsletter[^.]+\./gi, "")
+    // "Save for later", "Get Notifications for X"
+    .replace(/Save for later\s*/gi, "")
+    .replace(/Get Notifications for[^.]+\.?/gi, "")
+    // Bylines: "by First Last" at sentence boundaries
+    .replace(/\bby\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\s*(Published|Updated|·|\|)?/g, "")
+    // "Read more:", "Related:", "See also:"
+    .replace(/\b(Read more|Related|See also)\s*:/gi, "")
+    .replace(/\s+/g, " ").trim();
+}
+
+async function scrapeArticle(url: string): Promise<string> {
+  try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 9000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+        "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      redirect: "follow",
+    });
+    clearTimeout(tid);
+    if (!res.ok) return "";
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.includes("text/html") && !ct.includes("application/xhtml")) return "";
+    const html = await res.text();
+    const raw = extractArticleText(html);
+    const clean = removeBoilerplate(raw);
+    return clean.length > 200 ? clean.substring(0, 6000) : "";
+  } catch {
+    return "";
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -258,10 +382,23 @@ serve(async (req) => {
       try {
         console.log(`Processing: "${item.title.substring(0, 60)}"`);
 
-        // RSS description → clean plain text (cap at 80 words, strip boilerplate)
+        // RSS description → clean plain text
         const rssDesc = firstWords(stripHtml(item.description), 100);
-        // Fall back to title if description is genuinely empty (e.g. PCGamer)
-        const summary = rssDesc.length > 20 ? rssDesc : item.title;
+        const rssWords = rssDesc.split(/\s+/).filter(Boolean).length;
+
+        // Scrape full article when RSS description is too short (< 50 words)
+        let summary: string;
+        if (rssWords >= 50) {
+          summary = rssDesc;
+        } else {
+          const scraped = await scrapeArticle(item.link);
+          if (scraped.length > 100) {
+            summary = firstWords(scraped, 100);
+            console.log(`  scraped → ${summary.split(/\s+/).length}w (${item.source})`);
+          } else {
+            summary = rssWords > 5 ? rssDesc : item.title;
+          }
+        }
 
         const tags = await extractTagsWithGroq(item.title, summary);
 
