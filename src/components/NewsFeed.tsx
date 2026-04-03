@@ -15,11 +15,11 @@ interface NewsFeedProps {
 export function NewsFeed({ onCardView }: NewsFeedProps) {
   const { isAuthenticated, user } = useAuthGate();
   
-  const { 
-    articles, 
-    isLoading, 
-    isRefreshing, 
-    error, 
+  const {
+    articles,
+    isLoading,
+    isRefreshing,
+    error,
     hasMore,
     newArticlesCount,
     feedStats,
@@ -28,8 +28,9 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     checkForNewArticles,
     dismissNewBadge,
     trackImpression,
-  } = useSmartFeedReal({ 
-    userId: isAuthenticated ? user?.id : undefined 
+    reshuffle,
+  } = useSmartFeedReal({
+    userId: isAuthenticated ? user?.id : undefined
   });
   
   const { activeTag, clearFilter } = useTagFilter();
@@ -88,13 +89,13 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Latest Gaming News</h1>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={checkForNewArticles}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => { reshuffle(); checkForNewArticles(); }}
             disabled={isRefreshing}
             className="h-8 w-8"
-            title="Check for new articles"
+            title="Shuffle feed"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>

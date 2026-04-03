@@ -49,12 +49,13 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
   const { userId, pageSize = 15 } = options;
   
   // Use the existing gaming news hook for RSS feed data
-  const { 
-    news, 
-    isLoading, 
-    isRefreshing, 
-    error, 
-    refresh 
+  const {
+    news,
+    isLoading,
+    isRefreshing,
+    error,
+    refresh,
+    reshuffle: reshuffleNews,
   } = useGamingNews();
   
   const [articles, setArticles] = useState<RankedArticle[]>([]);
@@ -146,14 +147,36 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     return { priority: "fallback", score: 10 };
   }, [userFavGames, seenArticleIds]);
 
-  // Rank and sort articles
+  // Rank articles then shuffle within each priority tier
   const rankArticles = useCallback((articlesToRank: Article[]): RankedArticle[] => {
     const ranked = articlesToRank.map(article => {
       const { priority, score } = calculatePriority(article);
       return { ...article, priority, priorityScore: score };
     });
-    
-    return ranked.sort((a, b) => b.priorityScore - a.priorityScore);
+
+    // Group by priority tier
+    const tiers: Record<string, RankedArticle[]> = {};
+    for (const a of ranked) {
+      if (!tiers[a.priority]) tiers[a.priority] = [];
+      tiers[a.priority].push(a);
+    }
+
+    // Fisher-Yates shuffle within each tier (different on every call)
+    const shuffle = (arr: RankedArticle[]) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
+
+    // Reassemble in tier order: personalized → unseen → trending → fallback
+    return [
+      ...shuffle(tiers["personalized"] || []),
+      ...shuffle(tiers["unseen"] || []),
+      ...shuffle(tiers["trending"] || []),
+      ...shuffle(tiers["fallback"] || []),
+    ];
   }, [calculatePriority]);
 
   // Load and rank articles when news changes
@@ -252,6 +275,32 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     return { total, personalized, unseen, trending };
   }, [articles]);
 
+  // Instant reshuffle of current articles (no DB hit)
+  const reshuffle = useCallback(() => {
+    reshuffleNews();
+    setArticles(prev => {
+      const tiers: Record<string, RankedArticle[]> = {};
+      for (const a of prev) {
+        if (!tiers[a.priority]) tiers[a.priority] = [];
+        tiers[a.priority].push(a);
+      }
+      const shuffle = (arr: RankedArticle[]) => {
+        const copy = [...arr];
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      };
+      return [
+        ...shuffle(tiers["personalized"] || []),
+        ...shuffle(tiers["unseen"] || []),
+        ...shuffle(tiers["trending"] || []),
+        ...shuffle(tiers["fallback"] || []),
+      ];
+    });
+  }, [reshuffleNews]);
+
   return {
     articles,
     isLoading: isLoading || isLoadingPrefs,
@@ -265,6 +314,7 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     checkForNewArticles,
     dismissNewBadge,
     trackImpression,
+    reshuffle,
     seenCount: seenArticleIds.size,
   };
 }

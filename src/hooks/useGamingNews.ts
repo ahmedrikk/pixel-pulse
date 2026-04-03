@@ -13,7 +13,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { INITIAL_NEWS, NewsItem } from "@/data/mockNews";
 import { supabase } from "@/integrations/supabase/client";
-import { getAllCachedArticles, shouldRefreshCache } from "@/lib/newsCache";
+import { getAllCachedArticles, shouldRefreshCache, spotifyShuffle } from "@/lib/newsCache";
 
 export function useGamingNews() {
   const [news, setNews]               = useState<NewsItem[]>([]);
@@ -48,6 +48,11 @@ export function useGamingNews() {
     }
     await loadFromDB();
   }, [loadFromDB]);
+
+  // ── Instant reshuffle (no DB hit) ─────────────────────────────────────────
+  const reshuffle = useCallback(() => {
+    setNews(prev => spotifyShuffle(prev));
+  }, []);
 
   // ── Manual refresh (exposed to UI) ────────────────────────────────────────
   const refresh = useCallback(async () => {
@@ -106,5 +111,6 @@ export function useGamingNews() {
     isUsingFallback: false,
     lastUpdated,
     refresh,
+    reshuffle,
   };
 }
