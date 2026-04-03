@@ -188,6 +188,66 @@ export async function updateArticlesWithAI(
  * 1. Fisher-Yates with a time-based seed → different order every page load
  * 2. Source-spreading pass → no two consecutive articles from the same outlet
  */
+/**
+ * Fetch engagement weights for a list of article URLs.
+ * Returns a Map<sourceUrl, score> based on reads + likes in the last 7 days.
+ * Accepts an optional userId to add a per-user bias (Phase 3 ready).
+ */
+export async function getEngagementWeights(
+  urls: string[],
+  userId?: string
+): Promise<Map<string, number>> {
+  if (urls.length === 0) return new Map();
+
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data, error } = await supabase
+      .from('article_reads')
+      .select('article_url, action_type, user_id')
+      .in('article_url', urls)
+      .gte('read_date', sevenDaysAgo);
+
+    if (error || !data) return new Map();
+
+    const scores = new Map<string, number>();
+    for (const row of data) {
+      const prev = scores.get(row.article_url) ?? 0;
+      // read_full = strong signal (3pt), view = weak signal (1pt)
+      const basePoints = row.action_type === 'read_full' ? 3 : 1;
+      // Phase 3: same user reading = 2× multiplier (personalisation)
+      const multiplier = userId && row.user_id === userId ? 2 : 1;
+      scores.set(row.article_url, prev + basePoints * multiplier);
+    }
+
+    return scores;
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * Efraimidis-Spirakis weighted shuffle.
+ * Each item gets key = random^(1/weight) — higher weight → key stays near 1.
+ * Sorting descending by key gives a weighted random ordering where every
+ * article has a chance to appear anywhere, but heavier ones trend to the top.
+ */
+export function weightedShuffle<T extends { sourceUrl: string; likes?: number }>(
+  items: T[],
+  weights: Map<string, number>
+): T[] {
+  return [...items]
+    .map(item => {
+      const reads = weights.get(item.sourceUrl) ?? 0;
+      const likes = item.likes ?? 0;
+      const raw = reads + likes * 5; // likes are explicit engagement — worth more
+      const w = Math.log(1 + raw) + 1; // +1 ensures min weight=1 for unseen articles
+      return { item, key: Math.random() ** (1 / w) };
+    })
+    .sort((a, b) => b.key - a.key)
+    .map(({ item }) => item);
+}
+
 export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
   if (articles.length <= 1) return articles;
 
