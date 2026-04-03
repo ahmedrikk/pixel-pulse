@@ -188,20 +188,13 @@ export async function updateArticlesWithAI(
  * 1. Fisher-Yates with a time-based seed → different order every page load
  * 2. Source-spreading pass → no two consecutive articles from the same outlet
  */
-function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
+export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
   if (articles.length <= 1) return articles;
 
-  // Cheap seeded PRNG (LCG) — seed changes every page load
-  let s = Date.now() & 0x7fffffff;
-  const rand = () => {
-    s = (Math.imul(s, 1664525) + 1013904223) & 0x7fffffff;
-    return s / 0x7fffffff;
-  };
-
-  // Fisher-Yates shuffle
+  // Fisher-Yates with Math.random() — genuinely different every single call
   const arr = [...articles];
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
+    const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
 
@@ -212,10 +205,10 @@ function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
     groups[a.source].push(a);
   }
 
-  // Shuffle the source order too so it's not always alphabetical
+  // Shuffle the source order too so it's not always the same outlet first
   const sourceKeys = Object.keys(groups);
   for (let i = sourceKeys.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
+    const j = Math.floor(Math.random() * (i + 1));
     [sourceKeys[i], sourceKeys[j]] = [sourceKeys[j], sourceKeys[i]];
   }
 
