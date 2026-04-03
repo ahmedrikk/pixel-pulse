@@ -11,6 +11,7 @@ export interface NewsItem {
   tags: string[];
   likes?: number;
   comments?: number;
+  fetchedAt?: string;
 }
 
 export const LIVE_MATCH = {

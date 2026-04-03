@@ -45,7 +45,7 @@ export interface FeedSession {
 }
 
 // Feed Priority Types
-export type FeedPriority = "personalized" | "unseen" | "trending" | "fallback";
+export type FeedPriority = "fresh" | "personalized" | "unseen" | "trending" | "fallback";
 
 export interface RankedArticle extends Article {
   priority: FeedPriority;
