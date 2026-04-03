@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useGamingNews } from "./useGamingNews";
 import { supabase } from "@/integrations/supabase/client";
 import { Article, RankedArticle, FeedPriority, UserImpression, FeedSession } from "@/types/feed";
+import { getEngagementWeights, weightedShuffle } from "@/lib/newsCache";
 import { toast } from "sonner";
 
 // Convert NewsItem to Article format
@@ -64,7 +65,8 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
   const [userFavGames, setUserFavGames] = useState<string[]>([]);
   const [seenArticleIds, setSeenArticleIds] = useState<Set<string>>(new Set());
   const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
-  
+  const [engagementWeights, setEngagementWeights] = useState<Map<string, number>>(new Map());
+
   const impressionsRef = useRef<Map<string, UserImpression>>(new Map());
   const lastLoadTimeRef = useRef<Date>(new Date());
   const initialLoadComplete = useRef(false);
@@ -73,6 +75,13 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
   const allArticles = useMemo(() => {
     return news.map(convertToArticle);
   }, [news]);
+
+  // Fetch engagement weights whenever the article list changes
+  useEffect(() => {
+    if (allArticles.length === 0) return;
+    const urls = allArticles.map(a => a.sourceUrl);
+    getEngagementWeights(urls, userId).then(setEngagementWeights);
+  }, [allArticles, userId]);
 
   // Fetch user preferences (favorite games)
   const fetchUserPreferences = useCallback(async () => {
@@ -147,7 +156,9 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     return { priority: "fallback", score: 10 };
   }, [userFavGames, seenArticleIds]);
 
-  // Rank articles then shuffle within each priority tier
+  // Rank articles then apply weighted shuffle within each priority tier.
+  // High-engagement articles bias toward the top of their tier but every
+  // article keeps a chance to appear anywhere (Efraimidis-Spirakis).
   const rankArticles = useCallback((articlesToRank: Article[]): RankedArticle[] => {
     const ranked = articlesToRank.map(article => {
       const { priority, score } = calculatePriority(article);
@@ -161,23 +172,17 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
       tiers[a.priority].push(a);
     }
 
-    // Fisher-Yates shuffle within each tier (different on every call)
-    const shuffle = (arr: RankedArticle[]) => {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
-    };
+    // Weighted shuffle within each tier using live engagement data
+    const ws = (arr: RankedArticle[]) => weightedShuffle(arr, engagementWeights);
 
-    // Reassemble in tier order: personalized → unseen → trending → fallback
+    // Reassemble: personalized → unseen → trending → fallback
     return [
-      ...shuffle(tiers["personalized"] || []),
-      ...shuffle(tiers["unseen"] || []),
-      ...shuffle(tiers["trending"] || []),
-      ...shuffle(tiers["fallback"] || []),
+      ...ws(tiers["personalized"] || []),
+      ...ws(tiers["unseen"] || []),
+      ...ws(tiers["trending"] || []),
+      ...ws(tiers["fallback"] || []),
     ];
-  }, [calculatePriority]);
+  }, [calculatePriority, engagementWeights]);
 
   // Load and rank articles when news changes
   useEffect(() => {
@@ -275,7 +280,7 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     return { total, personalized, unseen, trending };
   }, [articles]);
 
-  // Instant reshuffle of current articles (no DB hit)
+  // Instant reshuffle of current articles (no DB hit) using weighted shuffle
   const reshuffle = useCallback(() => {
     reshuffleNews();
     setArticles(prev => {
@@ -284,22 +289,15 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
         if (!tiers[a.priority]) tiers[a.priority] = [];
         tiers[a.priority].push(a);
       }
-      const shuffle = (arr: RankedArticle[]) => {
-        const copy = [...arr];
-        for (let i = copy.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [copy[i], copy[j]] = [copy[j], copy[i]];
-        }
-        return copy;
-      };
+      const ws = (arr: RankedArticle[]) => weightedShuffle(arr, engagementWeights);
       return [
-        ...shuffle(tiers["personalized"] || []),
-        ...shuffle(tiers["unseen"] || []),
-        ...shuffle(tiers["trending"] || []),
-        ...shuffle(tiers["fallback"] || []),
+        ...ws(tiers["personalized"] || []),
+        ...ws(tiers["unseen"] || []),
+        ...ws(tiers["trending"] || []),
+        ...ws(tiers["fallback"] || []),
       ];
     });
-  }, [reshuffleNews]);
+  }, [reshuffleNews, engagementWeights]);
 
   return {
     articles,
