@@ -77,6 +77,7 @@ function toNewsItem(article: CachedArticle): NewsItem {
     author: article.author,
     tags: article.tags,
     likes: article.likes,
+    fetchedAt: article.fetched_at,
   };
 }
 

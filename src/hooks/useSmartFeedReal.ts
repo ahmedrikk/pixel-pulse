@@ -19,6 +19,7 @@ function convertToArticle(news: {
   tags: string[];
   likes?: number;
   comments?: number;
+  fetchedAt?: string;
 }): Article {
   return {
     id: news.id,
@@ -29,11 +30,10 @@ function convertToArticle(news: {
     sourceUrl: news.sourceUrl,
     author: news.author,
     heroImageUrl: news.imageUrl,
-    // AI is the sole gatekeeper — tags are already specific named entities
     gameTags: news.tags,
     topicTags: news.tags,
     publishedAt: news.timestamp,
-    fetchedAt: new Date().toISOString(),
+    fetchedAt: news.fetchedAt || new Date().toISOString(),
     engagementScore: (news.likes || 0) + ((news.comments || 0) * 2),
     likes: news.likes || 0,
     comments: news.comments || 0,
@@ -131,27 +131,33 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
   // Calculate priority score for ranking
   const calculatePriority = useCallback((article: Article): { priority: FeedPriority; score: number } => {
     const isSeen = seenArticleIds.has(article.sourceUrl);
-    const isFavGameMatch = userFavGames.some(game => 
+    const isFavGameMatch = userFavGames.some(game =>
       article.gameTags.some(tag => tag.toLowerCase().includes(game.toLowerCase()))
     );
-    
+
+    // Priority 0: Fresh — fetched within the last 5 minutes, always on top
+    const minsOldFetched = (Date.now() - new Date(article.fetchedAt).getTime()) / (1000 * 60);
+    if (minsOldFetched < 5) {
+      return { priority: "fresh", score: 200 };
+    }
+
     // Priority 1: Personalized (fav game match + unseen)
     if (isFavGameMatch && !isSeen) {
       return { priority: "personalized", score: 100 + article.engagementScore };
     }
-    
+
     // Priority 2: Unseen articles by recency
     if (!isSeen) {
       const hoursOld = (Date.now() - new Date(article.publishedAt).getTime()) / (1000 * 60 * 60);
       return { priority: "unseen", score: 80 - Math.min(hoursOld * 2, 40) };
     }
-    
+
     // Priority 3: Trending (high engagement, seen but recent)
     const hoursOld = (Date.now() - new Date(article.publishedAt).getTime()) / (1000 * 60 * 60);
     if (hoursOld < 24 && article.engagementScore > 100) {
       return { priority: "trending", score: 50 + article.engagementScore / 10 };
     }
-    
+
     // Priority 4: Fallback (seen, older articles)
     return { priority: "fallback", score: 10 };
   }, [userFavGames, seenArticleIds]);
@@ -175,8 +181,9 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     // Weighted shuffle within each tier using live engagement data
     const ws = (arr: RankedArticle[]) => weightedShuffle(arr, engagementWeights);
 
-    // Reassemble: personalized → unseen → trending → fallback
+    // Reassemble: fresh → personalized → unseen → trending → fallback
     return [
+      ...ws(tiers["fresh"] || []),
       ...ws(tiers["personalized"] || []),
       ...ws(tiers["unseen"] || []),
       ...ws(tiers["trending"] || []),
@@ -291,6 +298,7 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
       }
       const ws = (arr: RankedArticle[]) => weightedShuffle(arr, engagementWeights);
       return [
+        ...ws(tiers["fresh"] || []),
         ...ws(tiers["personalized"] || []),
         ...ws(tiers["unseen"] || []),
         ...ws(tiers["trending"] || []),
