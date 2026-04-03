@@ -184,6 +184,55 @@ export async function updateArticlesWithAI(
 }
 
 /**
+ * Spotify-style shuffle:
+ * 1. Fisher-Yates with a time-based seed → different order every page load
+ * 2. Source-spreading pass → no two consecutive articles from the same outlet
+ */
+function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
+  if (articles.length <= 1) return articles;
+
+  // Cheap seeded PRNG (LCG) — seed changes every page load
+  let s = Date.now() & 0x7fffffff;
+  const rand = () => {
+    s = (Math.imul(s, 1664525) + 1013904223) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+
+  // Fisher-Yates shuffle
+  const arr = [...articles];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+
+  // Spread articles from the same source evenly (round-robin by source)
+  const groups: Record<string, NewsItem[]> = {};
+  for (const a of arr) {
+    if (!groups[a.source]) groups[a.source] = [];
+    groups[a.source].push(a);
+  }
+
+  // Shuffle the source order too so it's not always alphabetical
+  const sourceKeys = Object.keys(groups);
+  for (let i = sourceKeys.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [sourceKeys[i], sourceKeys[j]] = [sourceKeys[j], sourceKeys[i]];
+  }
+
+  // Round-robin interleave across sources
+  const result: NewsItem[] = [];
+  let round = 0;
+  while (result.length < arr.length) {
+    const key = sourceKeys[round % sourceKeys.length];
+    const group = groups[key];
+    if (group && group.length > 0) result.push(group.shift()!);
+    round++;
+  }
+
+  return result;
+}
+
+/**
  * Get all cached articles (for initial load)
  */
 export async function getAllCachedArticles(): Promise<NewsItem[]> {
@@ -200,7 +249,7 @@ export async function getAllCachedArticles(): Promise<NewsItem[]> {
       return [];
     }
 
-    return (data || []).map(toNewsItem);
+    return spotifyShuffle((data || []).map(toNewsItem));
   } catch (err) {
     console.error('Get all cached error:', err);
     return [];
