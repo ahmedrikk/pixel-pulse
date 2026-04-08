@@ -8,6 +8,7 @@ import { XPProvider } from "@/contexts/XPContext";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
 import { AuthModal } from "@/components/AuthModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { OnboardingGuard } from "@/components/OnboardingGuard";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
@@ -21,6 +22,10 @@ import GameReview from "./pages/GameReview";
 import BattlePass from "./pages/BattlePass";
 import NotFound from "./pages/NotFound";
 import ComingSoon from "./pages/ComingSoon";
+import Step1Identity from "./pages/onboarding/Step1Identity";
+import Step2Platforms from "./pages/onboarding/Step2Platforms";
+import Step3Games from "./pages/onboarding/Step3Games";
+import Step4Confirmation from "./pages/onboarding/Step4Confirmation";
 
 const queryClient = new QueryClient();
 
@@ -36,21 +41,28 @@ const App = () => (
               <AuthModal />
               <BrowserRouter basename={import.meta.env.BASE_URL}>
                 <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/u/:username" element={<PublicProfile />} />
+                  {/* Onboarding — no guard */}
+                  <Route path="/onboarding/step-1" element={<Step1Identity />} />
+                  <Route path="/onboarding/step-2" element={<Step2Platforms />} />
+                  <Route path="/onboarding/step-3" element={<Step3Games />} />
+                  <Route path="/onboarding/step-4" element={<Step4Confirmation />} />
+
+                  {/* All other routes — guarded */}
+                  <Route path="/" element={<OnboardingGuard><Index /></OnboardingGuard>} />
+                  <Route path="/profile" element={<OnboardingGuard><Profile /></OnboardingGuard>} />
+                  <Route path="/u/:username" element={<OnboardingGuard><PublicProfile /></OnboardingGuard>} />
                   <Route path="/login" element={<Login />} />
-                  <Route path="/trivia" element={<DailyTrivia />} />
-                  <Route path="/leaderboard" element={<Leaderboard />} />
+                  <Route path="/trivia" element={<OnboardingGuard><DailyTrivia /></OnboardingGuard>} />
+                  <Route path="/leaderboard" element={<OnboardingGuard><Leaderboard /></OnboardingGuard>} />
                   <Route path="/auth/steam/callback" element={<SteamCallback />} />
-                  <Route path="/esports" element={<Esports />} />
-                  <Route path="/esports/:gameId" element={<Esports />} />
-                  <Route path="/reviews" element={<GameCatalog />} />
-                  <Route path="/reviews/:gameId" element={<GameReview />} />
-                  <Route path="/battle-pass" element={<BattlePass />} />
-                  <Route path="/notifications" element={<ComingSoon />} />
-                  <Route path="/guides" element={<ComingSoon />} />
-                  <Route path="/hardware" element={<ComingSoon />} />
+                  <Route path="/esports" element={<OnboardingGuard><Esports /></OnboardingGuard>} />
+                  <Route path="/esports/:gameId" element={<OnboardingGuard><Esports /></OnboardingGuard>} />
+                  <Route path="/reviews" element={<OnboardingGuard><GameCatalog /></OnboardingGuard>} />
+                  <Route path="/reviews/:gameId" element={<OnboardingGuard><GameReview /></OnboardingGuard>} />
+                  <Route path="/battle-pass" element={<OnboardingGuard><BattlePass /></OnboardingGuard>} />
+                  <Route path="/notifications" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
+                  <Route path="/guides" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
+                  <Route path="/hardware" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
