@@ -2,7 +2,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { GatedAction } from "@/types/feed";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Chrome, MessageCircle, Loader2, AlertCircle } from "lucide-react";
+import { Chrome, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -90,39 +90,6 @@ export function AuthModal() {
     }
   };
 
-  const handleDiscordLogin = async () => {
-    setIsLoading("discord");
-    setError(null);
-    
-    try {
-      const redirectTo = getRedirectUrl();
-      console.log("Discord OAuth redirectTo:", redirectTo);
-      
-      const { error: oauthError, data } = await supabase.auth.signInWithOAuth({
-        provider: "discord",
-        options: {
-          redirectTo,
-        },
-      });
-      
-      if (oauthError) {
-        console.error("Discord OAuth error:", oauthError);
-        setError(oauthError.message);
-        toast.error("Discord login failed", {
-          description: oauthError.message,
-        });
-      } else {
-        console.log("Discord OAuth initiated:", data);
-      }
-    } catch (err) {
-      console.error("Unexpected error during Discord login:", err);
-      setError("An unexpected error occurred");
-      toast.error("Something went wrong");
-    } finally {
-      setIsLoading(null);
-    }
-  };
-
   const title = authModalContext ? ACTION_MESSAGES[authModalContext] : "Join Game Pulse";
   const subMessage = authModalContext ? ACTION_SUBMESSAGES[authModalContext] : "Create an account to unlock all features";
 
@@ -159,19 +126,6 @@ export function AuthModal() {
                 <Chrome className="h-5 w-5 text-red-500" />
               )}
               Continue with Google
-            </Button>
-            <Button 
-              variant="outline" 
-              className="w-full gap-2 h-11"
-              onClick={handleDiscordLogin}
-              disabled={isLoading !== null}
-            >
-              {isLoading === "discord" ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <MessageCircle className="h-5 w-5 text-indigo-500" />
-              )}
-              Continue with Discord
             </Button>
           </div>
 
