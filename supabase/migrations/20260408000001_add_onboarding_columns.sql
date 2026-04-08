@@ -20,7 +20,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Allow authenticated users to upload their own avatar
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users upload own avatar' AND tablename = 'objects') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users upload own avatar' AND tablename = 'objects' AND schemaname = 'storage') THEN
     CREATE POLICY "Users upload own avatar"
     ON storage.objects FOR INSERT TO authenticated
     WITH CHECK (
@@ -28,7 +28,7 @@ BEGIN
       AND (storage.foldername(name))[1] = auth.uid()::text
     );
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public read avatars' AND tablename = 'objects') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public read avatars' AND tablename = 'objects' AND schemaname = 'storage') THEN
     CREATE POLICY "Public read avatars"
     ON storage.objects FOR SELECT TO public
     USING (bucket_id = 'avatars');
