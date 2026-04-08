@@ -28,6 +28,9 @@ const XP_TABLE_DATA = {
   // Priority 6: Passive (Scroll)
   scroll_50:           5,   // Max 5/day = 25 XP
   scroll_90:           8,   // Max 5/day = 40 XP (replaces scroll_50 reward)
+
+  // Onboarding (one-time, no daily limit)
+  profile_complete:     50,
 } as const;
 
 export type XpActionType = keyof typeof XP_TABLE_DATA;

@@ -284,6 +284,17 @@ export type Database = {
           xp_season: number
           xp_today: number
           xp_today_reset_date: string | null
+          // Onboarding fields
+          onboarding_completed: boolean
+          onboarding_step: number
+          onboarding_completed_at: string | null
+          platforms: string[] | null
+          skill_level: string
+          fav_game_ids: string[] | null
+          fav_genres: string[] | null
+          avatar_type: string
+          avatar_initials: string | null
+          avatar_color: string | null
         }
         Insert: {
           about_me?: string | null
@@ -307,6 +318,16 @@ export type Database = {
           xp_season?: number
           xp_today?: number
           xp_today_reset_date?: string | null
+          onboarding_completed?: boolean
+          onboarding_step?: number
+          onboarding_completed_at?: string | null
+          platforms?: string[] | null
+          skill_level?: string
+          fav_game_ids?: string[] | null
+          fav_genres?: string[] | null
+          avatar_type?: string
+          avatar_initials?: string | null
+          avatar_color?: string | null
         }
         Update: {
           about_me?: string | null
@@ -330,6 +351,16 @@ export type Database = {
           xp_season?: number
           xp_today?: number
           xp_today_reset_date?: string | null
+          onboarding_completed?: boolean
+          onboarding_step?: number
+          onboarding_completed_at?: string | null
+          platforms?: string[] | null
+          skill_level?: string
+          fav_game_ids?: string[] | null
+          fav_genres?: string[] | null
+          avatar_type?: string
+          avatar_initials?: string | null
+          avatar_color?: string | null
         }
         Relationships: []
       }
