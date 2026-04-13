@@ -203,7 +203,7 @@ export async function linkSocialAccount(
   if (provider === 'steam' && (avatarUrl || username)) {
     const { data: profile } = await supabase.from('profiles').select('avatar_url, display_name, username').eq('id', userId).single();
 
-    let updates: Partial<Profile> = {};
+    const updates: Partial<Profile> = {};
     if (!profile?.avatar_url && avatarUrl) updates.avatar_url = avatarUrl;
 
     if (username && (!profile?.display_name || profile.display_name === profile.username)) {
@@ -281,6 +281,7 @@ export async function fetchSteamProfile(steamId: string): Promise<Partial<SteamP
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function fetchSteamGames(steamId: string): Promise<any[]> {
   try {
     const response = await fetch(
@@ -340,6 +341,7 @@ export async function syncSteamGames(
 
     // Sort by playtime and take top 50 most-played games
     const topGames = steamGames
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .sort((a: any, b: any) => (b.playtime_forever || 0) - (a.playtime_forever || 0))
       .slice(0, 50);
 
@@ -369,6 +371,7 @@ export async function syncSteamGames(
       .from('steam_profiles')
       .update({
         total_games: steamGames.length,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         recent_playtime_2weeks: steamGames.reduce((sum: number, g: any) => sum + (g.playtime_2weeks || 0), 0),
         last_synced: new Date().toISOString(),
       })

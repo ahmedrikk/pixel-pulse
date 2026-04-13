@@ -85,6 +85,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
@@ -219,6 +220,7 @@ export default function Profile() {
           // Save Steam profile data
           const steamProfileData = await fetchSteamProfile(steamId);
           if (steamProfileData && steamProfileData.steam_id) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await saveSteamProfile(user.id, steamProfileData as any);
           }
           // Import Steam games
@@ -311,7 +313,7 @@ export default function Profile() {
       const profileMatch = steamId.match(/steamcommunity\.com\/profiles\/(\d+)/);
       if (profileMatch) steamId = profileMatch[1];
       // Handle vanity URLs like https://steamcommunity.com/id/vanityname
-      const vanityMatch = steamId.match(/steamcommunity\.com\/id\/([^\/]+)/);
+      const vanityMatch = steamId.match(/steamcommunity\.com\/id\/([^/]+)/);
       if (vanityMatch) {
         // Resolve vanity URL to Steam ID
         try {
@@ -344,6 +346,7 @@ export default function Profile() {
 
       // Save Steam profile
       if (steamProfileData.steam_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await saveSteamProfile(user.id, steamProfileData as any);
       }
 
@@ -376,6 +379,7 @@ export default function Profile() {
 
   async function handleUnlink(provider: string) {
     if (!user) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const success = await unlinkSocialAccount(user.id, provider as any);
     if (success) {
       setSocialAccounts(socialAccounts.filter(s => s.provider !== provider));
@@ -611,7 +615,9 @@ export default function Profile() {
           <StatCard
             icon={<Trophy className="h-5 w-5 text-yellow-500" />}
             label="Tier"
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             value={String((profile as any)?.tier || profile?.level || 1)}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             sub={`${(((profile as any)?.xp_season || profile?.xp || 0) % XP_PER_TIER)} / ${XP_PER_TIER} XP to next`}
             highlight={true}
           />

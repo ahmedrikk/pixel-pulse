@@ -76,6 +76,7 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
       block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] ||
       block.match(/<media:content[^>]+url="([^"]+)"/i)?.[1] ||
       description.match(/<img[^>]+src="([^"]+)"/i)?.[1] ||
+      description.match(/<img[^>]+data-src="([^"]+)"/i)?.[1] ||
       null;
 
     items.push({ title, link, pubDate, author, description, enclosureUrl, source });
@@ -174,10 +175,10 @@ function removeBoilerplate(text: string): string {
     .replace(/\(?Image credit:[^)\n.]{0,80}\)?/gi, "")
     .replace(/Image:\s*[^.|\n]{0,80}?(via\s+\w+\s*)?(?=[A-Z][a-z])/g, "")
     // "X via Polygon/IGN/GameSpot" image attribution orphans
-    .replace(/[\w\s\/,]+via\s+(Polygon|IGN|GameSpot|Kotaku|RPS|Eurogamer|PCGamer|Dexerto|VG247|Gematsu)\s*/gi, "")
+    .replace(/[\w\s/,]+via\s+(Polygon|IGN|GameSpot|Kotaku|RPS|Eurogamer|PCGamer|Dexerto|VG247|Gematsu)\s*/gi, "")
     // Eurogamer/RPS comment counts and follow buttons
     .replace(/\d+\s+comments?\s*/gi, "")
-    .replace(/News on\s+[A-Z][a-z]+\s+\d+,?\s+\d{4}\s*/gi, "")
+    .replace(/\.?\s*\bNews on\s+\w+\s+\d{1,2}\s*,?\s*\d{4}\s*/gi, " ")
     .replace(/\bFollow\b\s*/g, "")
     // Social share / follow buttons (PCGamer embeds these inline)
     .replace(/(Flipboard|Pinterest|Reddit|Whatsapp|Facebook|Twitter|Email)\s+(Email\s+)?(Share this article\s*\d*\s*)?(Join the conversation\s*)?(Follow us\s*)?(Add us as[^.]+\.?)?/gi, "")
@@ -197,12 +198,26 @@ function removeBoilerplate(text: string): string {
     .replace(/Get Notifications for[^.]+\.?/gi, "")
     // Bylines: "by First Last" at sentence boundaries
     .replace(/\bby\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\s*(Published|Updated|·|\|)?/g, "")
+    // Gematsu bylines: "Sal Romano Mar 31 2026 / 8:29 PM EDT 0"
+    .replace(/^[A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]{2,8}\s+\d{1,2}\s+\d{4}\s*\/\s*\d{1,2}:\d{2}\s*[APM]{2}\s+[A-Z]{2,4}\s+\d+\s*/g, "")
+    .replace(/[A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]{2,8}\s+\d{1,2}\s+\d{4}\s*\/\s*\d{1,2}:\d{2}\s*[APM]{2}\s+[A-Z]{2,4}\s+\d+\s*/g, "")
+    // PCGamer newsletter subscription boilerplate
+    .replace(/You are now subscribed[^.]*\./gi, "")
+    .replace(/Your weekly update on everything[^.]+\./gi, "")
+    .replace(/A weekly videogame industry newsletter[^.]+\./gi, "")
+    .replace(/From the creators of Edge[^.]+\./gi, "")
+    .replace(/Jump to:\s*[^.]{0,200}(?=\s[A-Z])/g, "")
     // "Read more:", "Related:", "See also:"
     .replace(/\b(Read more|Related|See also)\s*:/gi, "")
     .replace(/\s+/g, " ").trim();
 }
 
-async function scrapeArticle(url: string): Promise<string> {
+interface ScrapeResult {
+  text: string;
+  ogImage: string | null;
+}
+
+async function scrapeArticle(url: string): Promise<ScrapeResult> {
   try {
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), 9000);
@@ -216,15 +231,25 @@ async function scrapeArticle(url: string): Promise<string> {
       redirect: "follow",
     });
     clearTimeout(tid);
-    if (!res.ok) return "";
+    if (!res.ok) return { text: "", ogImage: null };
     const ct = res.headers.get("content-type") ?? "";
-    if (!ct.includes("text/html") && !ct.includes("application/xhtml")) return "";
+    if (!ct.includes("text/html") && !ct.includes("application/xhtml")) return { text: "", ogImage: null };
     const html = await res.text();
+
+    // Extract og:image
+    const ogImage =
+      html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)?.[1] ||
+      html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i)?.[1] ||
+      null;
+
     const raw = extractArticleText(html);
     const clean = removeBoilerplate(raw);
-    return clean.length > 200 ? clean.substring(0, 6000) : "";
+    return {
+      text: clean.length > 200 ? clean.substring(0, 6000) : "",
+      ogImage: ogImage ?? null,
+    };
   } catch {
-    return "";
+    return { text: "", ogImage: null };
   }
 }
 
@@ -382,24 +407,28 @@ serve(async (req) => {
       try {
         console.log(`Processing: "${item.title.substring(0, 60)}"`);
 
-        // RSS description → clean plain text
-        const rssDesc = firstWords(stripHtml(item.description), 100);
+        // RSS description → clean plain text (boilerplate stripped)
+        const rssDesc = firstWords(removeBoilerplate(stripHtml(item.description)), 100);
         const rssWords = rssDesc.split(/\s+/).filter(Boolean).length;
 
-        // Scrape full article when RSS description is too short (< 50 words)
+        // Scrape full article when RSS description is too short (< 50 words) or image missing
         let summary: string;
-        if (rssWords >= 50) {
+        let scrapedImage: string | null = null;
+        if (rssWords >= 50 && item.enclosureUrl) {
+          // RSS has enough content and an image — use it directly
           summary = rssDesc;
         } else {
           const scraped = await scrapeArticle(item.link);
-          if (scraped.length > 100) {
-            summary = firstWords(scraped, 100);
+          scrapedImage = scraped.ogImage;
+          if (scraped.text.length > 100) {
+            summary = firstWords(scraped.text, 100);
             console.log(`  scraped → ${summary.split(/\s+/).length}w (${item.source})`);
           } else {
             summary = rssWords > 5 ? rssDesc : item.title;
           }
         }
 
+        const imageUrl = item.enclosureUrl ?? scrapedImage ?? "";
         const tags = await extractTagsWithGroq(item.title, summary);
 
         console.log(`  ${summary.split(/\s+/).length}w | tags: ${tags.join(", ")}`);
@@ -409,7 +438,7 @@ serve(async (req) => {
           title:        item.title,
           summary,
           source_url:   item.link,
-          image_url:    item.enclosureUrl ?? "",
+          image_url:    imageUrl,
           og_image_url: null,
           category:     "Gaming",
           source:       item.source,

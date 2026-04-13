@@ -20,6 +20,7 @@ interface XPContextType {
   floatingXPs: FloatingXP[];
   justLeveledUp: boolean;
   clearLevelUp: () => void;
+  enableXP: () => void;
 }
 
 const XP_STORAGE_KEY = "gt_xp_data";
@@ -57,23 +58,27 @@ export function XPProvider({ children }: { children: ReactNode }) {
   // Debounce Supabase writes — only flush after 3s of inactivity
   const supabaseFlushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingXPRef = useRef<number | null>(null);
+  const canEarnXPRef = useRef(false);
 
   // On login: pull XP from Supabase and overwrite localStorage if higher
   useEffect(() => {
     const syncFromSupabase = async (userId: string) => {
       const { data } = await supabase
         .from("profiles")
-        .select("xp, level")
+        .select("xp, level, onboarding_completed")
         .eq("id", userId)
         .single();
 
-      if (data && typeof data.xp === "number" && data.xp > 0) {
-        const localXP = loadXP();
-        // Use whichever is higher — prevents losing locally-earned XP
-        const merged = Math.max(localXP, data.xp);
-        if (merged !== localXP) {
-          localStorage.setItem(XP_STORAGE_KEY, String(merged));
-          setTotalXP(merged);
+      if (data) {
+        canEarnXPRef.current = data.onboarding_completed ?? false;
+        if (typeof data.xp === "number" && data.xp > 0) {
+          const localXP = loadXP();
+          // Use whichever is higher — prevents losing locally-earned XP
+          const merged = Math.max(localXP, data.xp);
+          if (merged !== localXP) {
+            localStorage.setItem(XP_STORAGE_KEY, String(merged));
+            setTotalXP(merged);
+          }
         }
       }
     };
@@ -85,6 +90,8 @@ export function XPProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
         syncFromSupabase(session.user.id);
+      } else if (event === "SIGNED_OUT") {
+        canEarnXPRef.current = false;
       }
     });
 
@@ -119,6 +126,8 @@ export function XPProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addXP = useCallback((amount: number) => {
+    if (!canEarnXPRef.current) return;
+    
     setTotalXP((prev) => {
       const next = prev + amount;
       localStorage.setItem(XP_STORAGE_KEY, String(next));
@@ -144,9 +153,10 @@ export function XPProvider({ children }: { children: ReactNode }) {
   }, [state.level]);
 
   const clearLevelUp = useCallback(() => setJustLeveledUp(false), []);
+  const enableXP = useCallback(() => { canEarnXPRef.current = true; }, []);
 
   return (
-    <XPContext.Provider value={{ state, addXP, floatingXPs, justLeveledUp, clearLevelUp }}>
+    <XPContext.Provider value={{ state, addXP, floatingXPs, justLeveledUp, clearLevelUp, enableXP }}>
       {children}
     </XPContext.Provider>
   );

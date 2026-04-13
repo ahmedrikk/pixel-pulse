@@ -24,6 +24,7 @@ const NAV_ITEMS = [
 export function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 

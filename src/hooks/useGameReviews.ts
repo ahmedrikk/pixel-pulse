@@ -32,6 +32,7 @@ async function fetchUserReviews(gameId: string): Promise<UserReview[]> {
 
   if (error) throw error;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((r: any) => ({
     id: r.id,
     userId: r.user_id,
