@@ -4,9 +4,11 @@ import { useAuthGate } from '@/contexts/AuthGateContext';
 import { DesktopLeftPanel } from '@/components/onboarding/DesktopLeftPanel';
 import { completeOnboarding } from '@/lib/onboardingService';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
+import { useXP } from '@/contexts/XPContext';
 
 export default function Step4Confirmation() {
   const { user } = useAuthGate();
+  const { enableXP, addXP } = useXP();
   const navigate = useNavigate();
   const { state, clear } = useOnboardingState();
   const awarded = useRef(false);
@@ -16,14 +18,17 @@ export default function Step4Confirmation() {
     if (!user || awarded.current) return;
     awarded.current = true;
     completeOnboarding(user.id).then(xp => {
+      // Unlock XP earning immediately — user is now fully onboarded
+      enableXP();
       setXpAwarded(xp);
       if (xp > 0) {
+        addXP(xp);
         window.dispatchEvent(new CustomEvent('xp-gained', {
           detail: { awarded: xp, label: 'Profile Complete!', tier_up: false },
         }));
       }
     });
-  }, [user]);
+  }, [user, enableXP, addXP]);
 
   function goToFeed() {
     clear();
