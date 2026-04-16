@@ -152,4 +152,9 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Mobile category pill horizontal scroll — hide scrollbar */
+  .mobile-cat-scroll::-webkit-scrollbar {
+    display: none;
+  }
 }
