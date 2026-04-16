@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { MobileCategoryScroll } from "@/components/sidebar/CategoryPillsWidget";
+import { BattlePassPromoWidget } from "@/components/sidebar/BattlePassPromoWidget";
 
 interface NewsFeedProps {
   onCardView?: (cardId: string) => void;
@@ -33,7 +35,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     userId: isAuthenticated ? user?.id : undefined
   });
   
-  const { activeTag, clearFilter } = useTagFilter();
+  const { activeTag, categoryName, clearFilter } = useTagFilter();
   const [displayedCount, setDisplayedCount] = useState(6);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -83,12 +85,30 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     }
   };
 
+  // Dynamic header text based on active category filter
+  const feedTitle = activeTag && categoryName ? `${categoryName} News` : "Latest Gaming News";
+  const feedSubtitle = activeTag && categoryName
+    ? `${filteredArticles.length} articles in ${categoryName}`
+    : `Live from ${filteredArticles.length} articles`;
+
   return (
     <main className="flex-1 space-y-4">
+      {/* ── Mobile: Guest Battle Pass strip (hidden on lg+) ── */}
+      {!isAuthenticated && (
+        <div className="block lg:hidden">
+          <BattlePassPromoWidget />
+        </div>
+      )}
+
+      {/* ── Mobile: Category pill horizontal scroll (hidden on lg+) ── */}
+      <div className="block lg:hidden">
+        <MobileCategoryScroll />
+      </div>
+
       {/* Feed Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Latest Gaming News</h1>
+          <h1 className="text-2xl font-bold">{feedTitle}</h1>
           <Button
             variant="ghost"
             size="icon"
@@ -187,7 +207,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
-            <span>Live from {filteredArticles.length} articles</span>
+            <span>{feedSubtitle}</span>
           </div>
         </div>
       )}

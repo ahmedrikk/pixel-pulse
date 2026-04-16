@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { XPProvider } from "@/contexts/XPContext";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
-import { AuthModal } from "@/components/AuthModal";
+import { AuthGatePopup } from "@/components/AuthGatePopup";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
 import Index from "./pages/Index";
@@ -38,7 +38,7 @@ const App = () => (
             <TooltipProvider>
               <Toaster />
               <Sonner />
-              <AuthModal />
+              <AuthGatePopup />
               <BrowserRouter basename={import.meta.env.BASE_URL}>
                 <Routes>
                   {/* Onboarding — no guard */}

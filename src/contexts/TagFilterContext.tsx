@@ -2,7 +2,10 @@ import { createContext, useContext, useState, ReactNode, useCallback } from "rea
 
 interface TagFilterContextType {
   activeTag: string | null;
+  /** Human-readable category name (e.g. "PlayStation") matching the active tag slug */
+  categoryName: string | null;
   setActiveTag: (tag: string | null) => void;
+  setCategoryName: (name: string | null) => void;
   clearFilter: () => void;
 }
 
@@ -10,13 +13,15 @@ const TagFilterContext = createContext<TagFilterContextType | undefined>(undefin
 
 export function TagFilterProvider({ children }: { children: ReactNode }) {
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState<string | null>(null);
 
   const clearFilter = useCallback(() => {
     setActiveTag(null);
+    setCategoryName(null);
   }, []);
 
   return (
-    <TagFilterContext.Provider value={{ activeTag, setActiveTag, clearFilter }}>
+    <TagFilterContext.Provider value={{ activeTag, categoryName, setActiveTag, setCategoryName, clearFilter }}>
       {children}
     </TagFilterContext.Provider>
   );
