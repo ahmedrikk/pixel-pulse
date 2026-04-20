@@ -287,23 +287,24 @@ export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
 }
 
 /**
- * Get all cached articles (for initial load)
+ * Get all cached articles (with pagination support)
  */
-export async function getAllCachedArticles(): Promise<NewsItem[]> {
+export async function getAllCachedArticles(offset = 0, limit = 50): Promise<NewsItem[]> {
   try {
     const { data, error } = await supabase
       .from('cached_articles')
       .select('*')
       .gt('expires_at', new Date().toISOString())
       .order('article_date', { ascending: false })
-      .limit(50);
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error('Error fetching all cached articles:', error);
       return [];
     }
 
-    return spotifyShuffle((data || []).map(toNewsItem));
+    // We don't shuffle here anymore to maintain a consistent timeline across pages
+    return (data || []).map(toNewsItem);
   } catch (err) {
     console.error('Get all cached error:', err);
     return [];

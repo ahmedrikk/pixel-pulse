@@ -19,23 +19,61 @@ export function useGamingNews() {
   const [news, setNews]               = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError]             = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [hasMore, setHasMore]         = useState(true);
+  const [page, setPage]               = useState(0);
+
+  const PAGE_SIZE = 20;
 
   // ── Read from DB ──────────────────────────────────────────────────────────
-  const loadFromDB = useCallback(async (): Promise<number> => {
+  const loadFromDB = useCallback(async (isInitial = true): Promise<number> => {
     try {
-      const articles = await getAllCachedArticles();
+      const currentOffset = isInitial ? 0 : (page + 1) * PAGE_SIZE;
+      const articles = await getAllCachedArticles(currentOffset, PAGE_SIZE);
+      
+      if (articles.length < PAGE_SIZE) {
+        setHasMore(false);
+      }
+
       if (articles.length > 0) {
-        setNews(articles);
+        setNews(prev => {
+          if (isInitial) return articles;
+          // Avoid duplicates by checking sourceUrl
+          const existingUrls = new Set(prev.map(a => a.sourceUrl));
+          const uniqueNew = articles.filter(a => !existingUrls.has(a.sourceUrl));
+          return [...prev, ...uniqueNew];
+        });
+        
+        if (isInitial) {
+          setPage(0);
+          setHasMore(articles.length === PAGE_SIZE);
+        } else {
+          setPage(p => p + 1);
+        }
+        
         setLastUpdated(new Date());
+      } else if (!isInitial) {
+        setHasMore(false);
       }
       return articles.length;
     } catch (err) {
       console.error("loadFromDB error:", err);
       return 0;
     }
-  }, []);
+  }, [page]);
+
+  // ── Load more (exposed to UI) ─────────────────────────────────────────────
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      await loadFromDB(false);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, loadFromDB]);
 
   // ── Trigger server-side pipeline then reload ──────────────────────────────
   const triggerFetch = useCallback(async () => {
@@ -46,24 +84,8 @@ export function useGamingNews() {
     } catch (err) {
       console.error("fetch-news invoke error:", err);
     }
-    await loadFromDB();
+    await loadFromDB(true);
   }, [loadFromDB]);
-
-  // ── Instant reshuffle (no DB hit) ─────────────────────────────────────────
-  const reshuffle = useCallback(() => {
-    setNews(prev => spotifyShuffle(prev));
-  }, []);
-
-  // ── Manual refresh (exposed to UI) ────────────────────────────────────────
-  const refresh = useCallback(async () => {
-    setIsRefreshing(true);
-    setError(null);
-    try {
-      await triggerFetch();
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [triggerFetch]);
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -103,14 +125,33 @@ export function useGamingNews() {
     return () => { cancelled = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Instant reshuffle (no DB hit) ─────────────────────────────────────────
+  const reshuffle = useCallback(() => {
+    setNews(prev => spotifyShuffle(prev));
+  }, []);
+
+  // ── Manual refresh (exposed to UI) ────────────────────────────────────────
+  const refresh = useCallback(async () => {
+    setIsRefreshing(true);
+    setError(null);
+    try {
+      await triggerFetch();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [triggerFetch]);
+
   return {
     news,
     isLoading,
     isRefreshing,
+    isLoadingMore,
     error,
     isUsingFallback: false,
     lastUpdated,
+    hasMore,
     refresh,
+    loadMore,
     reshuffle,
   };
 }
