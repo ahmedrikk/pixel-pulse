@@ -18,37 +18,48 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
       return; 
     }
 
-    // Safety timeout: if profile check takes > 5s, something is wrong (e.g. bad keys)
-    // We fall back to showing the content to avoid a blank screen stall.
-    const timeout = setTimeout(() => {
-      if (onboardingDone === null) {
-        console.warn('OnboardingGuard: Profile check timed out. Proceeding cautiously.');
-        setOnboardingDone(true); 
+    const checkOnboarding = async () => {
+      // If in Demo Mode, skip real check and proceed
+      const { isDemoMode } = await import('@/integrations/supabase/client');
+      if (isDemoMode()) {
+        setOnboardingDone(true);
+        return;
       }
-    }, 5000);
 
-    supabase
-      .from('profiles')
-      .select('onboarding_completed, onboarding_step')
-      .eq('id', user.id)
-      .single()
-      .then(({ data, error: sbError }) => {
-        clearTimeout(timeout);
-        if (sbError) {
-          console.error('OnboardingGuard: Error fetching profile:', sbError);
-          setOnboardingDone(true); // Fallback to avoid blank screen
-          return;
+      // Safety timeout: if profile check takes > 5s, something is wrong (e.g. bad keys)
+      // We fall back to showing the content to avoid a blank screen stall.
+      const timeout = setTimeout(() => {
+        if (onboardingDone === null) {
+          console.warn('OnboardingGuard: Profile check timed out. Proceeding cautiously.');
+          setOnboardingDone(true); 
         }
-        setOnboardingDone(data?.onboarding_completed ?? false);
-        setStep(data?.onboarding_step ?? 1);
-      })
-      .catch((err) => {
-        clearTimeout(timeout);
-        console.error('OnboardingGuard: Catch block error:', err);
-        setOnboardingDone(true); // Fallback
-      });
+      }, 5000);
 
-    return () => clearTimeout(timeout);
+      supabase
+        .from('profiles')
+        .select('onboarding_completed, onboarding_step')
+        .eq('id', user.id)
+        .single()
+        .then(({ data, error: sbError }) => {
+          clearTimeout(timeout);
+          if (sbError) {
+            console.error('OnboardingGuard: Error fetching profile:', sbError);
+            setOnboardingDone(true); // Fallback to avoid blank screen
+            return;
+          }
+          setOnboardingDone(data?.onboarding_completed ?? false);
+          setStep(data?.onboarding_step ?? 1);
+        })
+        .catch((err) => {
+          clearTimeout(timeout);
+          console.error('OnboardingGuard: Catch block error:', err);
+          setOnboardingDone(true); // Fallback
+        });
+
+      return () => clearTimeout(timeout);
+    };
+
+    checkOnboarding();
   }, [isAuthenticated, user]);
 
   // Still loading auth or profile check
