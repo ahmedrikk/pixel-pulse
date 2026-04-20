@@ -57,6 +57,8 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     error,
     refresh,
     reshuffle: reshuffleNews,
+    loadMore: loadMoreNews,
+    hasMore: hasMoreNews,
   } = useGamingNews();
   
   const [articles, setArticles] = useState<RankedArticle[]>([]);
@@ -197,10 +199,9 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     
     const ranked = rankArticles(allArticles);
     setArticles(ranked);
-    setHasMore(ranked.length > pageSize);
     initialLoadComplete.current = true;
     lastLoadTimeRef.current = new Date();
-  }, [news, allArticles, rankArticles, pageSize]);
+  }, [news, allArticles, rankArticles]);
 
   // Load user data on mount
   useEffect(() => {
@@ -271,11 +272,10 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
   }, []);
 
   // Load more (pagination)
-  const loadMore = useCallback(() => {
-    // In a real implementation, this would fetch the next page
-    // For now, just show all articles
-    setHasMore(false);
-  }, []);
+  const loadMore = useCallback(async () => {
+    if (!hasMoreNews) return;
+    await loadMoreNews();
+  }, [hasMoreNews, loadMoreNews]);
 
   // Get feed stats
   const feedStats = useMemo(() => {
@@ -312,7 +312,7 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     isLoading: isLoading || isLoadingPrefs,
     isRefreshing,
     error,
-    hasMore,
+    hasMore: hasMoreNews,
     newArticlesCount,
     feedStats,
     loadFeed: refresh,
