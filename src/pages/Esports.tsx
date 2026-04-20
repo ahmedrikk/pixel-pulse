@@ -13,6 +13,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { XPProgressBar } from "@/components/XPProgressBar";
 import { Navbar } from "@/components/Navbar";
 import { BottomNavBar } from "@/components/BottomNavBar";
+import { XPConnectionStrip } from "@/components/esports/XPConnectionStrip";
+import { FeaturedMatchHero } from "@/components/esports/FeaturedMatchHero";
+import { NewsSidebar } from "@/components/esports/NewsSidebar";
+import { InlinePrediction } from "@/components/esports/InlinePrediction";
+import { PredictorLeaderboard } from "@/components/esports/PredictorLeaderboard";
+import { useAuthGate } from "@/contexts/AuthGateContext";
+import { useGamingNews } from "@/hooks/useGamingNews";
 
 type TabType = "live" | "upcoming" | "results";
 
@@ -351,6 +358,11 @@ function MatchCard({
           </Button>
         )}
       </div>
+
+      {/* Inline Prediction — only for live and upcoming */}
+      {(status === "live" || status === "upcoming") && (
+        <InlinePrediction match={match} isLive={status === "live"} />
+      )}
     </motion.div>
   );
 }
@@ -629,6 +641,7 @@ function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, gameFilte
    ═══════════════════════════════════════════════ */
 export default function Esports() {
   const { addXP } = useXP();
+  const { isAuthenticated } = useAuthGate();
   const { gameId } = useParams<{ gameId?: string }>();
   const navigate = useNavigate();
   const [activeGame, setActiveGame] = useState("all");
@@ -636,6 +649,14 @@ export default function Esports() {
   const [watchingMatch, setWatchingMatch] = useState<EsportsMatch | null>(null);
 
   const { liveMatches, upcomingMatches, pastMatches, isLoading, error } = useEsportsMatches();
+  const { news, isLoading: newsLoading } = useGamingNews();
+
+  // Pick best featured match: first live > first upcoming
+  const featuredMatch = useMemo(() => {
+    if (liveMatches.length > 0) return liveMatches[0];
+    if (upcomingMatches.length > 0) return upcomingMatches[0];
+    return null;
+  }, [liveMatches, upcomingMatches]);
 
   // Sync activeGame with route param
   useEffect(() => {
@@ -684,7 +705,13 @@ export default function Esports() {
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Navbar />
 
-      <main className="container py-6 max-w-4xl">
+      {/* XP Connection Strip */}
+      <XPConnectionStrip isAuthenticated={isAuthenticated} />
+
+      {/* Featured Match Hero */}
+      <FeaturedMatchHero match={featuredMatch} />
+
+      <main className="container py-6 max-w-7xl">
         {/* XP Bar */}
         <div className="mb-6">
           <XPProgressBar />
@@ -697,7 +724,7 @@ export default function Esports() {
           </div>
         )}
 
-        {/* Game Selector Bar — derived from live data */}
+        {/* Game Selector Bar */}
         <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-thin mb-2">
           {gameFilters.map((game) => (
             <motion.button
@@ -716,31 +743,42 @@ export default function Esports() {
           ))}
         </div>
 
-        {/* Content */}
-        <AnimatePresence mode="wait">
-          {activeGame === "all" ? (
-            <AllGamesView
-              liveMatches={liveMatches}
-              upcomingMatches={upcomingMatches}
-              pastMatches={pastMatches}
-              isLoading={isLoading}
-              gameFilters={gameFilters}
-              onWatchLive={handleWatchLive}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-            />
-          ) : (
-            <GameView
-              gameId={activeGame}
-              liveMatches={liveMatches}
-              upcomingMatches={upcomingMatches}
-              pastMatches={pastMatches}
-              gameFilters={gameFilters}
-              onWatchLive={handleWatchLive}
-            />
-          )}
-        </AnimatePresence>
+        {/* Split Layout: Matches + News Sidebar */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 0, minHeight: 440 }} className="esports-split">
+          {/* Matches Column */}
+          <div style={{ borderRight: '0.5px solid hsl(var(--border))', paddingRight: 16 }}>
+            <AnimatePresence mode="wait">
+              {activeGame === "all" ? (
+                <AllGamesView
+                  liveMatches={liveMatches}
+                  upcomingMatches={upcomingMatches}
+                  pastMatches={pastMatches}
+                  isLoading={isLoading}
+                  gameFilters={gameFilters}
+                  onWatchLive={handleWatchLive}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                />
+              ) : (
+                <GameView
+                  gameId={activeGame}
+                  liveMatches={liveMatches}
+                  upcomingMatches={upcomingMatches}
+                  pastMatches={pastMatches}
+                  gameFilters={gameFilters}
+                  onWatchLive={handleWatchLive}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* News Sidebar */}
+          <NewsSidebar news={news} activeGame={activeGame} isLoading={newsLoading} />
+        </div>
       </main>
+
+      {/* Predictor Leaderboard */}
+      <PredictorLeaderboard />
 
       {/* Twitch Embed Modal */}
       <AnimatePresence>
