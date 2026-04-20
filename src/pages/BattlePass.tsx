@@ -8,6 +8,8 @@ import {
 import { useXP } from "@/contexts/XPContext";
 import { Navbar } from "@/components/Navbar";
 import { BottomNavBar } from "@/components/BottomNavBar";
+import { useAuthGate } from "@/contexts/AuthGateContext";
+import GuestBattlePass from "@/components/battle-pass/guest/BattlePassGuestPage";
 
 // ─── TYPES ──────────────────────────────────────────────────
 type RewardType = "badge" | "title" | "coupon" | "frame" | "cosmetic" | "milestone" | "ultimate";
@@ -228,6 +230,10 @@ function FloatingXPIndicator({ amount }: { amount: number }) {
 
 // ─── MAIN COMPONENT ─────────────────────────────────────────
 export default function BattlePass() {
+  const { isAuthenticated, isLoading } = useAuthGate();
+  if (!isLoading && !isAuthenticated) {
+    return <GuestBattlePass />;
+  }
   const [selectedTier, setSelectedTier] = useState(14);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
   

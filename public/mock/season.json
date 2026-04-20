@@ -1,0 +1,42 @@
+{
+  "id": "season1",
+  "number": 1,
+  "name": "Season of the Ember",
+  "shortName": "The Ember",
+  "tagline": "From spark to inferno — your legend begins here.",
+  "lore": "Every season, Game Pulse builds a new world for its community. Season 1 — the Ember — is about origin stories. Every tier you unlock this season tells your story as a gamer who was here from the beginning.",
+  "themeColor": "#FB923C",
+  "themeColorSecondary": "#7C3AED",
+  "accentTextColor": "#FCD34D",
+  "acts": [
+    { "number": 1, "name": "Origin", "isCurrent": true },
+    { "number": 2, "name": "Rising", "isCurrent": false },
+    { "number": 3, "name": "Apex", "isCurrent": false },
+    { "number": 4, "name": "Siege", "isCurrent": false },
+    { "number": 5, "name": "Endgame", "isCurrent": false }
+  ],
+  "totalTiers": 25,
+  "startDate": "2026-04-01T00:00:00Z",
+  "endDate": "2026-06-30T23:59:59Z",
+  "isActive": true,
+  "promoRewards": [
+    { "name": "Newcomer Badge", "type": "badge", "tier": 1, "icon": "🏅", "iconBg": "#EEEDFE", "badgeBg": "#EEEDFE", "badgeColor": "#3C3489", "isFounderReward": false, "isFeatured": true },
+    { "name": "Title: Press Start", "type": "title", "tier": 2, "icon": "🏷️", "iconBg": "#FAEEDA", "badgeBg": "#FAEEDA", "badgeColor": "#633806", "isFounderReward": false, "isFeatured": false }
+  ],
+  "tierTrackPreview": [
+    { "tier": 1, "icon": "🏅", "iconBg": "#EEEDFE", "xpRequired": 1000, "isMilestone": true, "milestoneLabel": "Coupon" },
+    { "tier": 2, "icon": "🏷️", "iconBg": "#FAEEDA", "xpRequired": 2000, "isMilestone": false, "milestoneLabel": "" },
+    { "tier": 3, "icon": "🎟️", "iconBg": "#EFF6FF", "xpRequired": 3000, "isMilestone": false, "milestoneLabel": "" },
+    { "tier": 4, "icon": "🖼️", "iconBg": "#FAEEDA", "xpRequired": 4000, "isMilestone": false, "milestoneLabel": "" },
+    { "tier": 5, "icon": "⭐", "iconBg": "#534AB7", "xpRequired": 5000, "isMilestone": true, "milestoneLabel": "Coupon" },
+    { "tier": 6, "icon": "🏅", "iconBg": "#EEEDFE", "xpRequired": 6000, "isMilestone": false, "milestoneLabel": "" },
+    { "tier": 7, "icon": "🏅", "iconBg": "#EEEDFE", "xpRequired": 7000, "isMilestone": false, "milestoneLabel": "" },
+    { "tier": 8, "icon": "🏅", "iconBg": "#EEEDFE", "xpRequired": 8000, "isMilestone": false, "milestoneLabel": "" }
+  ],
+  "signupXpBonus": 50,
+  "streakMultiplier": 2,
+  "streakThresholdDays": 7,
+  "memberCount": 12000,
+  "xpSources": { "articleDailyCap": 400, "predictionMin": 20, "predictionMax": 65, "reviewXp": 100, "triviaDailyXp": 120 },
+  "totalRewardCount": 30
+}
