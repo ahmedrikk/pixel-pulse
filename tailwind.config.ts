@@ -57,6 +57,11 @@ export default {
           foreground: "hsl(var(--tag-text))",
         },
         online: "hsl(var(--online-indicator))",
+        season: {
+          primary: "var(--season-primary)",
+          secondary: "var(--season-secondary)",
+          accent: "var(--season-accent)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

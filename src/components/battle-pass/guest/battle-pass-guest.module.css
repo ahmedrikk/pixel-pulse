@@ -1,0 +1,58 @@
+.themeHero {
+  background: #0A1628;
+  position: relative;
+  overflow: hidden;
+}
+
+.orb1 {
+  width: 280px; height: 280px;
+  background: var(--season-secondary);
+  opacity: 0.12;
+  position: absolute; top: -80px; right: 60px;
+  border-radius: 50%; pointer-events: none;
+}
+
+.orb2 {
+  width: 200px; height: 200px;
+  background: var(--season-primary);
+  opacity: 0.10;
+  position: absolute; top: 20px; right: 0;
+  border-radius: 50%; pointer-events: none;
+}
+
+.orb3 {
+  width: 160px; height: 160px;
+  background: #F59E0B;
+  opacity: 0.08;
+  position: absolute; bottom: -40px; right: 120px;
+  border-radius: 50%; pointer-events: none;
+}
+
+.trackProgress {
+  height: 4px;
+  background: hsl(var(--border) / 0.5);
+  border-radius: 2px;
+  margin: 10px 0 6px;
+  overflow: hidden;
+}
+
+.tpFill {
+  height: 100%;
+  background: #534AB7;
+  width: 0%;
+  border-radius: 2px;
+}
+
+.urgBarBg {
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  height: 5px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.urgBarFill {
+  height: 100%;
+  background: var(--season-primary);
+  border-radius: 4px;
+}
