@@ -53,7 +53,7 @@ export async function checkSupabaseConnection(): Promise<boolean> {
 // Mock user for offline/demo mode
 export const MOCK_USER = {
   id: 'demo-user-123',
-  email: 'demo@pixelpulse.com',
+  email: 'demo@pixel-pulse.com',
   user_metadata: {
     username: 'DemoGamer',
     avatar_url: null,
@@ -62,19 +62,19 @@ export const MOCK_USER = {
 
 // Check if we're in demo mode
 export const isDemoMode = () => {
-  return localStorage.getItem('pixelpulse_demo_mode') === 'true' || !hasValidConfig;
+  return localStorage.getItem('pixel-pulse_demo_mode') === 'true' || !hasValidConfig;
 };
 
 // Enable demo mode
 export function enableDemoMode() {
-  localStorage.setItem('pixelpulse_demo_mode', 'true');
+  localStorage.setItem('pixel-pulse_demo_mode', 'true');
   localStorage.setItem('demo_user', JSON.stringify(MOCK_USER));
   window.location.reload();
 }
 
 // Disable demo mode
 export function disableDemoMode() {
-  localStorage.removeItem('pixelpulse_demo_mode');
+  localStorage.removeItem('pixel-pulse_demo_mode');
   localStorage.removeItem('demo_user');
   window.location.reload();
 }
@@ -93,7 +93,7 @@ export async function getCurrentUser() {
 export const DEMO_PROFILE = {
   id: 'demo-user-123',
   username: 'DemoGamer',
-  email: 'demo@pixelpulse.com',
+  email: 'demo@pixel-pulse.com',
   level: 12,
   tier: 12,
   xp: 12500,

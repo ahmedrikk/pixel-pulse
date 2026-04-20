@@ -86,6 +86,15 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // If in Demo Mode (bad config or forced), return mock session
+        const { isDemoMode, MOCK_USER } = await import("@/integrations/supabase/client");
+        if (isDemoMode()) {
+          console.log("AuthGate: Running in Demo Mode");
+          setUser(MOCK_USER as User);
+          setIsAuthenticated(true);
+          return;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
         setIsAuthenticated(!!session?.user);
