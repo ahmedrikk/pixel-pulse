@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { GatedAction, PendingAction } from "@/types/feed";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isDemoMode, MOCK_USER } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
@@ -86,13 +86,12 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // If in Demo Mode (bad config or forced), return mock session
-        const { isDemoMode, MOCK_USER } = await import("@/integrations/supabase/client");
+        // Synchronous check for Demo Mode from client
         if (isDemoMode()) {
           console.log("AuthGate: Running in Demo Mode");
           setUser(MOCK_USER as User);
           setIsAuthenticated(true);
-          setIsLoading(false); // Fix: set loading to false before returning
+          setIsLoading(false);
           return;
         }
 
