@@ -13,20 +13,20 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !user) { 
-      setOnboardingDone(null); 
-      return; 
-    }
-
     const checkOnboarding = async () => {
+      // If not logged in — no onboarding check needed, guests can pass
+      if (!isAuthenticated || !user) {
+        setOnboardingDone(true);
+        return;
+      }
+
       // Synchronous check for Demo Mode
       if (isDemoMode()) {
         setOnboardingDone(true);
         return;
       }
 
-      // Safety timeout: if profile check takes > 5s, something is wrong (e.g. bad keys)
-      // We fall back to showing the content to avoid a blank screen stall.
+      // Safety timeout for real users: if profile check takes > 5s, fallback to proceed
       const timeout = setTimeout(() => {
         if (onboardingDone === null) {
           console.warn('OnboardingGuard: Profile check timed out. Proceeding cautiously.');
@@ -43,7 +43,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
           clearTimeout(timeout);
           if (sbError) {
             console.error('OnboardingGuard: Error fetching profile:', sbError);
-            setOnboardingDone(true); // Fallback to avoid blank screen
+            setOnboardingDone(true);
             return;
           }
           setOnboardingDone(data?.onboarding_completed ?? false);
@@ -52,7 +52,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
         .catch((err) => {
           clearTimeout(timeout);
           console.error('OnboardingGuard: Catch block error:', err);
-          setOnboardingDone(true); // Fallback
+          setOnboardingDone(true);
         });
 
       return () => clearTimeout(timeout);
