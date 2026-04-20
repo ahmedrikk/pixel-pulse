@@ -92,6 +92,7 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
           console.log("AuthGate: Running in Demo Mode");
           setUser(MOCK_USER as User);
           setIsAuthenticated(true);
+          setIsLoading(false); // Fix: set loading to false before returning
           return;
         }
 
