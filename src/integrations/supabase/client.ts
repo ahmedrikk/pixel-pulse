@@ -62,6 +62,7 @@ export const MOCK_USER = {
 
 // Check if we're in demo mode
 export const isDemoMode = () => {
+  if (typeof window === 'undefined') return true;
   return localStorage.getItem('pixel-pulse_demo_mode') === 'true' || !hasValidConfig;
 };
 

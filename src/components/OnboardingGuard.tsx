@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthGate } from '@/contexts/AuthGateContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, isDemoMode } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
 interface OnboardingGuardProps { children: ReactNode }
@@ -19,8 +19,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
     }
 
     const checkOnboarding = async () => {
-      // If in Demo Mode, skip real check and proceed
-      const { isDemoMode } = await import('@/integrations/supabase/client');
+      // Synchronous check for Demo Mode
       if (isDemoMode()) {
         setOnboardingDone(true);
         return;
