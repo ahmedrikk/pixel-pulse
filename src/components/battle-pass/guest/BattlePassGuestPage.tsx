@@ -35,7 +35,14 @@ export default function BattlePassGuestPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div 
+      className="min-h-screen bg-background text-foreground"
+      style={{
+        '--season-primary': season.themeColor,
+        '--season-secondary': season.themeColorSecondary,
+        '--season-accent': season.accentTextColor,
+      } as React.CSSProperties}
+    >
       <SeasonThemeHero season={season} />
       <WhyJoinSection season={season} />
       <MidPageCTAStrip season={season} />
