@@ -1,3 +1,5 @@
+import mockSeasonData from '../../public/mock/season.json';
+
 export async function getCurrentSeason() {
   try {
     const res = await fetch('/api/seasons/current', { cache: 'no-store' });
@@ -5,7 +7,7 @@ export async function getCurrentSeason() {
     return await res.json();
   } catch (e) {
     // Fallback to mock data during development
-    const mockRes = await fetch('/mock/season.json', { cache: 'no-store' });
-    return await mockRes.json();
+    console.warn('Using mock season data due to API error:', e);
+    return mockSeasonData;
   }
 }
