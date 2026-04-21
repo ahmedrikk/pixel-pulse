@@ -88,9 +88,9 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
       try {
         // Synchronous check for Demo Mode from client
         if (isDemoMode()) {
-          console.log("AuthGate: Running in Demo Mode");
-          setUser(MOCK_USER as User);
-          setIsAuthenticated(true);
+          console.log("AuthGate: Running in Demo Mode — guest passthrough");
+          setUser(null);
+          setIsAuthenticated(false);
           setIsLoading(false);
           return;
         }
