@@ -82,24 +82,28 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     });
   }, [user, checkAndShowPopup]);
 
-  // Check auth state on mount
+  // Check auth state on mount — runs exactly once
   useEffect(() => {
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    // Synchronous check first — if no valid Supabase config, show app immediately as guest
+    if (isDemoMode()) {
+      console.log("AuthGate: No Supabase config — running as guest");
+      setUser(null);
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      return; // skip supabase calls entirely
+    }
+
     const checkAuth = async () => {
       try {
-        // Synchronous check for Demo Mode from client
-        if (isDemoMode()) {
-          console.log("AuthGate: Running in Demo Mode — guest passthrough");
-          setUser(null);
-          setIsAuthenticated(false);
-          setIsLoading(false);
-          return;
-        }
-
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
         setIsAuthenticated(!!session?.user);
       } catch (err) {
         console.error("Auth check error:", err);
+        setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
@@ -107,42 +111,41 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
 
     checkAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user || null;
-      const isAuthed = !!currentUser;
-      
-      // If just logged in
-      if (isAuthed && !isAuthenticated) {
-        try {
-          // Check onboarding
-          const { data } = await supabase.from('profiles').select('onboarding_completed, display_name').eq('id', currentUser.id).single();
-          
-          if (data?.onboarding_completed) {
-            toast.success(`Welcome back, ${data.display_name || 'Gamer'}!`);
-            
-            // Execute pending locally (consumer calls executePendingAction)
-            const pending = sessionStorage.getItem('pending_action');
-            if (pending) {
-              setPendingAction(JSON.parse(pending));
-            }
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }
-      
-      setUser(currentUser);
-      setIsAuthenticated(isAuthed);
-      
-      // If auth drops
-      if (!isAuthed) {
-        setPendingAction(null);
-      }
-    });
+    // Listen for auth changes (only when Supabase config is valid)
+    try {
+      const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const currentUser = session?.user || null;
+        const isAuthed = !!currentUser;
 
-    return () => subscription.unsubscribe();
-  }, [isAuthenticated]);
+        if (isAuthed) {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('onboarding_completed, display_name')
+              .eq('id', currentUser.id)
+              .single();
+
+            if (profile?.onboarding_completed) {
+              toast.success(`Welcome back, ${profile.display_name || 'Gamer'}!`);
+              const pending = sessionStorage.getItem('pending_action');
+              if (pending) setPendingAction(JSON.parse(pending));
+            }
+          } catch (e) {
+            console.error("Profile fetch error:", e);
+          }
+        }
+
+        setUser(currentUser);
+        setIsAuthenticated(isAuthed);
+        if (!isAuthed) setPendingAction(null);
+      });
+      subscription = data.subscription;
+    } catch (err) {
+      console.error("onAuthStateChange setup error:", err);
+    }
+
+    return () => subscription?.unsubscribe();
+  }, []); // ← empty array: run exactly once on mount
 
   const openAuthModal = useCallback((action: GatedAction, pendingData?: Omit<PendingAction, "type">) => {
     checkAndShowPopup(action, pendingData);
