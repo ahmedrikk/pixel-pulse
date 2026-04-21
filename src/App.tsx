@@ -20,6 +20,7 @@ import Esports from "./pages/Esports";
 import GameCatalog from "./pages/GameCatalog";
 import GameReview from "./pages/GameReview";
 import BattlePass from "./pages/BattlePass";
+import Hub from "./pages/Hub";
 import NotFound from "./pages/NotFound";
 import ComingSoon from "./pages/ComingSoon";
 import Step1Identity from "./pages/onboarding/Step1Identity";
@@ -60,6 +61,7 @@ const App = () => (
                   <Route path="/reviews" element={<OnboardingGuard><GameCatalog /></OnboardingGuard>} />
                   <Route path="/reviews/:gameId" element={<OnboardingGuard><GameReview /></OnboardingGuard>} />
                   <Route path="/battle-pass" element={<OnboardingGuard><BattlePass /></OnboardingGuard>} />
+                  <Route path="/hub" element={<OnboardingGuard><Hub /></OnboardingGuard>} />
                   <Route path="/notifications" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                   <Route path="/guides" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                   <Route path="/hardware" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />

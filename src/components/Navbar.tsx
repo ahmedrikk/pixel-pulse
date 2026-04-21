@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, Search, Home, Trophy, Swords, Sun, Moon, User, LogOut, LogIn } from "lucide-react";
+import { TrendingUp, Search, Home, Trophy, Swords, Sun, Moon, User, LogOut, LogIn, Users } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ interface NavbarProps {
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Trophy, label: "Esports", href: "/esports" },
+  { icon: Users, label: "Hub", href: "/hub" },
   { icon: Swords, label: "Battle Pass", href: "/battle-pass" },
 ];
 
