@@ -9,13 +9,14 @@ import { TriviaSection } from "@/components/hub/TriviaSection";
 import { HotTakesSection } from "@/components/hub/HotTakesSection";
 import { HypeMeterSection } from "@/components/hub/HypeMeterSection";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { TagFilterProvider } from "@/contexts/TagFilterContext";
 
 type HubTab = "all" | "streamers" | "trivia" | "takes" | "hype";
 
 // Matches live count from mock data — in production this would come from the streamer hook
 const LIVE_STREAMERS_COUNT = 2;
 
-export default function Hub() {
+export function HubContent() {
   const [activeTab, setActiveTab] = useState<HubTab>("all");
   const { isAuthenticated } = useAuthGate();
 
@@ -79,5 +80,14 @@ export default function Hub() {
 
       <BottomNavBar />
     </div>
+  );
+}
+
+// TagFilterProvider is required by LeftSidebar's useTagFilter hook
+export default function Hub() {
+  return (
+    <TagFilterProvider>
+      <HubContent />
+    </TagFilterProvider>
   );
 }
