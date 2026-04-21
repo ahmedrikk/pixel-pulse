@@ -1,9 +1,10 @@
-import { Home, Trophy, Swords } from "lucide-react";
+import { Home, Trophy, Swords, Users } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const BOTTOM_NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Trophy, label: "Esports", href: "/esports" },
+  { icon: Users, label: "Hub", href: "/hub" },
   { icon: Swords, label: "Battle Pass", href: "/battle-pass" },
 ];
 
