@@ -86,44 +86,19 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
 
-    // Synchronous check first — if no valid Supabase config, show app immediately as guest
     if (isDemoMode()) {
       console.log("AuthGate: No Supabase config — running as guest");
       setUser(null);
       setIsAuthenticated(false);
       setIsLoading(false);
-      return; // skip supabase calls entirely
+      return;
     }
 
-    const checkAuth = async () => {
-      // Retry once — Supabase auth token refresh can abort the first getSession call
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          setUser(session?.user || null);
-          setIsAuthenticated(!!session?.user);
-          setIsLoading(false);
-          return;
-        } catch (err) {
-          const isAbort = err instanceof DOMException && err.name === 'AbortError';
-          if (isAbort && attempt === 0) {
-            await new Promise(r => setTimeout(r, 500));
-            continue;
-          }
-          console.error("Auth check error:", err);
-          setUser(null);
-          setIsAuthenticated(false);
-          setIsLoading(false);
-          return;
-        }
-      }
-    };
-
-    checkAuth();
-
-    // Listen for auth changes (only when Supabase config is valid)
+    // Use onAuthStateChange instead of getSession().
+    // INITIAL_SESSION fires after token refresh completes — Supabase client is
+    // fully ready at that point, so subsequent DB queries won't get aborted.
     try {
-      const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
         const currentUser = session?.user || null;
         const isAuthed = !!currentUser;
 
@@ -135,7 +110,8 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
               .eq('id', currentUser.id)
               .single();
 
-            if (profile?.onboarding_completed) {
+            // Only toast on explicit sign-in, not on session restore
+            if (event === 'SIGNED_IN' && profile?.onboarding_completed) {
               toast.success(`Welcome back, ${profile.display_name || 'Gamer'}!`);
               const pending = sessionStorage.getItem('pending_action');
               if (pending) setPendingAction(JSON.parse(pending));
@@ -148,10 +124,16 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
         setUser(currentUser);
         setIsAuthenticated(isAuthed);
         if (!isAuthed) setPendingAction(null);
+
+        // Mark auth as ready once the initial session event fires
+        if (event === 'INITIAL_SESSION') {
+          setIsLoading(false);
+        }
       });
       subscription = data.subscription;
     } catch (err) {
       console.error("onAuthStateChange setup error:", err);
+      setIsLoading(false); // failsafe — never leave spinner forever
     }
 
     return () => subscription?.unsubscribe();
