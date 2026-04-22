@@ -14,8 +14,10 @@ import { useState, useEffect, useCallback } from "react";
 import { INITIAL_NEWS, NewsItem } from "@/data/mockNews";
 import { supabase } from "@/integrations/supabase/client";
 import { getAllCachedArticles, shouldRefreshCache, spotifyShuffle } from "@/lib/newsCache";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 
 export function useGamingNews() {
+  const { isLoading: isAuthLoading } = useAuthGate();
   const [news, setNews]               = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -98,6 +100,10 @@ export function useGamingNews() {
 
   // ── Initial load ──────────────────────────────────────────────────────────
   useEffect(() => {
+    // Wait until Supabase auth finishes initializing before fetching.
+    // During auth init, token refresh aborts all in-flight DB requests.
+    if (isAuthLoading) return;
+
     let cancelled = false;
 
     async function init() {
@@ -130,7 +136,7 @@ export function useGamingNews() {
 
     init();
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Instant reshuffle (no DB hit) ─────────────────────────────────────────
   const reshuffle = useCallback(() => {
