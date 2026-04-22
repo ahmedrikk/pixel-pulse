@@ -76,11 +76,20 @@ export function useGamingNews() {
   }, [isLoadingMore, hasMore, loadFromDB]);
 
   // ── Trigger server-side pipeline then reload ──────────────────────────────
-  const triggerFetch = useCallback(async () => {
+  const triggerFetch = useCallback(async (timeoutMs = 15000) => {
     console.log("Invoking fetch-news edge function…");
     try {
-      const { error: fnErr } = await supabase.functions.invoke("fetch-news");
-      if (fnErr) console.error("fetch-news error:", fnErr);
+      const result = await Promise.race([
+        supabase.functions.invoke("fetch-news"),
+        new Promise<{ timedOut: true }>((resolve) =>
+          setTimeout(() => resolve({ timedOut: true }), timeoutMs)
+        ),
+      ]);
+      if ("timedOut" in result) {
+        console.warn(`fetch-news timed out after ${timeoutMs}ms`);
+      } else if (result.error) {
+        console.error("fetch-news error:", result.error);
+      }
     } catch (err) {
       console.error("fetch-news invoke error:", err);
     }
@@ -101,14 +110,12 @@ export function useGamingNews() {
       if (cancelled) return;
 
       if (count === 0) {
-        // Empty — trigger server fetch and wait for results
-        await triggerFetch();
-        // If still empty after fetch (function failed), show fallback
-        const afterFetch = await loadFromDB();
-        if (afterFetch === 0) {
-          console.warn("Cache still empty after fetch, using fallback data");
-          setNews(INITIAL_NEWS);
-        }
+        // Empty — show fallback immediately so user isn't stuck on skeletons,
+        // then trigger server fetch in the background.
+        console.warn("Cache empty — showing fallback while fetching fresh data");
+        setNews(INITIAL_NEWS);
+        setIsLoading(false);
+        triggerFetch(); // fire and forget — will refresh when done
       } else {
         setIsLoading(false);
         // Cache exists — check if stale and refresh in background
