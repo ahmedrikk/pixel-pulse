@@ -20,21 +20,6 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
     },
-    global: {
-      fetch: async (url, options) => {
-        try {
-          const response = await fetch(url, {
-            ...options,
-            // Add timeout
-            signal: options?.signal || AbortSignal.timeout(10000),
-          });
-          return response;
-        } catch (error) {
-          console.error('Supabase fetch error:', error);
-          throw error;
-        }
-      },
-    },
   }
 );
 
