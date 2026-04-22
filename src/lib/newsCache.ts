@@ -70,7 +70,7 @@ function toNewsItem(article: CachedArticle): NewsItem {
     summary: cap100Words(article.ai_summary || article.summary),
     sourceUrl: article.source_url,
     // Prefer OG image (from full page fetch) over RSS feed image
-    imageUrl: article.og_image_url || article.image_url,
+    imageUrl: article.og_image_url || article.image_url || null,
     category: article.category,
     timestamp: article.article_date,
     source: article.source,

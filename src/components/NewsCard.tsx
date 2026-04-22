@@ -139,16 +139,25 @@ export function NewsCard({ news, articleNumber = 0 }: NewsCardProps) {
       className="bg-card rounded-lg border overflow-hidden card-shadow hover:card-shadow-hover transition-all duration-200 group"
     >
       {/* Cover Image */}
-      <div className="relative aspect-video overflow-hidden">
-        <img
-          src={news.imageUrl}
-          alt={news.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        <span className="absolute top-3 left-3 px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
-          #{news.category}
-        </span>
-      </div>
+      {news.imageUrl ? (
+        <div className="relative aspect-video overflow-hidden">
+          <img
+            src={news.imageUrl}
+            alt={news.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+          <span className="absolute top-3 left-3 px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
+            #{news.category}
+          </span>
+        </div>
+      ) : (
+        <div className="relative aspect-video overflow-hidden bg-secondary flex items-center justify-center">
+          <span className="px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
+            #{news.category}
+          </span>
+        </div>
+      )}
 
       {/* Content */}
       <div className="p-5">
