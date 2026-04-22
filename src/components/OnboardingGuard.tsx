@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState, useRef } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthGate } from '@/contexts/AuthGateContext';
 import { supabase, isDemoMode } from '@/integrations/supabase/client';
@@ -10,63 +10,49 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const { isAuthenticated, isLoading, user } = useAuthGate();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   const [step, setStep] = useState<number>(1);
-  // Hard cap: never spin longer than 6s total regardless of auth/profile state
-  const [timedOut, setTimedOut] = useState(false);
-  const globalTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Show spinner for at most 2 seconds, then show children regardless
+  const [spinnerExpired, setSpinnerExpired] = useState(false);
 
   useEffect(() => {
-    globalTimeout.current = setTimeout(() => {
-      setTimedOut(true);
-    }, 6000);
-    return () => {
-      if (globalTimeout.current) clearTimeout(globalTimeout.current);
-    };
+    const t = setTimeout(() => setSpinnerExpired(true), 2000);
+    return () => clearTimeout(t);
   }, []);
 
+  // Profile check — re-runs whenever auth state resolves
   useEffect(() => {
-    const checkOnboarding = async () => {
-      if (!isAuthenticated || !user) {
-        setOnboardingDone(true);
-        return;
-      }
+    if (!isAuthenticated || !user) {
+      setOnboardingDone(null); // reset so we re-check if auth resolves later
+      return;
+    }
+    if (isDemoMode()) {
+      setOnboardingDone(true);
+      return;
+    }
 
-      if (isDemoMode()) {
-        setOnboardingDone(true);
-        return;
-      }
+    setOnboardingDone(null); // show spinner while checking profile
 
-      const timeout = setTimeout(() => {
-        setOnboardingDone(true);
-      }, 5000);
-
-      supabase
-        .from('profiles')
-        .select('onboarding_completed, onboarding_step')
-        .eq('id', user.id)
-        .single()
-        .then(({ data, error: sbError }) => {
-          clearTimeout(timeout);
-          if (sbError) {
-            setOnboardingDone(true);
-            return;
-          }
-          setOnboardingDone(data?.onboarding_completed ?? false);
-          setStep(data?.onboarding_step ?? 1);
-        })
-        .catch(() => {
-          clearTimeout(timeout);
-          setOnboardingDone(true);
-        });
-    };
-
-    checkOnboarding();
+    supabase
+      .from('profiles')
+      .select('onboarding_completed, onboarding_step')
+      .eq('id', user.id)
+      .single()
+      .then(({ data, error: sbError }) => {
+        if (sbError) { setOnboardingDone(true); return; }
+        setOnboardingDone(data?.onboarding_completed ?? false);
+        setStep(data?.onboarding_step ?? 1);
+      })
+      .catch(() => setOnboardingDone(true));
   }, [isAuthenticated, user]);
 
-  // Hard timeout fired — just render children rather than spin forever
-  if (timedOut) return <>{children}</>;
+  // Redirect authenticated user to onboarding — happens even after spinner expired
+  // so users who complete auth after the 2s window still get redirected correctly
+  if (isAuthenticated && onboardingDone === false) {
+    return <Navigate to={`/onboarding/step-${step}`} replace />;
+  }
 
-  // Still loading auth or profile check
-  if (isLoading || (isAuthenticated && onboardingDone === null)) {
+  // Spinner: only while auth or profile check is pending AND within 2-second window
+  const stillChecking = isLoading || (isAuthenticated && onboardingDone === null);
+  if (!spinnerExpired && stillChecking) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
         <div className="flex flex-col items-center gap-4">
@@ -75,12 +61,6 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated) return <>{children}</>;
-
-  if (!onboardingDone) {
-    return <Navigate to={`/onboarding/step-${step}`} replace />;
   }
 
   return <>{children}</>;
