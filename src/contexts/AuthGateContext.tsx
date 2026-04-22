@@ -96,16 +96,26 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     }
 
     const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user || null);
-        setIsAuthenticated(!!session?.user);
-      } catch (err) {
-        console.error("Auth check error:", err);
-        setUser(null);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
+      // Retry once — Supabase auth token refresh can abort the first getSession call
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          setUser(session?.user || null);
+          setIsAuthenticated(!!session?.user);
+          setIsLoading(false);
+          return;
+        } catch (err) {
+          const isAbort = err instanceof DOMException && err.name === 'AbortError';
+          if (isAbort && attempt === 0) {
+            await new Promise(r => setTimeout(r, 500));
+            continue;
+          }
+          console.error("Auth check error:", err);
+          setUser(null);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
       }
     };
 

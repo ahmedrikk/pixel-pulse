@@ -290,25 +290,38 @@ export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
  * Get all cached articles (with pagination support)
  */
 export async function getAllCachedArticles(offset = 0, limit = 50): Promise<NewsItem[]> {
-  try {
-    const { data, error } = await supabase
-      .from('cached_articles')
-      .select('*')
-      .gt('expires_at', new Date().toISOString())
-      .order('article_date', { ascending: false })
-      .range(offset, offset + limit - 1);
+  // Retry up to 3 times — Supabase auth init can abort in-flight queries
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const { data, error } = await supabase
+        .from('cached_articles')
+        .select('*')
+        .gt('expires_at', new Date().toISOString())
+        .order('article_date', { ascending: false })
+        .range(offset, offset + limit - 1);
 
-    if (error) {
-      console.error('Error fetching all cached articles:', error);
+      if (error) {
+        const isAbort = error.message?.includes('AbortError') || error.details?.includes?.('AbortError');
+        if (isAbort && attempt < 2) {
+          await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
+          continue;
+        }
+        console.error('Error fetching all cached articles:', error);
+        return [];
+      }
+
+      return (data || []).map(toNewsItem);
+    } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === 'AbortError';
+      if (isAbort && attempt < 2) {
+        await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
+        continue;
+      }
+      console.error('Get all cached error:', err);
       return [];
     }
-
-    // We don't shuffle here anymore to maintain a consistent timeline across pages
-    return (data || []).map(toNewsItem);
-  } catch (err) {
-    console.error('Get all cached error:', err);
-    return [];
   }
+  return [];
 }
 
 /**
