@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthGate } from '@/contexts/AuthGateContext';
 import { supabase, isDemoMode } from '@/integrations/supabase/client';
@@ -10,28 +10,33 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const { isAuthenticated, isLoading, user } = useAuthGate();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   const [step, setStep] = useState<number>(1);
-  const [error, setError] = useState(false);
+  // Hard cap: never spin longer than 6s total regardless of auth/profile state
+  const [timedOut, setTimedOut] = useState(false);
+  const globalTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    globalTimeout.current = setTimeout(() => {
+      setTimedOut(true);
+    }, 6000);
+    return () => {
+      if (globalTimeout.current) clearTimeout(globalTimeout.current);
+    };
+  }, []);
 
   useEffect(() => {
     const checkOnboarding = async () => {
-      // If not logged in — no onboarding check needed, guests can pass
       if (!isAuthenticated || !user) {
         setOnboardingDone(true);
         return;
       }
 
-      // Synchronous check for Demo Mode
       if (isDemoMode()) {
         setOnboardingDone(true);
         return;
       }
 
-      // Safety timeout for real users: if profile check takes > 5s, fallback to proceed
       const timeout = setTimeout(() => {
-        if (onboardingDone === null) {
-          console.warn('OnboardingGuard: Profile check timed out. Proceeding cautiously.');
-          setOnboardingDone(true); 
-        }
+        setOnboardingDone(true);
       }, 5000);
 
       supabase
@@ -42,24 +47,23 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
         .then(({ data, error: sbError }) => {
           clearTimeout(timeout);
           if (sbError) {
-            console.error('OnboardingGuard: Error fetching profile:', sbError);
             setOnboardingDone(true);
             return;
           }
           setOnboardingDone(data?.onboarding_completed ?? false);
           setStep(data?.onboarding_step ?? 1);
         })
-        .catch((err) => {
+        .catch(() => {
           clearTimeout(timeout);
-          console.error('OnboardingGuard: Catch block error:', err);
           setOnboardingDone(true);
         });
-
-      return () => clearTimeout(timeout);
     };
 
     checkOnboarding();
   }, [isAuthenticated, user]);
+
+  // Hard timeout fired — just render children rather than spin forever
+  if (timedOut) return <>{children}</>;
 
   // Still loading auth or profile check
   if (isLoading || (isAuthenticated && onboardingDone === null)) {
@@ -73,10 +77,8 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
     );
   }
 
-  // Not logged in — let the page handle its own auth gate
   if (!isAuthenticated) return <>{children}</>;
 
-  // Logged in but onboarding incomplete — redirect
   if (!onboardingDone) {
     return <Navigate to={`/onboarding/step-${step}`} replace />;
   }

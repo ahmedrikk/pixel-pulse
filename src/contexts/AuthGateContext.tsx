@@ -96,6 +96,7 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     }
 
     const checkAuth = async () => {
+      const authTimeout = setTimeout(() => setIsLoading(false), 4000);
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
@@ -105,6 +106,7 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setIsAuthenticated(false);
       } finally {
+        clearTimeout(authTimeout);
         setIsLoading(false);
       }
     };
