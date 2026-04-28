@@ -4,17 +4,12 @@ import { LeftSidebar } from "@/components/LeftSidebar";
 import { RightSidebar } from "@/components/RightSidebar";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { HubBanner } from "@/components/hub/HubBanner";
-import { StreamerSection } from "@/components/hub/StreamerSection";
 import { TriviaSection } from "@/components/hub/TriviaSection";
-import { HotTakesSection } from "@/components/hub/HotTakesSection";
 import { HypeMeterSection } from "@/components/hub/HypeMeterSection";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { TagFilterProvider } from "@/contexts/TagFilterContext";
 
-type HubTab = "all" | "streamers" | "trivia" | "takes" | "hype";
-
-// Matches live count from mock data — in production this would come from the streamer hook
-const LIVE_STREAMERS_COUNT = 2;
+type HubTab = "all" | "trivia" | "hype";
 
 export function HubContent() {
   const [activeTab, setActiveTab] = useState<HubTab>("all");
@@ -41,7 +36,6 @@ export function HubContent() {
             <HubBanner
               activeTab={activeTab}
               setActiveTab={setActiveTab}
-              liveStreamersCount={LIVE_STREAMERS_COUNT}
             />
 
             {/* Sections */}
@@ -54,14 +48,8 @@ export function HubContent() {
                 background: "hsl(var(--card))",
               }}
             >
-              {show("streamers") && (
-                <StreamerSection isAuthenticated={isAuthenticated} />
-              )}
               {show("trivia") && (
                 <TriviaSection />
-              )}
-              {show("takes") && (
-                <HotTakesSection />
               )}
               {show("hype") && (
                 <HypeMeterSection />

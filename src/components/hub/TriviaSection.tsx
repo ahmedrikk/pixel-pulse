@@ -1,28 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useXP } from "@/contexts/XPContext";
 import { toast } from "sonner";
-
-interface TriviaOption {
-  letter: string;
-  text: string;
-}
-
-interface TriviaCardData {
-  id: string;
-  type: "daily" | "bonus";
-  category: string;
-  difficulty: "Easy" | "Medium" | "Hard" | "Expert";
-  question: string;
-  options: TriviaOption[];
-  correctLetter: string;
-  xpReward: number;
-  streakDays: number;
-  totalAnswered: number;
-  correctPercent: number;
-  resetsAt: Date;
-  userAnswer: string | null;
-}
+import { useTrivia, type TriviaCardData } from "@/hooks/useTrivia";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   "Action RPG": { bg: "#EEEDFE", text: "#3C3489" },
@@ -32,51 +12,9 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   "Indie": { bg: "#E1F5EE", text: "#085041" },
 };
 
-const MOCK_TRIVIA: TriviaCardData[] = [
-  {
-    id: "daily-1",
-    type: "daily",
-    category: "FPS",
-    difficulty: "Medium",
-    question: "Which game introduced the 'Battle Royale' genre to mainstream gaming with its 2017 launch?",
-    options: [
-      { letter: "A", text: "DayZ" },
-      { letter: "B", text: "PUBG: Battlegrounds" },
-      { letter: "C", text: "Fortnite" },
-      { letter: "D", text: "H1Z1" },
-    ],
-    correctLetter: "B",
-    xpReward: 120,
-    streakDays: 7,
-    totalAnswered: 14820,
-    correctPercent: 61,
-    resetsAt: new Date(new Date().setHours(24, 0, 0, 0)),
-    userAnswer: null,
-  },
-  {
-    id: "bonus-1",
-    type: "bonus",
-    category: "Action RPG",
-    difficulty: "Hard",
-    question: "In Elden Ring, what is the name of the destined death rune?",
-    options: [
-      { letter: "A", text: "Rune of Death" },
-      { letter: "B", text: "Miquella's Needle" },
-      { letter: "C", text: "Godwyn's Seal" },
-      { letter: "D", text: "Death's Poker" },
-    ],
-    correctLetter: "A",
-    xpReward: 80,
-    streakDays: 7,
-    totalAnswered: 6240,
-    correctPercent: 38,
-    resetsAt: new Date(new Date().setHours(24, 0, 0, 0)),
-    userAnswer: null,
-  },
-];
-
 function getTimeRemaining(date: Date): string {
   const diff = date.getTime() - Date.now();
+  if (diff <= 0) return "0h 0m";
   const hrs = Math.floor(diff / (1000 * 60 * 60));
   const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   return `${hrs}h ${mins}m`;
@@ -85,25 +23,35 @@ function getTimeRemaining(date: Date): string {
 function TriviaCard({ data }: { data: TriviaCardData }) {
   const { isAuthenticated, openAuthModal } = useAuthGate();
   const { addXP } = useXP();
-  const [selectedLetter, setSelectedLetter] = useState<string | null>(data.userAnswer);
-  const [revealed, setRevealed] = useState(!!data.userAnswer);
+  const { answerTrivia } = useTrivia();
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const revealed = !!data.userAnswer;
+  const selectedLetter = data.userAnswer;
 
   const categoryStyle = CATEGORY_COLORS[data.category] || { bg: "hsl(var(--secondary))", text: "hsl(var(--muted-foreground))" };
 
-  const handleAnswer = (letter: string) => {
-    if (revealed) return;
+  const handleAnswer = async (letter: string) => {
+    if (revealed || isSubmitting) return;
     if (!isAuthenticated) {
       openAuthModal("trivia_answer" as never);
       return;
     }
-    setSelectedLetter(letter);
-    setRevealed(true);
-    const isCorrect = letter === data.correctLetter;
-    if (isCorrect) {
-      addXP(data.xpReward);
-      toast.success(`+${data.xpReward} XP earned! 🎉`, { description: "Correct answer!" });
-    } else {
-      toast.error("Incorrect! Better luck tomorrow.", { description: `The answer was ${data.correctLetter}.` });
+    
+    setIsSubmitting(true);
+    try {
+      const result = await answerTrivia({ id: data.id, selectedLetter: letter });
+      if (result.isCorrect) {
+        addXP(result.xpAwarded);
+        toast.success(`+${result.xpAwarded} XP earned! 🎉`, { description: "Correct answer!" });
+      } else {
+        toast.error("Incorrect! Better luck tomorrow.", { description: `The answer was ${result.correctLetter}.` });
+      }
+    } catch (error) {
+      toast.error("Failed to submit answer");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -122,7 +70,7 @@ function TriviaCard({ data }: { data: TriviaCardData }) {
   };
 
   return (
-    <div style={{ border: "0.5px solid hsl(var(--border))", borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ border: "0.5px solid hsl(var(--border))", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
       {/* Header panel */}
       <div style={{
         background: "#0A1628", padding: "11px 14px",
@@ -153,7 +101,7 @@ function TriviaCard({ data }: { data: TriviaCardData }) {
       </div>
 
       {/* Body */}
-      <div style={{ padding: "12px 14px" }}>
+      <div style={{ padding: "12px 14px", flex: 1, display: "flex", flexDirection: "column" }}>
         {/* Category + Difficulty */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 9, fontWeight: 500, padding: "2px 7px", borderRadius: 4, background: categoryStyle.bg, color: categoryStyle.text }}>
@@ -168,17 +116,17 @@ function TriviaCard({ data }: { data: TriviaCardData }) {
         </p>
 
         {/* Options */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
           {data.options.map((opt) => (
             <button
               key={opt.letter}
               onClick={() => handleAnswer(opt.letter)}
-              disabled={revealed}
+              disabled={revealed || isSubmitting}
               style={{
                 display: "flex", alignItems: "center", gap: 7,
                 padding: "7px 9px", borderRadius: 8,
                 ...getOptionStyle(opt.letter),
-                cursor: revealed ? "not-allowed" : "pointer",
+                cursor: (revealed || isSubmitting) ? "not-allowed" : "pointer",
                 fontSize: 11, transition: "all 0.15s", textAlign: "left", width: "100%",
               }}
             >
@@ -194,6 +142,28 @@ function TriviaCard({ data }: { data: TriviaCardData }) {
             </button>
           ))}
         </div>
+
+        {/* Explanation Reveal */}
+        {revealed && (
+          <div style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            borderRadius: 8,
+            background: selectedLetter === data.correctLetter ? "#EAF3DE" : "#FEF2F2",
+            border: `0.5px solid ${selectedLetter === data.correctLetter ? "#16A34A" : "#DC2626"}`,
+            color: selectedLetter === data.correctLetter ? "#166534" : "#991B1B",
+          }}>
+            <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+              {selectedLetter === data.correctLetter ? "✓ Correct!" : "✗ Wrong answer"}
+            </p>
+            <p style={{ fontSize: 11, lineHeight: 1.5, marginBottom: 6 }}>
+              {data.explanation}
+            </p>
+            <p style={{ fontSize: 10, fontWeight: 500, opacity: 0.8 }}>
+              {selectedLetter === data.correctLetter ? `+${data.xpReward} XP earned` : "Come back tomorrow"}
+            </p>
+          </div>
+        )}
 
         {/* Footer */}
         <div style={{
@@ -213,6 +183,8 @@ function TriviaCard({ data }: { data: TriviaCardData }) {
 }
 
 export function TriviaSection() {
+  const { triviaItems, isLoading } = useTrivia();
+
   return (
     <section style={{ padding: "18px 20px", borderBottom: "0.5px solid hsl(var(--border))" }}>
       {/* Header */}
@@ -222,7 +194,9 @@ export function TriviaSection() {
             <span style={{ fontSize: 10 }}>🧠</span>
           </div>
           <span style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }}>Daily trivia</span>
-          <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))", padding: "2px 6px", borderRadius: 5 }}>+200 XP today</span>
+          <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))", padding: "2px 6px", borderRadius: 5 }}>
+            +200 XP today
+          </span>
         </div>
         <button style={{ fontSize: 11, color: "#534AB7", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
           All trivia →
@@ -230,11 +204,18 @@ export function TriviaSection() {
       </div>
 
       {/* 2-column grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {MOCK_TRIVIA.map(card => (
-          <TriviaCard key={card.id} data={card} />
-        ))}
-      </div>
+      {isLoading ? (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ height: 250, background: "hsl(var(--secondary))", borderRadius: 12, animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+          <div style={{ height: 250, background: "hsl(var(--secondary))", borderRadius: 12, animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {triviaItems.map(card => (
+            <TriviaCard key={card.id} data={card} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
