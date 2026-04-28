@@ -137,10 +137,15 @@ function paragraphsFrom(html: string): string {
 
 /** Pull article body text from raw HTML using semantic tags then class names */
 function extractArticleText(html: string): string {
-  // Remove scripts/styles first
+  // Remove scripts/styles/nav/aside/footer/related-articles blocks first
   const stripped = html
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[\s\S]*?<\/style>/gi, " ");
+    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
+    .replace(/<nav\b[\s\S]*?<\/nav>/gi, " ")
+    .replace(/<aside\b[\s\S]*?<\/aside>/gi, " ")
+    .replace(/<footer\b[\s\S]*?<\/footer>/gi, " ")
+    // Remove sidebar / related-content divs (PCGamer, IGN, Kotaku)
+    .replace(/<div[^>]*class="[^"]*(?:sidebar|related|recommended|widget|newsletter|promo|ad-unit|read-more)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, " ");
 
   // 1. <article> tag
   const articleMatch = /<article[^>]*>([\s\S]*?)<\/article>/i.exec(stripped);
@@ -150,15 +155,15 @@ function extractArticleText(html: string): string {
   const mainMatch = /<main[^>]*>([\s\S]*?)<\/main>/i.exec(stripped);
   if (mainMatch) { const t = paragraphsFrom(mainMatch[1]); if (t.length > 200) return t; }
 
-  // 3. Common article body class names (IGN, Kotaku, GameSpot, Polygon, etc.)
-  const classMatch = /<div[^>]*class="[^"]*(?:article[-_]body|article[-_]content|post[-_]content|entry[-_]content|story[-_]body|content[-_]body|prose|richtext)[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(stripped);
+  // 3. Common article body class names (IGN, Kotaku, GameSpot, Polygon, PCGamer, etc.)
+  const classMatch = /<div[^>]*class="[^"]*(?:article[-_]body|article[-_]content|post[-_]content|entry[-_]content|story[-_]body|content[-_]body|prose|richtext|article__body|article_body_content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(stripped);
   if (classMatch) { const t = paragraphsFrom(classMatch[1]); if (t.length > 200) return t; }
 
-  // 4. All <p> tags site-wide
+  // 4. All <p> tags site-wide — require ≥ 5 substantial paragraphs to avoid pulling nav/sidebar
   const allP = [...stripped.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
     .map(m => cleanText(m[1]))
-    .filter(p => p.length > 40);
-  if (allP.length > 2) return allP.join(" ");
+    .filter(p => p.length > 60);
+  if (allP.length >= 3) return allP.slice(0, 12).join(" ");
 
   return "";
 }
@@ -369,7 +374,11 @@ Write a 4-5 sentence summary (aim for ~100 words). Return ONLY valid JSON:
   }
 
   console.warn(`  Groq failed — using raw content`);
-  return { summary: content.split(/\s+/).slice(0, 100).join(" "), tags: [] };
+  // Truncate at sentence boundary so we don't cut mid-word/mid-sentence
+  const rough = content.split(/\s+/).slice(0, 120).join(" ");
+  const lastStop = Math.max(rough.lastIndexOf(". "), rough.lastIndexOf("! "), rough.lastIndexOf("? "));
+  const summary = lastStop > 60 ? rough.substring(0, lastStop + 1) : rough.split(/\s+/).slice(0, 80).join(" ");
+  return { summary, tags: [] };
 }
 
 // ---------------------------------------------------------------------------

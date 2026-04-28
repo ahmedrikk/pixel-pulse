@@ -252,13 +252,13 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         </div>
 
         {/* Headline */}
-        <h2 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors leading-tight line-clamp-2">
+        <h2 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors leading-tight line-clamp-3">
           {article.title}
         </h2>
 
         {/* Summary */}
         <div className="mb-4">
-          <p className="text-muted-foreground leading-relaxed line-clamp-7">
+          <p className="text-muted-foreground leading-relaxed line-clamp-5">
             {summaryText}
           </p>
         </div>
