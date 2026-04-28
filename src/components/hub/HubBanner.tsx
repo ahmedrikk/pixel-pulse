@@ -1,19 +1,16 @@
 import { useState } from "react";
 
-type HubTab = "all" | "streamers" | "trivia" | "takes" | "hype";
+type HubTab = "all" | "trivia" | "hype";
 
 interface HubBannerProps {
   activeTab: HubTab;
   setActiveTab: (tab: HubTab) => void;
-  liveStreamersCount: number;
 }
 
-export function HubBanner({ activeTab, setActiveTab, liveStreamersCount }: HubBannerProps) {
+export function HubBanner({ activeTab, setActiveTab }: HubBannerProps) {
   const tabs: { id: HubTab; label: string; dot?: boolean }[] = [
     { id: "all", label: "Everything" },
-    { id: "streamers", label: "Streamers", dot: liveStreamersCount > 0 },
     { id: "trivia", label: "Trivia" },
-    { id: "takes", label: "Hot Takes" },
     { id: "hype", label: "Hype Meter" },
   ];
 
@@ -56,7 +53,7 @@ export function HubBanner({ activeTab, setActiveTab, liveStreamersCount }: HubBa
           The <span style={{ color: "#818CF8", fontStyle: "normal" }}>Hub</span>
         </h1>
         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginBottom: 12, lineHeight: 1.5 }}>
-          Where the community lives — streamers, trivia, hot takes and game hype.
+          Where the community lives — trivia and game hype.
         </p>
 
         {/* Filter Tabs */}

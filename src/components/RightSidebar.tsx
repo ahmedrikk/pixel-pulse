@@ -4,6 +4,7 @@ import { Zap, Users, HelpCircle, ExternalLink, Radio, Trophy, Target, Crown } fr
 import { Button } from "@/components/ui/button";
 import { PredictionCard } from "./PredictionCard";
 import { Card, CardContent } from "@/components/ui/card";
+import { TriviaWidget } from "@/components/shared/TriviaWidget";
 import { useEsportsMatches } from "@/hooks/useEsportsMatches";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
 import type { EsportsMatch as PandaMatch } from "@/lib/pandascore";
@@ -197,26 +198,7 @@ export function RightSidebar() {
       </div>
 
       {/* Daily Trivia */}
-      <Link to="/trivia">
-        <Card className="cursor-pointer hover:border-primary/50 transition-colors group">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold flex items-center gap-2 group-hover:text-primary transition-colors">
-                <HelpCircle className="h-4 w-4 text-accent" />
-                Daily Trivia
-              </h3>
-              <Zap className="h-4 w-4 text-yellow-500" />
-            </div>
-            <p className="text-sm text-muted-foreground mb-3">
-              Test your gaming knowledge and earn up to <strong>155 XP</strong>!
-            </p>
-            <Button className="w-full gap-2" variant="secondary">
-              Play Now
-              <Trophy className="h-3 w-3" />
-            </Button>
-          </CardContent>
-        </Card>
-      </Link>
+      <TriviaWidget />
 
       {/* Friends Online */}
       <div className="bg-card rounded-lg border p-4 card-shadow">
