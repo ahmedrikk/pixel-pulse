@@ -178,7 +178,8 @@ function removeBoilerplate(text: string): string {
     .replace(/[\w\s/,]+via\s+(Polygon|IGN|GameSpot|Kotaku|RPS|Eurogamer|PCGamer|Dexerto|VG247|Gematsu)\s*/gi, "")
     // Eurogamer/RPS comment counts and follow buttons
     .replace(/\d+\s+comments?\s*/gi, "")
-    .replace(/\.?\s*\bNews on\s+\w+\s+\d{1,2}\s*,?\s*\d{4}\s*/gi, " ")
+    // Eurogamer inline label: ". News on April 17, 2026 The Sims 4 " → remove date + 0-4 word label
+    .replace(/\.?\s*\bNews on\s+\w+\s+\d{1,2}\s*,?\s*\d{4}\s+(?:\w+\s+){0,4}/gi, " ")
     .replace(/\bFollow\b\s*/g, "")
     // Social share / follow buttons (PCGamer embeds these inline)
     .replace(/(Flipboard|Pinterest|Reddit|Whatsapp|Facebook|Twitter|Email)\s+(Email\s+)?(Share this article\s*\d*\s*)?(Join the conversation\s*)?(Follow us\s*)?(Add us as[^.]+\.?)?/gi, "")
@@ -254,73 +255,125 @@ async function scrapeArticle(url: string): Promise<ScrapeResult> {
 }
 
 // ---------------------------------------------------------------------------
-// Groq — tags only
+// Groq — 100-word Inshorts-style summary + named-entity tags (rapid100 approach)
 // ---------------------------------------------------------------------------
-const TAGS_PROMPT = `You extract named entities from gaming news articles.
+const SYSTEM_PROMPT = `You are a gaming news editor for "Pixel Pulse" — an Inshorts-style news aggregator.
+Your task: Condense gaming news into tight, informative summaries.
 
-Return ONLY a JSON array of tags — named entities only:
-- Game titles: "ResidentEvil4", "GTA6", "CrimsonDesert" (PascalCase)
-- Studios/publishers: "Capcom", "FromSoftware", "RockstarGames"
-- Real people: "HideoKojima", "JackBlack", "ElonMusk"
-- Specific events: "EVO2025", "GameAwards2025"
+WRITING STYLE:
+- Confident and specific — like a knowledgeable friend telling you what happened
+- Direct, news-wire style. No filler phrases.
+- Never use: "dives into", "it's worth noting", "in conclusion", "comprehensive",
+  "significantly", "moreover", "furthermore", "according to", "in a statement"
+- Never start with: "In this article", "This article discusses", "This news covers"
+
+SUMMARY STRUCTURE (4-5 sentences, 18-25 words each):
+- Sentence 1: What happened (the core news fact) — aim for 20-25 words
+- Sentence 2: Key details or context — aim for 20-25 words
+- Sentence 3: Why it matters or additional detail — aim for 20-25 words
+- Sentence 4: What comes next, reaction, or final context — aim for 20-25 words
+- Optional Sentence 5: Brief wrap-up if needed
+
+4-5 sentences × ~22 words = 100 words total. Target range: 80-120 words.
+
+TAG RULES (named entities only, PascalCase, no # symbol, 3-6 tags max):
+- Game titles: "GTA6", "EldenRing", "BaldursGate3"
+- Studios/publishers: "RockstarGames", "FromSoftware", "Nintendo"
+- Real people: "HideoKojima", "PhilSpencer"
+- Events: "GameAwards2025", "EVO2025"
 - Platform ONLY if article is about hardware: "PS5", "Switch2"
 
-BANNED (do not include): Gaming, News, Game, Games, Update, Updates, Entertainment,
+BANNED TAGS (never include): Gaming, News, Game, Games, Update, Updates, Entertainment,
 RPG, FPS, Action, Adventure, Horror, Review, Preview, Trailer, Rumor, Leak,
-Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming, Esports
+Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming, Esports`;
 
-Rules: PascalCase, no # symbol, 3–6 tags max.
-Respond ONLY with a JSON array: ["Tag1", "Tag2", "Tag3"]`;
+interface SummarizeResult {
+  summary: string;
+  tags: string[];
+}
 
-async function extractTagsWithGroq(title: string, description: string): Promise<string[]> {
-  if (!GROQ_API_KEY) return [];
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
 
-  const userPrompt = `Title: ${title}\n\nDescription: ${description.substring(0, 500)}`;
+function extractJsonObject(text: string): Record<string, unknown> | null {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try { return JSON.parse(match[0]); } catch { return null; }
+}
 
-  for (const model of MODELS) {
-    try {
-      const res = await fetch(GROQ_API_URL, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${GROQ_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: TAGS_PROMPT },
-            { role: "user",   content: userPrompt },
-          ],
-          temperature: 0.1,
-          max_tokens: 100,
-        }),
-      });
+async function summarizeWithGroq(title: string, content: string): Promise<SummarizeResult> {
+  // Not enough content to summarize — return as-is
+  if (!GROQ_API_KEY || countWords(content) < 40) {
+    return { summary: content, tags: [] };
+  }
 
-      if (!res.ok) continue;
+  const MAX_RETRIES = 2;
 
-      const data = await res.json();
-      const raw = (data.choices?.[0]?.message?.content ?? "")
-        .replace(/<think>[\s\S]*?<\/think>/gi, "")
-        .replace(/```json\n?|\n?```/g, "")
-        .trim();
+  const userPrompt = `Article Title: ${title}
 
-      const match = raw.match(/\[[\s\S]*\]/);
-      if (!match) continue;
-      const tags = JSON.parse(match[0]);
-      if (!Array.isArray(tags)) continue;
+Article Content:
+${content.substring(0, 4000)}
 
-      const clean = tags
-        .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
-        .slice(0, 6);
+Write a 4-5 sentence summary (aim for ~100 words). Return ONLY valid JSON:
+{
+  "summary": "your summary here",
+  "tags": ["Tag1", "Tag2", "Tag3"]
+}`;
 
-      console.log(`  tags (${model}): ${clean.join(", ")}`);
-      return clean;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    for (const model of MODELS) {
+      try {
+        const res = await fetch(GROQ_API_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${GROQ_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user",   content: userPrompt },
+            ],
+            temperature: 0.3,
+            max_tokens: 500,
+            response_format: { type: "json_object" },
+          }),
+        });
 
-    } catch (err) {
-      console.warn(`Tag extraction error (${model}):`, err);
+        if (!res.ok) {
+          const errText = await res.text();
+          console.warn(`  Groq ${model} ${res.status}: ${errText.substring(0, 200)}`);
+          continue;
+        }
+
+        const data = await res.json();
+        const raw = (data.choices?.[0]?.message?.content ?? "")
+          .replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+
+        const parsed = extractJsonObject(raw);
+        if (!parsed) { console.warn(`  ${model}: JSON parse failed`); continue; }
+
+        const summary = String(parsed.summary ?? "").trim();
+        if (!summary) { console.warn(`  ${model}: empty summary`); continue; }
+
+        const wc = countWords(summary);
+        const tags = (Array.isArray(parsed.tags) ? parsed.tags as unknown[] : [])
+          .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
+          .slice(0, 6);
+
+        console.log(`  ✓ ${wc}w (${model}) tags: ${tags.join(", ")}`);
+        return { summary, tags };
+
+      } catch (err) {
+        console.warn(`  Groq error (${model}):`, err);
+      }
     }
   }
-  return [];
+
+  console.warn(`  Groq failed — using raw content`);
+  return { summary: content.split(/\s+/).slice(0, 100).join(" "), tags: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -391,76 +444,67 @@ serve(async (req) => {
 
   console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
 
-  // Step 3: Process new articles in batches of 10
-  // Summary = RSS description (publisher-written, clean plain text, capped at 80 words)
-  // Image   = RSS enclosure URL (already in the feed, no external fetch needed)
-  // Tags    = Groq named-entity extraction
+  // Step 3: Process new articles sequentially (Groq rate limit: ~20 req/min free tier)
+  // Content = scraped article text OR RSS description (whichever has more signal)
+  // Summary = Groq 100-word Inshorts-style summary with retry validation
+  // Image   = RSS enclosure URL or scraped og:image
+  // Tags    = named entities extracted by same Groq call
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24);
   let processed = 0;
 
-  const BATCH = 10;
-  for (let i = 0; i < newItems.length; i += BATCH) {
-    const batch = newItems.slice(i, i + BATCH);
+  for (const item of newItems) {
+    try {
+      console.log(`Processing: "${item.title.substring(0, 60)}"`);
 
-    await Promise.all(batch.map(async (item) => {
-      try {
-        console.log(`Processing: "${item.title.substring(0, 60)}"`);
+      // Get best available content for AI summarization
+      const rssDesc = removeBoilerplate(stripHtml(item.description));
+      const rssWords = rssDesc.split(/\s+/).filter(Boolean).length;
 
-        // RSS description → clean plain text (boilerplate stripped)
-        const rssDesc = firstWords(removeBoilerplate(stripHtml(item.description)), 100);
-        const rssWords = rssDesc.split(/\s+/).filter(Boolean).length;
+      let content: string;
+      let scrapedImage: string | null = null;
 
-        // Scrape full article when RSS description is too short (< 50 words) or image missing
-        let summary: string;
-        let scrapedImage: string | null = null;
-        if (rssWords >= 50 && item.enclosureUrl) {
-          // RSS has enough content and an image — use it directly
-          summary = rssDesc;
-        } else {
-          const scraped = await scrapeArticle(item.link);
-          scrapedImage = scraped.ogImage;
-          if (scraped.text.length > 100) {
-            summary = firstWords(scraped.text, 100);
-            console.log(`  scraped → ${summary.split(/\s+/).length}w (${item.source})`);
-          } else {
-            summary = rssWords > 5 ? rssDesc : item.title;
-          }
-        }
-
-        const imageUrl = item.enclosureUrl ?? scrapedImage ?? "";
-        const tags = await extractTagsWithGroq(item.title, summary);
-
-        console.log(`  ${summary.split(/\s+/).length}w | tags: ${tags.join(", ")}`);
-
-        const { error } = await supabase.from("cached_articles").upsert({
-          original_id:  `${item.source}-${item.link.substring(item.link.length - 60)}`,
-          title:        item.title,
-          summary,
-          source_url:   item.link,
-          image_url:    imageUrl,
-          og_image_url: null,
-          category:     "Gaming",
-          source:       item.source,
-          author:       item.author,
-          ai_title:     item.title,
-          ai_summary:   summary,
-          tags,
-          likes:        0,
-          article_date: (() => { try { return new Date(item.pubDate).toISOString(); } catch { return new Date().toISOString(); } })(),
-          expires_at:   expiresAt.toISOString(),
-        }, { onConflict: "source_url" });
-
-        if (error) console.error(`DB upsert error for "${item.title}":`, error);
-        else processed++;
-
-      } catch (err) {
-        console.error(`Error processing "${item.title}":`, err);
+      if (rssWords >= 50 && item.enclosureUrl) {
+        // RSS has enough text + image — skip scrape to save time
+        content = rssDesc;
+      } else {
+        const scraped = await scrapeArticle(item.link);
+        scrapedImage = scraped.ogImage;
+        content = scraped.text.length > 100 ? scraped.text : (rssWords > 5 ? rssDesc : item.title);
+        console.log(`  scraped → ${content.split(/\s+/).length}w`);
       }
-    }));
 
-    if (i + BATCH < newItems.length) {
-      await new Promise(r => setTimeout(r, 1000));
+      const imageUrl = item.enclosureUrl ?? scrapedImage ?? "";
+
+      // AI: 100-word summary + named-entity tags in one call
+      const { summary, tags } = await summarizeWithGroq(item.title, content);
+
+      const { error } = await supabase.from("cached_articles").upsert({
+        original_id:  `${item.source}-${item.link.substring(item.link.length - 60)}`,
+        title:        item.title,
+        summary,
+        source_url:   item.link,
+        image_url:    imageUrl,
+        og_image_url: null,
+        category:     "Gaming",
+        source:       item.source,
+        author:       item.author,
+        ai_title:     item.title,
+        ai_summary:   summary,
+        tags,
+        likes:        0,
+        article_date: (() => { try { return new Date(item.pubDate).toISOString(); } catch { return new Date().toISOString(); } })(),
+        expires_at:   expiresAt.toISOString(),
+      }, { onConflict: "source_url" });
+
+      if (error) console.error(`DB upsert error for "${item.title}":`, error);
+      else processed++;
+
+      // 3s gap between articles — respect Groq free tier (20 req/min)
+      await new Promise(r => setTimeout(r, 3000));
+
+    } catch (err) {
+      console.error(`Error processing "${item.title}":`, err);
     }
   }
 
