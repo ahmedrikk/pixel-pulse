@@ -20,9 +20,7 @@ const RSS_FEEDS = [
   { url: "https://www.polygon.com/rss/index.xml",           source: "Polygon" },
   { url: "https://www.dexerto.com/gaming/feed/",            source: "Dexerto" },
   { url: "https://www.sportskeeda.com/feed/esports",        source: "Sportskeeda" },
-  { url: "https://www.eurogamer.net/feed/news",             source: "Eurogamer" },
   { url: "https://www.pcgamer.com/rss/",                    source: "PCGamer" },
-  { url: "https://www.rockpapershotgun.com/feed",           source: "RPS" },
   { url: "https://www.gematsu.com/feed",                    source: "Gematsu" },
   { url: "https://www.vg247.com/feed",                      source: "VG247" },
 ];
@@ -175,11 +173,9 @@ function removeBoilerplate(text: string): string {
     .replace(/\(?Image credit:[^)\n.]{0,80}\)?/gi, "")
     .replace(/Image:\s*[^.|\n]{0,80}?(via\s+\w+\s*)?(?=[A-Z][a-z])/g, "")
     // "X via Polygon/IGN/GameSpot" image attribution orphans
-    .replace(/[\w\s/,]+via\s+(Polygon|IGN|GameSpot|Kotaku|RPS|Eurogamer|PCGamer|Dexerto|VG247|Gematsu)\s*/gi, "")
-    // Eurogamer/RPS comment counts and follow buttons
+    .replace(/[\w\s/,]+via\s+(Polygon|IGN|GameSpot|Kotaku|PCGamer|Dexerto|VG247|Gematsu)\s*/gi, "")
+    // Comment counts and follow buttons
     .replace(/\d+\s+comments?\s*/gi, "")
-    // Eurogamer inline label: ". News on April 17, 2026 The Sims 4 " → remove date + 0-4 word label
-    .replace(/\.?\s*\bNews on\s+\w+\s+\d{1,2}\s*,?\s*\d{4}\s+(?:\w+\s+){0,4}/gi, " ")
     .replace(/\bFollow\b\s*/g, "")
     // Social share / follow buttons (PCGamer embeds these inline)
     .replace(/(Flipboard|Pinterest|Reddit|Whatsapp|Facebook|Twitter|Email)\s+(Email\s+)?(Share this article\s*\d*\s*)?(Join the conversation\s*)?(Follow us\s*)?(Add us as[^.]+\.?)?/gi, "")
