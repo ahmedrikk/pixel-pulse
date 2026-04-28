@@ -10,7 +10,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Article, XP_VALUES } from "@/types/feed";
+import { Article, XP_VALUES, GameReview } from "@/types/feed";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useXP } from "@/contexts/XPContext";
@@ -18,6 +18,9 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EnhancedCommentSection } from "./EnhancedCommentSection";
+import { GameReviewPrompt } from "./GameReviewPrompt";
+import { fetchGameList } from "@/lib/rawg";
+import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,7 +63,7 @@ function isSpecificTag(tag: string): boolean {
 
 export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps) {
   const { setActiveTag } = useTagFilter();
-  const { isAuthenticated, openAuthModal } = useAuthGate();
+  const { isAuthenticated, openAuthModal, user } = useAuthGate();
   const { addXP } = useXP();
   const { isBookmarked, toggleBookmark } = useBookmarks();
 
@@ -70,35 +73,78 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const [userReactions, setUserReactions] = useState<Record<string, number>>(article.reactions || {});
   const [hasAwardedView, setHasAwardedView] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
+  const [reviewGame, setReviewGame] = useState<{ id: string; name: string; coverUrl: string } | null>(null);
 
   const cardRef = useRef<HTMLElement>(null);
   const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isVisibleRef = useRef(false);
   const hasTriggeredViewRef = useRef(false);
+  const hasCheckedGameRef = useRef(false);
 
   const isCurrentlyBookmarked = isBookmarked(article.id);
+  const primaryTag = article.topicTags.find(isSpecificTag) ?? null;
 
   const handleTagClick = (tag: string) => setActiveTag(tag);
+
+  // Lazy RAWG lookup — only fires once per card, only for authenticated users
+  const checkGameAndShowReview = useCallback(async (tag: string | null) => {
+    if (!tag || !isAuthenticated || hasCheckedGameRef.current) {
+      if (hasCheckedGameRef.current && reviewGame) setShowReviewPrompt(true);
+      return;
+    }
+    hasCheckedGameRef.current = true;
+    try {
+      const { results } = await fetchGameList({ search: tag, page_size: 1 });
+      if (results.length > 0) {
+        const g = results[0];
+        const gameData = { id: String(g.id), name: g.name, coverUrl: g.background_image ?? "" };
+        setReviewGame(gameData);
+        setShowReviewPrompt(true);
+      }
+    } catch { /* RAWG unavailable — silently skip */ }
+  }, [isAuthenticated, reviewGame]);
 
   const handleLike = useCallback(() => {
     if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
     setLiked(!liked);
     setLikeCount(liked ? likeCount - 1 : likeCount + 1);
-    if (!liked) { addXP(XP_VALUES.REACT); toast.success(`+${XP_VALUES.REACT} XP!`, { duration: 1500 }); }
-  }, [isAuthenticated, liked, likeCount, article.id, openAuthModal, addXP]);
+    if (!liked) {
+      addXP(XP_VALUES.REACT);
+      toast.success(`+${XP_VALUES.REACT} XP!`, { duration: 1500 });
+      checkGameAndShowReview(primaryTag);
+    }
+  }, [isAuthenticated, liked, likeCount, article.id, openAuthModal, addXP, checkGameAndShowReview, primaryTag]);
 
   const handleReaction = useCallback((emoji: string) => {
     if (!isAuthenticated) { openAuthModal("react", { articleId: article.id }); return; }
     setUserReactions(prev => ({ ...prev, [emoji]: (prev[emoji] || 0) + 1 }));
     addXP(XP_VALUES.REACT);
     toast.success(`+${XP_VALUES.REACT} XP!`, { duration: 1500 });
-  }, [isAuthenticated, article.id, openAuthModal, addXP]);
+    checkGameAndShowReview(primaryTag);
+  }, [isAuthenticated, article.id, openAuthModal, addXP, checkGameAndShowReview, primaryTag]);
 
   const handleBookmark = useCallback(() => {
     if (!isAuthenticated) { openAuthModal("bookmark", { articleId: article.id }); return; }
     const newState = toggleBookmark(article);
     toast.success(newState ? "Saved to bookmarks" : "Removed from bookmarks");
-  }, [isAuthenticated, article, openAuthModal, toggleBookmark]);
+    if (newState) checkGameAndShowReview(primaryTag);
+  }, [isAuthenticated, article, openAuthModal, toggleBookmark, checkGameAndShowReview, primaryTag]);
+
+  const handleReviewSubmit = useCallback(async (review: Omit<GameReview, "id" | "userId" | "createdAt">) => {
+    if (!reviewGame || !user) return;
+    await supabase.from("games").upsert(
+      { id: reviewGame.id, name: reviewGame.name, slug: reviewGame.id, expires_at: new Date(Date.now() + 86400000).toISOString() },
+      { onConflict: "id", ignoreDuplicates: true }
+    );
+    await supabase.from("user_game_reviews").insert({
+      user_id: user.id,
+      game_id: reviewGame.id,
+      star_rating: review.starRating,
+      review_text: review.reviewText || null,
+      tags: review.tags,
+    });
+  }, [reviewGame, user]);
 
   const handleShare = useCallback(async (type: "copy" | "twitter" | "whatsapp") => {
     const url = article.sourceUrl;
@@ -159,7 +205,6 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   }, [addXP]);
 
   const summaryText = article.summary || "";
-  const primaryTag = article.topicTags.find(isSpecificTag) ?? null;
   const displayTags = article.topicTags.slice(0, 4);
   const showImage = !imgError && !!article.heroImageUrl;
 
@@ -311,6 +356,19 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         {/* Comments Section */}
         {showComments && (
           <EnhancedCommentSection articleId={article.id} className="mt-4" />
+        )}
+
+        {/* Game Review Prompt — only when RAWG confirmed the game exists */}
+        {reviewGame && (
+          <GameReviewPrompt
+            articleId={article.id}
+            gameId={reviewGame.id}
+            gameName={reviewGame.name}
+            gameCoverUrl={reviewGame.coverUrl}
+            isVisible={showReviewPrompt}
+            onDismiss={() => setShowReviewPrompt(false)}
+            onSubmit={handleReviewSubmit}
+          />
         )}
       </div>
     </article>
