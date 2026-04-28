@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { type EsportsMatch } from '@/lib/pandascore';
 import { useAuthGate } from '@/contexts/AuthGateContext';
+import { WatchLiveButton } from '@/components/esports/WatchLiveButton';
 
 interface FeaturedMatchHeroProps {
   match: EsportsMatch | null;
@@ -22,6 +23,7 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
   const isLive = match.status === 'running';
   const gameKey = match.gameSlug?.toLowerCase().replace(/-/g, '') || 'valorant';
   const gameColors = GAME_INIT_COLORS[gameKey] || GAME_INIT_COLORS['valorant'];
+  const bannerImage = `/images/banners/${gameKey}-banner.jpg`;
 
   // Mock community predictions
   const communityA = 62;
@@ -37,13 +39,20 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
   }
 
   return (
-    <div style={{ background: '#0A1628', position: 'relative', overflow: 'hidden' }}>
-      {/* CSS Orbs */}
-      <div style={{ width: 320, height: 320, background: '#534AB7', opacity: 0.10, top: -100, right: 80, borderRadius: '50%', position: 'absolute', pointerEvents: 'none' }} />
-      <div style={{ width: 220, height: 220, background: '#EA580C', opacity: 0.08, top: 10, right: 0, borderRadius: '50%', position: 'absolute', pointerEvents: 'none' }} />
-      <div style={{ width: 180, height: 180, background: '#F59E0B', opacity: 0.06, bottom: -60, right: 140, borderRadius: '50%', position: 'absolute', pointerEvents: 'none' }} />
+    <div className="hero-container">
+      {/* Background Layer */}
+      <div 
+        className="hero-bg-image" 
+        style={{ backgroundImage: `url('${bannerImage}')` }}
+      />
+      <div className="hero-overlay" />
 
-      <div style={{ position: 'relative', zIndex: 1, padding: '16px 20px 0' }}>
+      {/* CSS Orbs */}
+      <div className="hero-orb orb1" />
+      <div className="hero-orb orb2" />
+      <div className="hero-orb orb3" />
+
+      <div className="hero-content padding-x" style={{ padding: '16px 20px 0' }}>
         {/* Eyebrow */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           {isLive && (
@@ -54,6 +63,11 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>
             Match of the day · {match.league} · {match.numberOfGames ? `Bo${match.numberOfGames}` : 'Match'}
           </span>
+          {isLive && match.streamUrl && (
+            <div className="ml-auto">
+              <WatchLiveButton streamUrl={match.streamUrl} matchId={match.id} />
+            </div>
+          )}
         </div>
 
         {/* Match Display */}
@@ -71,7 +85,7 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
                 ? <img src={match.team1Image} alt={match.team1} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 14 }} />
                 : (match.team1?.[0] ?? 'T')}
             </div>
-            <span style={{ fontSize: 14, fontWeight: 500, color: '#fff', textAlign: 'center', maxWidth: 100 }}>{match.team1}</span>
+            <span title={match.team1} className="hero-team-name">{match.team1}</span>
             <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>Team A</span>
           </div>
 
@@ -98,7 +112,7 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
                 ? <img src={match.team2Image} alt={match.team2} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 14 }} />
                 : (match.team2?.[0] ?? 'T')}
             </div>
-            <span style={{ fontSize: 14, fontWeight: 500, color: '#fff', textAlign: 'center', maxWidth: 100 }}>{match.team2}</span>
+            <span title={match.team2} className="hero-team-name">{match.team2}</span>
             <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>Team B</span>
           </div>
         </div>

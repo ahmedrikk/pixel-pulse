@@ -5,6 +5,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { Button } from "@/components/ui/button";
 import { BattlePassPromoWidget } from "@/components/sidebar/BattlePassPromoWidget";
 import { CategoryPillsWidget } from "@/components/sidebar/CategoryPillsWidget";
+import { UserProfileWidget } from "@/components/sidebar/UserProfileWidget";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
@@ -19,6 +20,9 @@ export function LeftSidebar() {
 
   return (
     <aside className="w-full lg:w-64 space-y-4">
+      {/* User Profile Widget */}
+      <UserProfileWidget />
+
       {/* Main Navigation */}
       <nav className="bg-card rounded-lg border card-shadow overflow-hidden">
         {NAV_ITEMS.map((item) => (
