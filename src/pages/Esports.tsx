@@ -20,6 +20,7 @@ import { InlinePrediction } from "@/components/esports/InlinePrediction";
 import { PredictorLeaderboard } from "@/components/esports/PredictorLeaderboard";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useGamingNews } from "@/hooks/useGamingNews";
+import { WatchLiveButton } from "@/components/esports/WatchLiveButton";
 
 type TabType = "live" | "upcoming" | "results";
 
@@ -225,21 +226,19 @@ function Countdown({ timestamp }: { timestamp: string | null }) {
 
 /* ── Team Block ── */
 function TeamBlock({ name, imageUrl, isWinner, side }: { name: string; imageUrl: string | null; isWinner: boolean; side: "left" | "right" }) {
-  const align = side === "left" ? "text-right items-end" : "text-left items-start";
+  const containerClass = side === "left" ? "match-team-left" : "match-team-right";
   return (
-    <div className={`flex flex-col gap-1.5 flex-1 min-w-0 ${align}`}>
-      <div className={`flex items-center gap-3 ${side === "left" ? "flex-row-reverse" : ""}`}>
-        {imageUrl ? (
-          <img src={imageUrl} alt={name} className="w-8 h-8 rounded object-contain flex-shrink-0 bg-secondary" />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/40 to-accent/40 flex items-center justify-center text-xs font-bold flex-shrink-0 text-foreground">
-            {name[0] ?? "?"}
-          </div>
-        )}
-        <span className={`text-sm font-bold truncate ${isWinner ? "text-[hsl(var(--gold))]" : "text-foreground"}`}>
-          {name}
-        </span>
-      </div>
+    <div className={containerClass}>
+      {imageUrl ? (
+        <img src={imageUrl} alt={name} className="w-8 h-8 rounded object-contain flex-shrink-0 bg-secondary" />
+      ) : (
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/40 to-accent/40 flex items-center justify-center text-xs font-bold flex-shrink-0 text-foreground">
+          {name[0] ?? "?"}
+        </div>
+      )}
+      <span title={name} className={`match-team-name ${isWinner ? "text-[hsl(var(--gold))]" : "text-foreground"}`}>
+        {name}
+      </span>
     </div>
   );
 }
@@ -302,11 +301,11 @@ function MatchCard({
       </div>
 
       {/* Face-off */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-1 w-full mt-2">
         <TeamBlock name={match.team1} imageUrl={match.team1Image} isWinner={isWinner1} side="left" />
 
         {/* Score center */}
-        <div className="flex-shrink-0 w-24 flex flex-col items-center gap-1">
+        <div className="match-score flex flex-col items-center gap-1">
           {(status === "live" || status === "completed") && (
             <div className="flex items-center gap-2">
               <span className={`text-3xl font-black ${
@@ -335,15 +334,8 @@ function MatchCard({
         <span className="text-xs text-muted-foreground font-medium">
           {match.begin_at ? format(parseISO(match.begin_at), "HH:mm") + " UTC" : "TBD"}
         </span>
-        {status === "live" && match.streamUrl && (
-          <Button
-            size="sm"
-            className="h-8 text-xs gap-1.5 font-bold rounded-lg"
-            onClick={(e) => { e.stopPropagation(); onWatchLive(match); }}
-          >
-            <Tv2 className="h-3.5 w-3.5" />
-            Watch Live
-          </Button>
+        {status === "live" && (
+          <WatchLiveButton streamUrl={match.streamUrl} matchId={match.id} />
         )}
         {status === "upcoming" && (
           <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 rounded-lg">

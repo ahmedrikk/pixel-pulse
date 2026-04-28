@@ -158,3 +158,136 @@
     display: none;
   }
 }
+
+/* Match card team name — all instances */
+.match-team-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px; /* match card inline */
+}
+
+/* Featured hero match — larger names */
+.hero-team-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px; /* wider because hero has more space */
+  text-align: center;
+}
+
+/* Team side containers */
+.match-team-left,
+.match-team-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;     /* CRITICAL — allows truncation inside flex */
+  flex: 1;          /* takes equal space either side of score */
+  overflow: hidden; /* clips overflowing content */
+}
+
+.match-team-right {
+  flex-direction: row-reverse; /* logo on right side */
+  text-align: right;
+}
+
+/* Score stays fixed width — never shrinks */
+.match-score {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 0 10px;
+  min-width: 50px;
+  text-align: center;
+}
+
+/* Quick pick buttons */
+.quick-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+}
+
+.quick-pick-label {
+  font-size: 10px;
+  color: var(--color-text-tertiary, hsl(var(--muted-foreground)));
+  white-space: nowrap;
+  flex-shrink: 0; /* label never shrinks */
+}
+
+.quick-pick-buttons {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+  min-width: 0; /* allows buttons to shrink */
+}
+
+.quick-pick-btn {
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px; /* pill button max width */
+  flex: 1;
+  min-width: 0; /* CRITICAL — allows flex children to shrink below content size */
+  height: 26px;
+  border-radius: 6px;
+  font-weight: 500;
+  padding: 0 6px;
+}
+
+/* Hero Background Layers */
+.hero-container {
+  position: relative;
+  overflow: hidden;
+  background: #0A1628; /* fallback if image fails to load */
+  min-height: 260px;
+}
+
+/* Background game image */
+.hero-bg-image {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  /* Scale image slightly to allow parallax feel if needed later */
+  transform: scale(1.05);
+}
+
+/* Dark gradient overlay — heavier on left where text sits */
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    rgba(10, 22, 40, 0.92) 0%,    /* very dark on left — text side */
+    rgba(10, 22, 40, 0.75) 50%,   /* medium in centre */
+    rgba(10, 22, 40, 0.55) 100%   /* lighter on right — lets image show */
+  );
+  z-index: 1;
+}
+
+/* CSS orbs sit above overlay */
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+}
+.hero-orb.orb1 { width: 320px; height: 320px; background: #534AB7; opacity: 0.10; top: -100px; right: 80px; }
+.hero-orb.orb2 { width: 220px; height: 220px; background: #EA580C; opacity: 0.08; top: 10px; right: 0; }
+.hero-orb.orb3 { width: 180px; height: 180px; background: #F59E0B; opacity: 0.06; bottom: -60px; right: 140px; }
+
+/* Content renders above everything */
+.hero-content {
+  position: relative;
+  z-index: 3;
+}

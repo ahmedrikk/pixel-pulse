@@ -1,5 +1,6 @@
 import React from 'react';
 import { type NewsItem } from '@/data/mockNews';
+import { formatDistanceToNow, parseISO } from 'date-fns';
 
 // Map tags to game IDs
 const TAG_GAME_MAP: Record<string, string> = {
@@ -132,8 +133,10 @@ export function NewsSidebar({ news, activeGame, isLoading }: NewsSidebarProps) {
                 </p>
 
                 {/* Meta row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 10, color: 'hsl(var(--muted-foreground))' }}>{item.source}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 10, color: 'var(--color-text-tertiary, hsl(var(--muted-foreground)))' }}>
+                    {item.source} · {item.timestamp ? formatDistanceToNow(parseISO(item.timestamp), { addSuffix: true }) : ''}
+                  </span>
                   <span style={{ fontSize: 10, color: '#534AB7' }}>Read →</span>
                 </div>
               </div>
