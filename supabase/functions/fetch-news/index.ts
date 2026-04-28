@@ -127,27 +127,34 @@ function cleanText(html: string): string {
     .replace(/\s+/g, " ").trim();
 }
 
-/** Extract text from all <p> tags inside a block of HTML */
+/** Extract text from all <p> tags inside a block of HTML.
+ *  Only keeps paragraphs that look like prose (end with sentence-ending punctuation or are long). */
 function paragraphsFrom(html: string): string {
   return [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
     .map(m => cleanText(m[1]))
-    .filter(p => p.length > 40)
+    // Min 80 chars AND ends with sentence-ending char — filters out related-article headlines
+    .filter(p => p.length > 80 || (p.length > 40 && /[.!?'"»]$/.test(p)))
     .join(" ");
 }
 
 /** Pull article body text from raw HTML using semantic tags then class names */
 function extractArticleText(html: string): string {
-  // Remove scripts/styles/nav/aside/footer/related-articles blocks first
+  // Aggressively strip non-article blocks before parsing
   const stripped = html
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
     .replace(/<nav\b[\s\S]*?<\/nav>/gi, " ")
     .replace(/<aside\b[\s\S]*?<\/aside>/gi, " ")
     .replace(/<footer\b[\s\S]*?<\/footer>/gi, " ")
-    // Remove sidebar / related-content divs (PCGamer, IGN, Kotaku)
-    .replace(/<div[^>]*class="[^"]*(?:sidebar|related|recommended|widget|newsletter|promo|ad-unit|read-more)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, " ");
+    .replace(/<header\b[\s\S]*?<\/header>/gi, " ")
+    // Polygon: related-article blocks are in <li> or <div> with class containing "related", "c-related", "e-recommended"
+    .replace(/<[^>]+class="[^"]*(?:c-related|e-recommended|related[-_]article|sidebar[-_]?|read-next|read-more|newsletter|promo|ad[-_]unit|widget)[^"]*"[^>]*>[\s\S]*?<\/(?:div|ul|li|section)>/gi, " ")
+    // Polygon login prompt
+    .replace(/Sign in to your [^.]+\.com account[^.]*\./gi, "")
+    // Strip any remaining <ul> list items that look like article links (short text, no period)
+    .replace(/<li[^>]*>\s*<a[^>]*>[^<]{5,120}<\/a>\s*<\/li>/gi, " ");
 
-  // 1. <article> tag
+  // 1. <article> tag — most reliable
   const articleMatch = /<article[^>]*>([\s\S]*?)<\/article>/i.exec(stripped);
   if (articleMatch) { const t = paragraphsFrom(articleMatch[1]); if (t.length > 200) return t; }
 
@@ -155,15 +162,15 @@ function extractArticleText(html: string): string {
   const mainMatch = /<main[^>]*>([\s\S]*?)<\/main>/i.exec(stripped);
   if (mainMatch) { const t = paragraphsFrom(mainMatch[1]); if (t.length > 200) return t; }
 
-  // 3. Common article body class names (IGN, Kotaku, GameSpot, Polygon, PCGamer, etc.)
+  // 3. Common article body class names
   const classMatch = /<div[^>]*class="[^"]*(?:article[-_]body|article[-_]content|post[-_]content|entry[-_]content|story[-_]body|content[-_]body|prose|richtext|article__body|article_body_content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(stripped);
   if (classMatch) { const t = paragraphsFrom(classMatch[1]); if (t.length > 200) return t; }
 
-  // 4. All <p> tags site-wide — require ≥ 5 substantial paragraphs to avoid pulling nav/sidebar
+  // 4. Fallback: all qualifying <p> tags, capped at 12
   const allP = [...stripped.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
     .map(m => cleanText(m[1]))
-    .filter(p => p.length > 60);
-  if (allP.length >= 3) return allP.slice(0, 12).join(" ");
+    .filter(p => p.length > 80 || (p.length > 40 && /[.!?'"»]$/.test(p)));
+  if (allP.length >= 2) return allP.slice(0, 12).join(" ");
 
   return "";
 }
@@ -198,6 +205,9 @@ function removeBoilerplate(text: string): string {
     // "Save for later", "Get Notifications for X"
     .replace(/Save for later\s*/gi, "")
     .replace(/Get Notifications for[^.]+\.?/gi, "")
+    // Polygon: login prompt + article link headlines embedded in body
+    .replace(/Sign in to your [^.]+\.com account[^.]*\./gi, "")
+    .replace(/\bCreate an account\b[^.]*\./gi, "")
     // Bylines: "by First Last" at sentence boundaries
     .replace(/\bby\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\s*(Published|Updated|·|\|)?/g, "")
     // Gematsu bylines: "Sal Romano Mar 31 2026 / 8:29 PM EDT 0"
