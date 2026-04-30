@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { XPProvider } from "@/contexts/XPContext";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
@@ -23,10 +23,7 @@ import BattlePass from "./pages/BattlePass";
 import Hub from "./pages/Hub";
 import NotFound from "./pages/NotFound";
 import ComingSoon from "./pages/ComingSoon";
-import Step1Identity from "./pages/onboarding/Step1Identity";
-import Step2Platforms from "./pages/onboarding/Step2Platforms";
-import Step3Games from "./pages/onboarding/Step3Games";
-import Step4Confirmation from "./pages/onboarding/Step4Confirmation";
+import OnboardingPage from "./pages/onboarding/OnboardingPage";
 
 const queryClient = new QueryClient();
 
@@ -43,10 +40,11 @@ const App = () => (
               <BrowserRouter basename={import.meta.env.BASE_URL}>
                 <Routes>
                   {/* Onboarding — no guard */}
-                  <Route path="/onboarding/step-1" element={<Step1Identity />} />
-                  <Route path="/onboarding/step-2" element={<Step2Platforms />} />
-                  <Route path="/onboarding/step-3" element={<Step3Games />} />
-                  <Route path="/onboarding/step-4" element={<Step4Confirmation />} />
+                  <Route path="/onboarding" element={<OnboardingPage />} />
+                  <Route path="/onboarding/step-1" element={<Navigate to="/onboarding" replace />} />
+                  <Route path="/onboarding/step-2" element={<Navigate to="/onboarding" replace />} />
+                  <Route path="/onboarding/step-3" element={<Navigate to="/onboarding" replace />} />
+                  <Route path="/onboarding/step-4" element={<Navigate to="/onboarding" replace />} />
 
                   {/* All other routes — guarded */}
                   <Route path="/" element={<OnboardingGuard><Index /></OnboardingGuard>} />

@@ -23,6 +23,9 @@ const RSS_FEEDS = [
   { url: "https://www.pcgamer.com/rss/",                    source: "PCGamer" },
   { url: "https://www.gematsu.com/feed",                    source: "Gematsu" },
   { url: "https://www.vg247.com/feed",                      source: "VG247" },
+  { url: "https://gameinformer.com/rss.xml",                source: "Game Informer" },
+  { url: "https://wccftech.com/topic/games/feed/",          source: "WCCFtech" },
+  { url: "https://www.gamesradar.com/feeds/articles/rss/",  source: "GamesRadar" },
 ];
 
 // ---------------------------------------------------------------------------

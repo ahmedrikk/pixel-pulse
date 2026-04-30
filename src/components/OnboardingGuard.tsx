@@ -9,7 +9,6 @@ interface OnboardingGuardProps { children: ReactNode }
 export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const { isAuthenticated, isLoading, user } = useAuthGate();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
-  const [step, setStep] = useState<number>(1);
   // Show spinner for at most 2 seconds, then show children regardless
   const [spinnerExpired, setSpinnerExpired] = useState(false);
 
@@ -39,7 +38,6 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
       .then(({ data, error: sbError }) => {
         if (sbError) { setOnboardingDone(true); return; }
         setOnboardingDone(data?.onboarding_completed ?? false);
-        setStep(data?.onboarding_step ?? 1);
       })
       .catch(() => setOnboardingDone(true));
   }, [isAuthenticated, user]);
@@ -47,7 +45,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   // Redirect authenticated user to onboarding — happens even after spinner expired
   // so users who complete auth after the 2s window still get redirected correctly
   if (isAuthenticated && onboardingDone === false) {
-    return <Navigate to={`/onboarding/step-${step}`} replace />;
+    return <Navigate to="/onboarding" replace />;
   }
 
   // Spinner: only while auth or profile check is pending AND within 2-second window
