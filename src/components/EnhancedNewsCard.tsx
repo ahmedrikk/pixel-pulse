@@ -98,8 +98,11 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       const { results } = await fetchGameList({ search: tag, page_size: 1 });
       if (results.length > 0) {
         const g = results[0];
-        const gameData = { id: String(g.id), name: g.name, coverUrl: g.background_image ?? "" };
-        setReviewGame(gameData);
+        const tagNorm = tag.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const nameNorm = g.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+        // Require tag >= 6 chars and the tag prefix appears in the result name
+        if (tagNorm.length < 6 || !nameNorm.includes(tagNorm.substring(0, 5))) return;
+        setReviewGame({ id: String(g.id), name: g.name, coverUrl: g.background_image ?? "" });
         setShowReviewPrompt(true);
       }
     } catch { /* RAWG unavailable — silently skip */ }

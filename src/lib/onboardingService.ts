@@ -1,5 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 
+export const BANNER_GRADIENTS: Record<string, string> = {
+  bn1: 'linear-gradient(135deg,#0A1628,#FB923C)',
+  bn2: 'linear-gradient(135deg,#0d1b2e,#534AB7)',
+  bn3: 'linear-gradient(135deg,#001a0a,#0D9488)',
+  bn4: 'linear-gradient(135deg,#1a0000,#DC2626)',
+  bn5: 'linear-gradient(135deg,#1a0a1a,#7C3AED)',
+  bn6: 'linear-gradient(135deg,#0d1b2e,#D97706)',
+};
+
 export interface Step1Data {
   displayName: string;
   username: string;
@@ -8,6 +17,7 @@ export interface Step1Data {
   avatarInitials: string;
   avatarColor: string;
   bio: string;
+  bannerPreset: string;
 }
 
 export interface Step2Data {
@@ -46,6 +56,7 @@ export async function saveStep1(userId: string, data: Step1Data): Promise<void> 
       avatar_initials: data.avatarInitials,
       avatar_color: data.avatarColor,
       about_me: data.bio,
+      banner_url: BANNER_GRADIENTS[data.bannerPreset] ?? null,
       onboarding_step: 2,
     })
     .eq('id', userId);

@@ -116,7 +116,7 @@ export function GameReviewPrompt({
         />
         <div className="flex-1">
           <p className="text-sm text-muted-foreground mb-1">
-            You follow this game — have you played it?
+            You read about this game — have you played it?
           </p>
           <h4 className="font-bold">Rate {gameName}</h4>
         </div>
