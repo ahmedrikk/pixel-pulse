@@ -261,7 +261,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
         {/* Summary */}
         <div className="mb-4">
-          <p className="text-muted-foreground leading-relaxed line-clamp-9">
+          <p className="text-muted-foreground leading-relaxed">
             {summaryText}
           </p>
         </div>
