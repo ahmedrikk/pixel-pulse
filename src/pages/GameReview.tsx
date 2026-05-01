@@ -16,6 +16,7 @@ import { trackComment, trackReaction } from "@/lib/xpService";
 import { useGameDetails } from "@/hooks/useGameDetails";
 import { useUserReviews, useSubmitReview } from "@/hooks/useGameReviews";
 import { BottomNavBar } from "@/components/BottomNavBar";
+import { Footer } from "@/components/Footer";
 
 const platformIcons: Record<string, React.ReactNode> = {
   PC: <Monitor className="h-5 w-5" />,
@@ -126,7 +127,8 @@ export default function GameReview() {
   );
 
   return (
-    <SiteLayout>
+    <>
+      <SiteLayout>
 
       {/* Hero */}
       <div className="relative h-[420px] md:h-[480px] overflow-hidden rounded-2xl mb-6">
@@ -381,5 +383,7 @@ export default function GameReview() {
       </div>
       <BottomNavBar />
     </SiteLayout>
+      <Footer />
+    </>
   );
 }

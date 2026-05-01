@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { submitPrediction } from "@/lib/xpService";
 import { toast } from "sonner";
 import { differenceInMinutes, parseISO } from "date-fns";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 
 interface EsportsTeam {
   name: string;
@@ -51,6 +52,7 @@ export function PredictionCard({
   onPredict,
   compact = false,
 }: PredictionCardProps) {
+  const { isAuthenticated, openAuthModal } = useAuthGate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [predicted, setPredicted] = useState<"teamA" | "teamB" | null>(
     match.userPrediction || null
@@ -65,6 +67,11 @@ export function PredictionCard({
 
   const handlePredict = async (team: "teamA" | "teamB") => {
     if (isSubmitting || isLocked || predicted) return;
+
+    if (!isAuthenticated) {
+      openAuthModal("esports_predict", { matchId: match.id });
+      return;
+    }
 
     setIsSubmitting(true);
     const result = await submitPrediction(parseInt(match.id), team === "teamA" ? match.teamA.name : match.teamB.name);

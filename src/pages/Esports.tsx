@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink, Calendar, X, Tv2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -13,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { XPProgressBar } from "@/components/XPProgressBar";
 import { Navbar } from "@/components/Navbar";
 import { BottomNavBar } from "@/components/BottomNavBar";
+import { Footer } from "@/components/Footer";
 import { XPConnectionStrip } from "@/components/esports/XPConnectionStrip";
 import { FeaturedMatchHero } from "@/components/esports/FeaturedMatchHero";
 import { NewsSidebar } from "@/components/esports/NewsSidebar";
@@ -253,6 +255,7 @@ function MatchCard({
   gameFilters: GameFilter[];
   onWatchLive: (match: EsportsMatch) => void;
 }) {
+  const { isAuthenticated, openAuthModal } = useAuthGate();
   const gameId = getGameId(match);
   const gameFilter = gameFilters.find((g) => g.id === gameId);
   const status = getMatchStatus(match);
@@ -338,13 +341,35 @@ function MatchCard({
           <WatchLiveButton streamUrl={match.streamUrl} matchId={match.id} />
         )}
         {status === "upcoming" && (
-          <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 rounded-lg">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5 rounded-lg"
+            onClick={() => {
+              if (!isAuthenticated) {
+                openAuthModal("esports_reminder", { matchId: match.id });
+                return;
+              }
+              toast.info("Reminder feature coming soon!");
+            }}
+          >
             <Clock className="h-3.5 w-3.5" />
             Set Reminder
           </Button>
         )}
         {status === "completed" && (
-          <Button size="sm" variant="ghost" className="h-8 text-xs gap-1.5 text-muted-foreground">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs gap-1.5 text-muted-foreground"
+            onClick={() => {
+              if (!isAuthenticated) {
+                openAuthModal("esports_details", { matchId: match.id });
+                return;
+              }
+              toast.info("Match details coming soon!");
+            }}
+          >
             Match Details
             <ChevronRight className="h-3.5 w-3.5" />
           </Button>
@@ -779,6 +804,7 @@ export default function Esports() {
         )}
       </AnimatePresence>
       <BottomNavBar />
+      <Footer />
     </div>
   );
 }

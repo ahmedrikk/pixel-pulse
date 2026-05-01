@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/Avatar";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Profile {
   username: string | null;
   avatar_url: string | null;
   banner_url: string | null;
+  nameplate_url: string | null;
   about_me: string | null;
 }
 
@@ -24,7 +26,7 @@ export function UserProfileCard() {
       setIsLoggedIn(true);
       supabase
         .from("profiles")
-        .select("username, avatar_url, banner_url, about_me")
+        .select("username, avatar_url, banner_url, nameplate_url, about_me")
         .eq("id", user.id)
         .single()
         .then(({ data }) => setProfile(data));
@@ -74,26 +76,12 @@ export function UserProfileCard() {
 
         {/* Avatar overlapping banner */}
         <div className="absolute -bottom-8 left-5">
-          {profile?.avatar_url ? (
-            <motion.img
-              src={profile.avatar_url}
-              alt={displayName}
-              className="w-16 h-16 rounded-full object-cover border-[3px] border-card shadow-lg"
-              animate={isHovered ? { scale: 1.08 } : { scale: 1 }}
-              transition={{ type: "spring", stiffness: 400, damping: 15 }}
-            />
-          ) : (
-            <motion.div
-              className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-black text-foreground shadow-lg border-[3px] border-card"
-              style={{
-                background: "linear-gradient(135deg, hsl(142 71% 45%), hsl(186 100% 50%))",
-              }}
-              animate={isHovered ? { scale: 1.08 } : { scale: 1 }}
-              transition={{ type: "spring", stiffness: 400, damping: 15 }}
-            >
-              {initials}
-            </motion.div>
-          )}
+          <motion.div
+            animate={isHovered ? { scale: 1.08 } : { scale: 1 }}
+            transition={{ type: "spring", stiffness: 400, damping: 15 }}
+          >
+            <Avatar src={profile?.avatar_url ?? undefined} fallback={displayName} frameUrl={profile?.nameplate_url ?? undefined} size="lg" />
+          </motion.div>
         </div>
 
         {/* Name on banner */}

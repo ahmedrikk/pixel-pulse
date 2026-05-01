@@ -128,7 +128,7 @@ export interface Bookmark {
 }
 
 // Auth Gate Types
-export type GatedAction = "like" | "comment" | "bookmark" | "share_profile" | "share_feed" | "review" | "react" | "signup_prompt" | "battlepass" | "predict" | "scroll";
+export type GatedAction = "like" | "comment" | "bookmark" | "share_profile" | "share_feed" | "review" | "react" | "signup_prompt" | "battlepass" | "predict" | "scroll" | "esports_reminder" | "esports_details" | "esports_predict";
 
 export interface PendingAction {
   type: GatedAction;

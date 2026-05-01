@@ -12,7 +12,8 @@ import {
     CalendarDays
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Footer } from "@/components/Footer";
+import { Avatar } from "@/components/Avatar";
 import {
     getProfileByUsername,
     getSocialAccounts,
@@ -133,18 +134,7 @@ export default function PublicProfile() {
 
                         {/* Avatar & Nameplate Container */}
                         <div className="relative flex justify-center items-center h-40 w-40 shrink-0 mt-4 md:mt-0">
-                            {profile?.nameplate_url && (
-                                <div
-                                    className="absolute inset-[-20%] bg-contain bg-center bg-no-repeat z-0 pointer-events-none"
-                                    style={{ backgroundImage: `url(${profile.nameplate_url})` }}
-                                />
-                            )}
-                            <Avatar className="h-32 w-32 rounded-xl border-4 border-background/80 shadow-2xl ring-2 ring-primary/20 bg-background relative z-10 transition-transform hover:scale-105">
-                                <AvatarImage className="rounded-xl object-cover" src={profile?.avatar_url || undefined} />
-                                <AvatarFallback className="rounded-xl text-5xl font-bold bg-gradient-to-br from-primary/20 to-accent/20">
-                                    {profile.display_name?.[0]?.toUpperCase() || profile.username?.[0]?.toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
+                            <Avatar src={profile.avatar_url} fallback={profile.username} frameUrl={profile.nameplate_url ?? undefined} size="lg" />
                         </div>
 
                         {/* Profile Info */}
@@ -300,6 +290,7 @@ export default function PublicProfile() {
                     </Section>
                 )}
             </div>
+        <Footer />
         </div>
     );
 }

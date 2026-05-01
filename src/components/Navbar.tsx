@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, Search, Home, Trophy, Swords, Sun, Moon, User, LogOut, LogIn, Users } from "lucide-react";
+import { TrendingUp, Search, Home, Trophy, Swords, Sun, Moon, User, LogOut, LogIn, Users, Bell } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/Avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { XPProgressBar } from "./XPProgressBar";
 import { NavLink } from "@/components/NavLink";
@@ -111,13 +111,6 @@ export function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) {
 
           {/* Right Side */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* XP Progress Bar — desktop logged-in only */}
-            {user && (
-              <div className="hidden lg:block">
-                <XPProgressBar compact />
-              </div>
-            )}
-
             {/* Theme Toggle — desktop only */}
             <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-9 w-9 hidden md:flex">
               {theme === "light" ? (
@@ -127,17 +120,31 @@ export function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) {
               )}
             </Button>
 
+            {/* Notification Bell — desktop logged-in only */}
+            {user && (
+              <Link to="/notifications">
+                <Button variant="ghost" size="icon" className="relative h-9 w-9 hidden md:flex">
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                    0
+                  </span>
+                </Button>
+              </Link>
+            )}
+
+            {/* XP Progress Bar — desktop logged-in only */}
+            {user && (
+              <div className="hidden lg:block">
+                <XPProgressBar compact />
+              </div>
+            )}
+
             {/* Desktop Auth */}
             <div className="hidden md:flex items-center gap-1.5">
               {user ? (
                 <>
                   <Link to="/profile">
-                    <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
-                      <AvatarImage src={user.user_metadata?.avatar_url} />
-                      <AvatarFallback className="text-xs">
-                        {user.email?.[0]?.toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Avatar src={user.user_metadata?.avatar_url} fallback={user.email} size="md" />
                   </Link>
                   <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleLogout} title="Logout">
                     <LogOut className="h-4 w-4" />

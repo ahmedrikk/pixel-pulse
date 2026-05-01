@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getTodayTrivia, submitTrivia } from "@/lib/xpService";
+import { Footer } from "@/components/Footer";
 import { toast } from "sonner";
 
 interface TriviaQuestion {
@@ -321,6 +322,7 @@ export default function DailyTrivia() {
           )}
         </AnimatePresence>
       </main>
+    <Footer />
     </div>
   );
 }
