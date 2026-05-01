@@ -21,7 +21,7 @@ export function InlinePrediction({ match, isLive }: InlinePredictionProps) {
 
   function handlePredict(team: 'teamA' | 'teamB') {
     if (!isAuthenticated) {
-      openAuthModal('esports_predict' as any);
+      openAuthModal('esports_predict');
       return;
     }
     setSelectedTeam(prev => prev === team ? null : team);

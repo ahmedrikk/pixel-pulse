@@ -24,6 +24,10 @@ import Hub from "./pages/Hub";
 import NotFound from "./pages/NotFound";
 import ComingSoon from "./pages/ComingSoon";
 import OnboardingPage from "./pages/onboarding/OnboardingPage";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import CookiePolicy from "./pages/CookiePolicy";
+import ContentGuidelines from "./pages/ContentGuidelines";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +67,12 @@ const App = () => (
                   <Route path="/notifications" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                   <Route path="/guides" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                   <Route path="/hardware" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
+                  {/* Legal pages — public */}
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/cookies" element={<CookiePolicy />} />
+                  <Route path="/guidelines" element={<ContentGuidelines />} />
+
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>

@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { useGameCatalog, type CatalogGame } from "@/hooks/useGameCatalog";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
+import { Footer } from "@/components/Footer";
 import { Input } from "@/components/ui/input";
 
 const GENRES = [
@@ -119,7 +120,8 @@ export default function GameCatalog() {
   const filteredGames = games;   // hook already filters by genre/search
 
   return (
-    <SiteLayout>
+    <>
+      <SiteLayout>
       <div className="space-y-8 pb-16 md:pb-0">
         {/* Page Header */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
@@ -249,5 +251,7 @@ export default function GameCatalog() {
       </div>
       <BottomNavBar />
     </SiteLayout>
+      <Footer />
+    </>
   );
 }

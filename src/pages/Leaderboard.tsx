@@ -26,6 +26,7 @@ import {
   XP_PER_TIER,
   type RankTier,
 } from "@/lib/xpConstants";
+import { Footer } from "@/components/Footer";
 import { cn } from "@/lib/utils";
 
 interface LeaderboardEntry {
@@ -483,6 +484,7 @@ export default function Leaderboard() {
           </TabsContent>
         </Tabs>
       </main>
+    <Footer />
     </div>
   );
 }

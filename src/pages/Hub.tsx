@@ -3,6 +3,7 @@ import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { RightSidebar } from "@/components/RightSidebar";
 import { BottomNavBar } from "@/components/BottomNavBar";
+import { Footer } from "@/components/Footer";
 import { HubBanner } from "@/components/hub/HubBanner";
 import { TriviaSection } from "@/components/hub/TriviaSection";
 import { HypeMeterSection } from "@/components/hub/HypeMeterSection";
@@ -67,6 +68,7 @@ export function HubContent() {
       </div>
 
       <BottomNavBar />
+      <Footer />
     </div>
   );
 }

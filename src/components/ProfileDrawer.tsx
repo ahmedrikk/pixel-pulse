@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Avatar } from "@/components/Avatar";
 import { supabase } from "@/integrations/supabase/client";
 
 const NAV_LINKS = [
@@ -60,20 +61,7 @@ export function ProfileDrawer({ isOpen, onClose }: ProfileDrawerProps) {
 
         {/* Profile Section */}
         <div className="px-4 pb-4">
-          {user?.user_metadata?.avatar_url ? (
-            <img
-              src={user.user_metadata.avatar_url}
-              className="w-12 h-12 rounded-full object-cover"
-              alt={displayName}
-            />
-          ) : (
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-black text-foreground"
-              style={{ background: "linear-gradient(135deg, hsl(142 71% 45%), hsl(186 100% 50%))" }}
-            >
-              {initials}
-            </div>
-          )}
+          <Avatar src={user?.user_metadata?.avatar_url} fallback={displayName} size="lg" />
           <h3 className="mt-3 font-bold text-base text-foreground">{displayName}</h3>
           {handle && <p className="text-sm text-muted-foreground">{handle}</p>}
         </div>

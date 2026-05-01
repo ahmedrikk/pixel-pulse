@@ -8,8 +8,14 @@ import {
 import { useXP } from "@/contexts/XPContext";
 import { Navbar } from "@/components/Navbar";
 import { BottomNavBar } from "@/components/BottomNavBar";
+import { Footer } from "@/components/Footer";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import GuestBattlePass from "@/components/battle-pass/guest/BattlePassGuestPage";
+import confetti from 'canvas-confetti';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 // ─── TYPES ──────────────────────────────────────────────────
 type RewardType = "badge" | "title" | "coupon" | "frame" | "cosmetic" | "milestone" | "ultimate";
@@ -238,6 +244,8 @@ export default function BattlePass() {
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
   
   const [showDetail, setShowDetail] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTier, setModalTier] = useState<Tier | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const seasonEnd = useMemo(() => new Date(Date.now() + 63 * 86400000), []);
   const countdown = useCountdown(seasonEnd);
@@ -268,7 +276,19 @@ export default function BattlePass() {
 
   const selectTier = (tier: number) => {
     setSelectedTier(tier);
+    setModalTier(FREE_TIERS[tier - 1] || PREMIUM_TIERS[tier - 1] || null);
+    setModalOpen(true);
     setShowDetail(true);
+  };
+
+  const handleClaim = () => {
+    confetti({
+      particleCount: 120,
+      spread: 80,
+      origin: { y: 0.6 },
+      colors: ['#a855f7', '#06b6d4', '#f59e0b'],
+    });
+    setModalOpen(false);
   };
 
   return (
@@ -867,6 +887,44 @@ export default function BattlePass() {
         </AnimatePresence>
       </div>
 
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">{modalTier?.icon}</span>
+              <span>Tier {modalTier?.tier} Reward</span>
+            </DialogTitle>
+          </DialogHeader>
+          {modalTier && (
+            <div className="space-y-4 py-2">
+              <div className="flex items-center justify-center">
+                <span className="text-6xl">{modalTier.icon}</span>
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold">{modalTier.reward}</h3>
+                <p className="text-sm text-muted-foreground capitalize">{modalTier.type} · Act {modalTier.act}</p>
+              </div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground bg-secondary/50 rounded-lg px-4 py-2">
+                <span>XP Required</span>
+                <span className="font-mono font-bold">{modalTier.xp.toLocaleString()} XP</span>
+              </div>
+              <Button
+                className="w-full"
+                disabled={CURRENT_XP < modalTier.xp}
+                onClick={handleClaim}
+              >
+                {CURRENT_XP >= modalTier.xp ? 'Claim Reward' : 'Locked'}
+              </Button>
+              {CURRENT_XP < modalTier.xp && (
+                <p className="text-xs text-center text-muted-foreground">
+                  {(modalTier.xp - CURRENT_XP).toLocaleString()} XP more to unlock
+                </p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <style>{`
         @keyframes bp-shimmer {
           0% { transform: translateX(-100%); }
@@ -896,6 +954,7 @@ export default function BattlePass() {
         .bp-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
       `}</style>
       <BottomNavBar />
+      <Footer />
     </div>
   );
 }

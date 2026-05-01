@@ -27,6 +27,7 @@ import {
   Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Footer } from "@/components/Footer";
 
 // Steam Icon Component
 const SteamIcon = ({ className }: { className?: string }) => (
@@ -41,7 +42,7 @@ import { BattlePassPanel } from "@/components/BattlePassPanel";
 import { XP_PER_TIER } from "@/lib/xpConstants";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/Avatar";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -461,23 +462,9 @@ export default function Profile() {
 
             {/* Avatar & Nameplate Container */}
             <div className="relative flex justify-center items-center h-40 w-40 shrink-0">
-
-              {/* Nameplate (Overwatch style border/background) */}
-              {profile?.nameplate_url && (
-                <div
-                  className="absolute inset-[-20%] bg-contain bg-center bg-no-repeat z-0 pointer-events-none"
-                  style={{ backgroundImage: `url(${profile.nameplate_url})` }}
-                />
-              )}
-
               {/* Avatar Box */}
               <div className="group/avatar relative z-10">
-                <Avatar className="h-32 w-32 rounded-xl border-4 border-background/80 shadow-2xl cursor-pointer ring-2 ring-primary/20 bg-background transition-transform hover:scale-105" onClick={() => document.getElementById('avatar-upload')?.click()}>
-                  <AvatarImage className="rounded-xl object-cover" src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="rounded-xl text-5xl font-bold bg-gradient-to-br from-primary/20 to-accent/20">
-                    {profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <Avatar src={profile?.avatar_url} fallback={profile?.display_name || profile?.username} frameUrl={profile?.nameplate_url ?? undefined} size="xl" />
 
                 {/* Avatar Upload overlay */}
                 <div
@@ -960,6 +947,7 @@ export default function Profile() {
           </div>
         </Section>
       </div>
+    <Footer />
     </div>
   );
 }

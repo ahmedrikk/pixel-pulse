@@ -5,6 +5,7 @@ import { LeftSidebar } from "@/components/LeftSidebar";
 import { NewsFeed } from "@/components/NewsFeed";
 import { RightSidebar } from "@/components/RightSidebar";
 import { BottomNavBar } from "@/components/BottomNavBar";
+import { Footer } from "@/components/Footer";
 import { TagFilterProvider, useTagFilter } from "@/contexts/TagFilterContext";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { useXP } from "@/contexts/XPContext";
@@ -68,6 +69,7 @@ function IndexContent() {
       </div>
 
       <BottomNavBar />
+      <Footer />
     </div>
   );
 }
