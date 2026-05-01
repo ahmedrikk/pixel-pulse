@@ -71,8 +71,13 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
 
     const pubDate     = extractCDATA(block, "pubDate") || new Date().toISOString();
     const author      = extractCDATA(block, "dc:creator") || extractCDATA(block, "author") || "Staff Writer";
-    const description = extractCDATA(block, "description") || extractCDATA(block, "content:encoded") || "";
-    // Image: enclosure > media:content > first <img> in description HTML
+    // Prefer content:encoded if it's significantly longer than description
+    const descRaw     = extractCDATA(block, "description") || "";
+    const contentRaw  = extractCDATA(block, "content:encoded") || "";
+    const descWords   = descRaw.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+    const contentWords = contentRaw.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+    const description = contentWords > descWords + 10 ? contentRaw : (descRaw || contentRaw);
+
     const enclosureUrl =
       block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] ||
       block.match(/<media:content[^>]+url="([^"]+)"/i)?.[1] ||
@@ -87,7 +92,7 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
 }
 
 // ---------------------------------------------------------------------------
-// Strip HTML tags from RSS description and remove common RSS boilerplate
+// Strip HTML tags from RSS description
 // ---------------------------------------------------------------------------
 function stripHtml(html: string): string {
   return html
@@ -99,24 +104,14 @@ function stripHtml(html: string): string {
     .replace(/&rsquo;/g, "'").replace(/&lsquo;/g, "'")
     .replace(/&rdquo;/g, '"').replace(/&ldquo;/g, '"')
     .replace(/&mdash;/g, "—").replace(/&ndash;/g, "–")
-    // Remove trailing "Read more", "… Source", "The post X appeared first on Y."
     .replace(/\s*The post .+ appeared first on .+\.?\s*$/i, "")
     .replace(/\s*(Read more|…\s*Source|Continue reading|Full story)[^.]*\.?\s*$/i, "")
     .replace(/\s+/g, " ").trim();
 }
 
-// First N words of a string
-function firstWords(text: string, n: number): string {
-  const words = text.split(/\s+/).filter(Boolean);
-  return words.length <= n ? words.join(" ") : words.slice(0, n).join(" ");
-}
-
 // ---------------------------------------------------------------------------
-// Article scraper — fetches full article HTML and extracts clean body text.
-// Only called when RSS description is too short (< 50 words).
+// Article scraper
 // ---------------------------------------------------------------------------
-
-/** Strip tags + decode common HTML entities + collapse whitespace */
 function cleanText(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
@@ -130,19 +125,14 @@ function cleanText(html: string): string {
     .replace(/\s+/g, " ").trim();
 }
 
-/** Extract text from all <p> tags inside a block of HTML.
- *  Only keeps paragraphs that look like prose (end with sentence-ending punctuation or are long). */
 function paragraphsFrom(html: string): string {
   return [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
     .map(m => cleanText(m[1]))
-    // Min 80 chars AND ends with sentence-ending char — filters out related-article headlines
-    .filter(p => p.length > 80 || (p.length > 40 && /[.!?'"»]$/.test(p)))
+    .filter(p => p.length > 80 || (p.length > 40 && /[.!?"'»]$/.test(p)))
     .join(" ");
 }
 
-/** Pull article body text from raw HTML using semantic tags then class names */
 function extractArticleText(html: string): string {
-  // Aggressively strip non-article blocks before parsing
   const stripped = html
     .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
     .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
@@ -150,126 +140,165 @@ function extractArticleText(html: string): string {
     .replace(/<aside\b[\s\S]*?<\/aside>/gi, " ")
     .replace(/<footer\b[\s\S]*?<\/footer>/gi, " ")
     .replace(/<header\b[\s\S]*?<\/header>/gi, " ")
-    // Polygon: related-article blocks are in <li> or <div> with class containing "related", "c-related", "e-recommended"
-    .replace(/<[^>]+class="[^"]*(?:c-related|e-recommended|related[-_]article|sidebar[-_]?|read-next|read-more|newsletter|promo|ad[-_]unit|widget)[^"]*"[^>]*>[\s\S]*?<\/(?:div|ul|li|section)>/gi, " ")
-    // Polygon login prompt
+    .replace(/<[^>]+class="[^"]*(?:c-related|e-recommended|related[-_]article|sidebar[-_]?|read-next|read-more|newsletter|promo|ad[-_]unit|widget|share-bar|social-bar|author-bio|bio-box)[^"]*"[^>]*>[\s\S]*?<\/(?:div|ul|li|section|aside)>/gi, " ")
     .replace(/Sign in to your [^.]+\.com account[^.]*\./gi, "")
-    // Strip any remaining <ul> list items that look like article links (short text, no period)
     .replace(/<li[^>]*>\s*<a[^>]*>[^<]{5,120}<\/a>\s*<\/li>/gi, " ");
 
-  // 1. <article> tag — most reliable
   const articleMatch = /<article[^>]*>([\s\S]*?)<\/article>/i.exec(stripped);
   if (articleMatch) { const t = paragraphsFrom(articleMatch[1]); if (t.length > 200) return t; }
 
-  // 2. <main> tag
   const mainMatch = /<main[^>]*>([\s\S]*?)<\/main>/i.exec(stripped);
   if (mainMatch) { const t = paragraphsFrom(mainMatch[1]); if (t.length > 200) return t; }
 
-  // 3. Common article body class names
-  const classMatch = /<div[^>]*class="[^"]*(?:article[-_]body|article[-_]content|post[-_]content|entry[-_]content|story[-_]body|content[-_]body|prose|richtext|article__body|article_body_content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(stripped);
+  const classRe = /<div[^>]*class="[^"]*(?:article[-_]body|article[-_]content|post[-_]content|entry[-_]content|story[-_]body|content[-_]body|prose|richtext|article__body|article_body_content|post-body|entry-body|post__content|content__body|field--body|node__content|page-content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i;
+  const classMatch = classRe.exec(stripped);
   if (classMatch) { const t = paragraphsFrom(classMatch[1]); if (t.length > 200) return t; }
 
-  // 4. Fallback: all qualifying <p> tags, capped at 12
+  const sectionMatch = /<section[^>]*class="[^"]*(?:article|story|content)[^"]*"[^>]*>([\s\S]*?)<\/section>/i.exec(stripped);
+  if (sectionMatch) { const t = paragraphsFrom(sectionMatch[1]); if (t.length > 200) return t; }
+
   const allP = [...stripped.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
     .map(m => cleanText(m[1]))
-    .filter(p => p.length > 80 || (p.length > 40 && /[.!?'"»]$/.test(p)));
+    .filter(p => p.length > 80 || (p.length > 40 && /[.!?"'»]$/.test(p)));
   if (allP.length >= 2) return allP.slice(0, 12).join(" ");
 
   return "";
 }
 
-/** Remove common gaming-site boilerplate from scraped text */
 function removeBoilerplate(text: string): string {
   return text
-    // Affiliate disclosures
     .replace(/When you (purchase|buy) through links[^.]+\./gi, "")
     .replace(/Here['']s how it works\s*\.?\s*/gi, "")
-    // Image credits: "(Image credit: Xbox)" and "Image credit: ZA/UM"
     .replace(/\(?Image credit:[^)\n.]{0,80}\)?/gi, "")
     .replace(/Image:\s*[^.|\n]{0,80}?(via\s+\w+\s*)?(?=[A-Z][a-z])/g, "")
-    // "X via Polygon/IGN/GameSpot" image attribution orphans
     .replace(/[\w\s/,]+via\s+(Polygon|IGN|GameSpot|Kotaku|PCGamer|Dexerto|VG247|Gematsu)\s*/gi, "")
-    // Comment counts and follow buttons
     .replace(/\d+\s+comments?\s*/gi, "")
     .replace(/\bFollow\b\s*/g, "")
-    // Social share / follow buttons (PCGamer embeds these inline)
     .replace(/(Flipboard|Pinterest|Reddit|Whatsapp|Facebook|Twitter|Email)\s+(Email\s+)?(Share this article\s*\d*\s*)?(Join the conversation\s*)?(Follow us\s*)?(Add us as[^.]+\.?)?/gi, "")
     .replace(/Copy link\s*(Facebook|Twitter|X|Whatsapp|Reddit|Pinterest|Email)(\s+(Facebook|Twitter|X|Whatsapp|Reddit|Pinterest|Email))*/gi, "")
     .replace(/Add us as a preferred source on[^.]+\.?/gi, "")
-    // Jump Links / Table of contents
     .replace(/Jump Links?\s*/gi, "")
     .replace(/Contents\s+\d+/gi, "")
-    // Timestamps like "Mar 31, 2026, 21:00" in middle of text
     .replace(/\b[A-Z][a-z]{2}\s+\d{1,2},?\s+\d{4},?\s+\d{1,2}:\d{2}\b/g, "")
-    // Subscription / newsletter prompts (PCGamer, RPS)
     .replace(/Unlock instant access to[^.]+\./gi, "")
     .replace(/By submitting your information you agree to[^.]+\./gi, "")
-    .replace(/Sign up to[^.]+newsletter[^.]+\./gi, "")
-    // "Save for later", "Get Notifications for X"
+    .replace(/Sign up to[^.]+newsletter[^.]+\.?/gi, "")
     .replace(/Save for later\s*/gi, "")
     .replace(/Get Notifications for[^.]+\.?/gi, "")
-    // Polygon: login prompt + article link headlines embedded in body
     .replace(/Sign in to your [^.]+\.com account[^.]*\./gi, "")
     .replace(/\bCreate an account\b[^.]*\./gi, "")
-    // Bylines: "by First Last" at sentence boundaries
     .replace(/\bby\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\s*(Published|Updated|·|\|)?/g, "")
-    // Gematsu bylines: "Sal Romano Mar 31 2026 / 8:29 PM EDT 0"
     .replace(/^[A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]{2,8}\s+\d{1,2}\s+\d{4}\s*\/\s*\d{1,2}:\d{2}\s*[APM]{2}\s+[A-Z]{2,4}\s+\d+\s*/g, "")
     .replace(/[A-Z][a-z]+\s+[A-Z][a-z]+\s+[A-Z][a-z]{2,8}\s+\d{1,2}\s+\d{4}\s*\/\s*\d{1,2}:\d{2}\s*[APM]{2}\s+[A-Z]{2,4}\s+\d+\s*/g, "")
-    // PCGamer newsletter subscription boilerplate
-    .replace(/You are now subscribed[^.]*\./gi, "")
-    .replace(/Your weekly update on everything[^.]+\./gi, "")
-    .replace(/A weekly videogame industry newsletter[^.]+\./gi, "")
-    .replace(/From the creators of Edge[^.]+\./gi, "")
+    .replace(/You are now subscribed[^.]*\.?/gi, "")
+    .replace(/Your weekly update on everything[^.]*\.?/gi, "")
+    .replace(/A weekly videogame industry newsletter[^.]*\.?/gi, "")
+    .replace(/From the creators of Edge[^.]*\.?/gi, "")
     .replace(/Jump to:\s*[^.]{0,200}(?=\s[A-Z])/g, "")
-    // "Read more:", "Related:", "See also:"
     .replace(/\b(Read more|Related|See also)\s*:/gi, "")
+    .replace(/♬\s+[^♬]+♬/g, "")
+    .replace(/It['']s-a me,\s*Chocolate\s*Mario!\s*🍄[^\n]*/gi, "")
+    .replace(/#\w+\s+#\w+\s+#\w+/g, "")
     .replace(/\s+/g, " ").trim();
 }
 
 interface ScrapeResult {
   text: string;
   ogImage: string | null;
+  method: string;
+}
+
+async function scrapeArticleDirect(url: string): Promise<ScrapeResult> {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 15000);
+  const res = await fetch(url, {
+    signal: controller.signal,
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      "DNT": "1",
+      "Upgrade-Insecure-Requests": "1",
+    },
+    redirect: "follow",
+  });
+  clearTimeout(tid);
+
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const ct = res.headers.get("content-type") ?? "";
+  if (!ct.includes("text/html") && !ct.includes("application/xhtml")) {
+    throw new Error(`Non-HTML content: ${ct}`);
+  }
+  const html = await res.text();
+
+  const ogImage =
+    html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)?.[1] ||
+    html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i)?.[1] ||
+    null;
+
+  const raw = extractArticleText(html);
+  const clean = removeBoilerplate(raw);
+  return {
+    text: clean.length > 200 ? clean.substring(0, 6000) : "",
+    ogImage: ogImage ?? null,
+    method: "direct",
+  };
+}
+
+async function scrapeArticleJina(url: string): Promise<ScrapeResult> {
+  const jinaUrl = `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`;
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 15000);
+  const res = await fetch(jinaUrl, {
+    signal: controller.signal,
+    headers: { "User-Agent": "Mozilla/5.0" },
+  });
+  clearTimeout(tid);
+
+  if (!res.ok) throw new Error(`Jina HTTP ${res.status}`);
+  const text = await res.text();
+
+  const lines = text.split("\n");
+  let contentStart = 0;
+  for (let i = 0; i < Math.min(lines.length, 15); i++) {
+    if (lines[i].startsWith("Title:") || lines[i].startsWith("URL Source:") || lines[i].startsWith("Published Time:") || lines[i].startsWith("Markdown Content:")) {
+      contentStart = i + 1;
+    }
+  }
+  let content = lines.slice(contentStart).join(" ").trim();
+  // Strip "Markdown Content:" if it appeared inline on the same line as content start
+  content = content.replace(/^Markdown Content:\s*/, "");
+
+  return {
+    text: content.length > 200 ? content.substring(0, 6000) : "",
+    ogImage: null,
+    method: "jina",
+  };
 }
 
 async function scrapeArticle(url: string): Promise<ScrapeResult> {
   try {
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 9000);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-        "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      redirect: "follow",
-    });
-    clearTimeout(tid);
-    if (!res.ok) return { text: "", ogImage: null };
-    const ct = res.headers.get("content-type") ?? "";
-    if (!ct.includes("text/html") && !ct.includes("application/xhtml")) return { text: "", ogImage: null };
-    const html = await res.text();
-
-    // Extract og:image
-    const ogImage =
-      html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)?.[1] ||
-      html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i)?.[1] ||
-      null;
-
-    const raw = extractArticleText(html);
-    const clean = removeBoilerplate(raw);
-    return {
-      text: clean.length > 200 ? clean.substring(0, 6000) : "",
-      ogImage: ogImage ?? null,
-    };
-  } catch {
-    return { text: "", ogImage: null };
+    const result = await scrapeArticleDirect(url);
+    if (result.text.length > 200) return result;
+    console.log(`  direct scrape short (${result.text.length} chars), trying Jina...`);
+  } catch (err) {
+    console.log(`  direct scrape failed: ${err}, trying Jina...`);
   }
+
+  try {
+    const result = await scrapeArticleJina(url);
+    if (result.text.length > 200) return result;
+    console.log(`  Jina scrape short (${result.text.length} chars)`);
+  } catch (err) {
+    console.log(`  Jina scrape failed: ${err}`);
+  }
+
+  return { text: "", ogImage: null, method: "failed" };
 }
 
 // ---------------------------------------------------------------------------
-// Groq — 100-word Inshorts-style summary + named-entity tags (rapid100 approach)
+// Groq — 100-word summary + named-entity tags
 // ---------------------------------------------------------------------------
 const SYSTEM_PROMPT = `You are a gaming news editor for "Pixel Pulse" — an Inshorts-style news aggregator.
 Your task: Condense gaming news into tight, informative summaries.
@@ -288,7 +317,7 @@ SUMMARY STRUCTURE (4-5 sentences, 18-25 words each):
 - Sentence 4: What comes next, reaction, or final context — aim for 20-25 words
 - Optional Sentence 5: Brief wrap-up if needed
 
-4-5 sentences × ~22 words = 100 words total. Target range: 80-120 words.
+4-5 sentences x ~22 words = 100 words total. Target range: 80-120 words.
 
 TAG RULES (named entities only, PascalCase, no # symbol, 3-6 tags max):
 - Game titles: "GTA6", "EldenRing", "BaldursGate3"
@@ -317,12 +346,9 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
 }
 
 async function summarizeWithGroq(title: string, content: string): Promise<SummarizeResult> {
-  // Not enough content to summarize — return as-is
   if (!GROQ_API_KEY || countWords(content) < 40) {
     return { summary: content, tags: [] };
   }
-
-  const MAX_RETRIES = 2;
 
   const userPrompt = `Article Title: ${title}
 
@@ -335,7 +361,7 @@ Write a 4-5 sentence summary (aim for ~100 words). Return ONLY valid JSON:
   "tags": ["Tag1", "Tag2", "Tag3"]
 }`;
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
     for (const model of MODELS) {
       try {
         const res = await fetch(GROQ_API_URL, {
@@ -377,7 +403,7 @@ Write a 4-5 sentence summary (aim for ~100 words). Return ONLY valid JSON:
           .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
           .slice(0, 6);
 
-        console.log(`  ✓ ${wc}w (${model}) tags: ${tags.join(", ")}`);
+        console.log(`  ok ${wc}w (${model}) tags: ${tags.join(", ")}`);
         return { summary, tags };
 
       } catch (err) {
@@ -387,7 +413,6 @@ Write a 4-5 sentence summary (aim for ~100 words). Return ONLY valid JSON:
   }
 
   console.warn(`  Groq failed — using raw content`);
-  // Truncate at sentence boundary so we don't cut mid-word/mid-sentence
   const rough = content.split(/\s+/).slice(0, 120).join(" ");
   const lastStop = Math.max(rough.lastIndexOf(". "), rough.lastIndexOf("! "), rough.lastIndexOf("? "));
   const summary = lastStop > 60 ? rough.substring(0, lastStop + 1) : rough.split(/\s+/).slice(0, 80).join(" ");
@@ -407,40 +432,30 @@ serve(async (req) => {
 
   console.log("=== fetch-news pipeline starting ===");
 
-  // Step 1: Fetch all RSS feeds server-side in parallel
-  const feedResults = await Promise.allSettled(
-    RSS_FEEDS.map(async (feed) => {
-      const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 8000);
-      try {
-        const res = await fetch(feed.url, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; PixelPulseBot/1.0)",
-            "Accept": "application/rss+xml, application/xml, text/xml, */*",
-          },
-          signal: controller.signal,
-          redirect: "follow",
-        });
-        clearTimeout(tid);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const xml = await res.text();
-        return parseRSSItems(xml, feed.source);
-      } catch (err) {
-        clearTimeout(tid);
-        throw err;
-      }
-    })
-  );
-
+  // Step 1: Fetch all RSS feeds sequentially
   const allItems: RssItem[] = [];
-  feedResults.forEach((result, i) => {
-    if (result.status === "fulfilled") {
-      allItems.push(...result.value);
-      console.log(`${RSS_FEEDS[i].source}: ${result.value.length} items`);
-    } else {
-      console.warn(`${RSS_FEEDS[i].source}: failed — ${result.reason}`);
+  for (const feed of RSS_FEEDS) {
+    try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(feed.url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; PixelPulseBot/1.0)",
+          "Accept": "application/rss+xml, application/xml, text/xml, */*",
+        },
+        redirect: "follow",
+      });
+      clearTimeout(tid);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const xml = await res.text();
+      const items = parseRSSItems(xml, feed.source);
+      allItems.push(...items);
+      console.log(`${feed.source}: ${items.length} items`);
+    } catch (err) {
+      console.warn(`${feed.source}: failed — ${err}`);
     }
-  });
+  }
 
   console.log(`Total from RSS: ${allItems.length} items`);
   if (allItems.length === 0) {
@@ -449,7 +464,7 @@ serve(async (req) => {
     });
   }
 
-  // Step 2: Filter out already-cached (non-expired) articles
+  // Step 2: Filter out already-cached articles
   const urls = allItems.map(i => i.link);
   const { data: existing } = await supabase
     .from("cached_articles")
@@ -462,47 +477,71 @@ serve(async (req) => {
 
   console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
 
-  // Step 3: Process new articles sequentially (Groq rate limit: ~20 req/min free tier)
-  // Content = scraped article text OR RSS description (whichever has more signal)
-  // Summary = Groq 100-word Inshorts-style summary with retry validation
-  // Image   = RSS enclosure URL or scraped og:image
-  // Tags    = named entities extracted by same Groq call
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 24);
-  let processed = 0;
+  // Step 3: Scrape all new articles in parallel
+  interface EnrichedItem extends RssItem {
+    content: string;
+    imageUrl: string;
+    scrapeMethod: string;
+  }
 
-  for (const item of newItems) {
-    try {
-      console.log(`Processing: "${item.title.substring(0, 60)}"`);
+  const enrichedItems: EnrichedItem[] = [];
 
-      // Get best available content for AI summarization
+  const scrapeResults = await Promise.allSettled(
+    newItems.map(async (item) => {
       const rssDesc = removeBoilerplate(stripHtml(item.description));
       const rssWords = rssDesc.split(/\s+/).filter(Boolean).length;
 
       let content: string;
       let scrapedImage: string | null = null;
+      let scrapeMethod = "rss";
 
       if (rssWords >= 50 && item.enclosureUrl) {
-        // RSS has enough text + image — skip scrape to save time
         content = rssDesc;
       } else {
         const scraped = await scrapeArticle(item.link);
         scrapedImage = scraped.ogImage;
-        content = scraped.text.length > 100 ? scraped.text : (rssWords > 5 ? rssDesc : item.title);
-        console.log(`  scraped → ${content.split(/\s+/).length}w`);
+        scrapeMethod = scraped.method;
+        content = scraped.text.length > 100
+          ? scraped.text
+          : (rssWords > 5 ? rssDesc : item.title);
       }
 
       const imageUrl = item.enclosureUrl ?? scrapedImage ?? "";
+      const wordCount = content.split(/\s+/).filter(Boolean).length;
+      console.log(`  [${item.source}] "${item.title.substring(0, 50)}..." — ${scrapeMethod} -> ${wordCount}w`);
 
-      // AI: 100-word summary + named-entity tags in one call
-      const { summary, tags } = await summarizeWithGroq(item.title, content);
+      return { ...item, content, imageUrl, scrapeMethod };
+    })
+  );
+
+  for (const result of scrapeResults) {
+    if (result.status === "fulfilled") {
+      enrichedItems.push(result.value);
+    } else {
+      console.error(`Scrape failed for an article:`, result.reason);
+    }
+  }
+
+  console.log(`Scraped ${enrichedItems.length}/${newItems.length} articles successfully`);
+
+  // Step 4: Groq summarization sequentially (rate limit respect)
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + 24);
+  let processed = 0;
+
+  const PROCESS_LIMIT = 15;
+  const itemsToProcess = enrichedItems.slice(0, PROCESS_LIMIT);
+  console.log(`Processing ${itemsToProcess.length}/${enrichedItems.length} articles (limit: ${PROCESS_LIMIT})`);
+  for (const item of itemsToProcess) {
+    try {
+      const { summary, tags } = await summarizeWithGroq(item.title, item.content);
 
       const { error } = await supabase.from("cached_articles").upsert({
         original_id:  `${item.source}-${item.link.substring(item.link.length - 60)}`,
         title:        item.title,
         summary,
         source_url:   item.link,
-        image_url:    imageUrl,
+        image_url:    item.imageUrl,
         og_image_url: null,
         category:     "Gaming",
         source:       item.source,
@@ -518,20 +557,19 @@ serve(async (req) => {
       if (error) console.error(`DB upsert error for "${item.title}":`, error);
       else processed++;
 
-      // 3s gap between articles — respect Groq free tier (20 req/min)
       await new Promise(r => setTimeout(r, 3000));
-
     } catch (err) {
       console.error(`Error processing "${item.title}":`, err);
     }
   }
 
-  console.log(`=== Done: ${processed}/${newItems.length} new articles processed ===`);
+  console.log(`=== Done: ${processed}/${itemsToProcess.length} new articles processed ===`);
 
   return new Response(JSON.stringify({
     total:     allItems.length,
     cached:    existingUrls.size,
     new:       newItems.length,
+    scraped:   enrichedItems.length,
     processed,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
