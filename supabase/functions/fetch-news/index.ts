@@ -310,14 +310,13 @@ WRITING STYLE:
   "significantly", "moreover", "furthermore", "according to", "in a statement"
 - Never start with: "In this article", "This article discusses", "This news covers"
 
-SUMMARY STRUCTURE (4-5 sentences, 18-25 words each):
-- Sentence 1: What happened (the core news fact) — aim for 20-25 words
-- Sentence 2: Key details or context — aim for 20-25 words
-- Sentence 3: Why it matters or additional detail — aim for 20-25 words
-- Sentence 4: What comes next, reaction, or final context — aim for 20-25 words
-- Optional Sentence 5: Brief wrap-up if needed
+SUMMARY STRUCTURE (exactly 4 sentences, ~20 words each):
+- Sentence 1: What happened (the core news fact) — max 22 words
+- Sentence 2: Key details or context — max 22 words
+- Sentence 3: Why it matters — max 22 words
+- Sentence 4: Reaction or what comes next — max 22 words
 
-4-5 sentences x ~22 words = 100 words total. Target range: 80-120 words.
+TOTAL: 4 sentences x ~20 words = ~80 words. HARD MAXIMUM: 90 words. Never exceed 90 words.
 
 TAG RULES (named entities only, PascalCase, no # symbol, 3-6 tags max):
 - Game titles: "GTA6", "EldenRing", "BaldursGate3"
@@ -355,7 +354,7 @@ async function summarizeWithGroq(title: string, content: string): Promise<Summar
 Article Content:
 ${content.substring(0, 4000)}
 
-Write a 4-5 sentence summary (aim for ~100 words). Return ONLY valid JSON:
+Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON:
 {
   "summary": "your summary here",
   "tags": ["Tag1", "Tag2", "Tag3"]
@@ -413,7 +412,7 @@ Write a 4-5 sentence summary (aim for ~100 words). Return ONLY valid JSON:
   }
 
   console.warn(`  Groq failed — using raw content`);
-  const rough = content.split(/\s+/).slice(0, 120).join(" ");
+  const rough = content.split(/\s+/).slice(0, 90).join(" ");
   const lastStop = Math.max(rough.lastIndexOf(". "), rough.lastIndexOf("! "), rough.lastIndexOf("? "));
   const summary = lastStop > 60 ? rough.substring(0, lastStop + 1) : rough.split(/\s+/).slice(0, 80).join(" ");
   return { summary, tags: [] };
