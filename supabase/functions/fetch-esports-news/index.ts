@@ -12,7 +12,10 @@ const corsHeaders = {
 const ESPORTS_NEWS_SOURCES = [
   { name: 'Esports Insider', rssFeed: 'https://esportsinsider.com/feed', displayName: 'Esports Insider' },
   { name: 'Sheep Esports', rssFeed: 'https://www.sheepesports.com/feed', displayName: 'Sheep Esports' },
-  { name: 'Escharts', rssFeed: 'https://escharts.com/news/rss', displayName: 'Escharts' },
+  { name: 'Dot Esports', rssFeed: 'https://dotesports.com/feed', displayName: 'Dot Esports' },
+  { name: 'Dexerto', rssFeed: 'https://www.dexerto.com/feed/', displayName: 'Dexerto' },
+  { name: 'HLTV', rssFeed: 'https://www.hltv.org/rss/news', displayName: 'HLTV' },
+  { name: 'VLR', rssFeed: 'https://www.vlr.gg/rss', displayName: 'VLR' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -44,14 +47,21 @@ function extractCDATA(block: string, tag: string): string {
 
 function detectGameTag(title: string): string | null {
   const tags: Record<string, string[]> = {
-    valorant: ['valorant', 'vct', 'vcl'],
-    cs2: ['cs2', 'counter-strike', 'csgo', 'esl', 'blast'],
-    lol: ['league of legends', 'lol', 'lck', 'lec', 'lcs'],
-    dota2: ['dota 2', 'dota2', 'ti', 'dreamleague'],
-    overwatch2: ['overwatch', 'owl'],
-    rainbow6: ['rainbow six', 'r6', 'six invitational'],
+    valorant: ['valorant', 'vct', 'vcl', 'vlr'],
+    cs2: ['cs2', 'counter-strike', 'csgo', 'esl', 'blast', 'hltv', 'major'],
+    lol: ['league of legends', 'lol', 'lck', 'lec', 'lcs', 'worlds', 'msi'],
+    dota2: ['dota 2', 'dota2', 'ti', 'dreamleague', 'the international'],
+    overwatch2: ['overwatch', 'owl', 'overwatch 2'],
+    rainbow6: ['rainbow six', 'r6', 'six invitational', 'siege'],
     'mobile-legends': ['mobile legends', 'mlbb', 'mpl'],
     'king-of-glory': ['king of glory', 'kog'],
+    fortnite: ['fortnite', 'fncs'],
+    apex: ['apex legends'],
+    cod: ['call of duty', 'cod', 'warzone', 'cdl'],
+    rocketleague: ['rocket league', 'rlcs'],
+    tft: ['teamfight tactics', 'tft'],
+    smash: ['super smash bros', 'melee', 'ultimate'],
+    fifa: ['fifa', 'ea fc', 'fc 24', 'fc 25'],
   };
   const lower = title.toLowerCase();
   for (const [tag, keywords] of Object.entries(tags)) {
