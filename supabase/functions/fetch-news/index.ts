@@ -220,6 +220,12 @@ async function scrapeArticleDirect(url: string): Promise<ScrapeResult> {
       "Accept-Encoding": "gzip, deflate, br",
       "DNT": "1",
       "Upgrade-Insecure-Requests": "1",
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "none",
+      "Sec-Fetch-User": "?1",
+      "Cache-Control": "max-age=0",
+      "Connection": "keep-alive",
     },
     redirect: "follow",
   });
@@ -247,7 +253,7 @@ async function scrapeArticleDirect(url: string): Promise<ScrapeResult> {
 }
 
 async function scrapeArticleJina(url: string): Promise<ScrapeResult> {
-  const jinaUrl = `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`;
+  const jinaUrl = `https://r.jina.ai/${url}`;
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), 15000);
   const res = await fetch(jinaUrl, {
@@ -494,7 +500,7 @@ serve(async (req) => {
       let scrapedImage: string | null = null;
       let scrapeMethod = "rss";
 
-      if (rssWords >= 50 && item.enclosureUrl) {
+      if (rssWords >= 50) {
         content = rssDesc;
       } else {
         const scraped = await scrapeArticle(item.link);
