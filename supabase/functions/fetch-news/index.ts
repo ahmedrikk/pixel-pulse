@@ -56,6 +56,68 @@ function extractCDATA(block: string, tag: string): string {
   return m ? decodeHtmlEntities(m[1].trim()) : "";
 }
 
+/**
+ * Skip articles that are clearly not gaming-related (movies, TV, Oscars, etc.)
+ * while keeping gaming-adjacent content (e.g. SpongeBob on Kotaku).
+ */
+function isGamingRelated(title: string, description: string): boolean {
+  const text = (title + " " + description).toLowerCase();
+
+  // Strong non-gaming signals — skip these
+  const skipSignals = [
+    /\bacademy awards?\b/,
+    /\boscars?\b/,
+    /\bgrammys?\b/,
+    /\bemmys?\b/,
+    /\bgolden globes?\b/,
+    /\bred carpet\b/,
+    /\bbox office\b/,
+    /\bnetflix.*(shows?|series|watch|movies?)\b/,
+    /\bhbo.*(shows?|series|watch|movies?)\b/,
+    /\bdisney\+?.*(shows?|series|watch|movies?)\b/,
+    /\bprime video\b/,
+    /\bhulu\b/,
+    /\bpeacock\b/,
+    /\bparamount\+?\b/,
+    /\bapple tv\+?\b/,
+    /\bwhat to watch\b/,
+    /\bbest movies?\b/,
+    /\bbest shows?\b/,
+    /\bbest series\b/,
+    /\bmovie review\b/,
+    /\bfilm review\b/,
+    /\btv review\b/,
+    /\bseries review\b/,
+    /\bseason \d+ review\b/,
+    /\bcoming to netflix\b/,
+    /\bcoming to hbo\b/,
+    /\bcoming to disney\b/,
+    /\bstreaming (this weekend|today|now)\b/,
+    /\bnarnia\b/,
+    /\bharry potter\b/,
+    /\bhunger games\b/,
+    /\btwilight\b/,
+    /\bjurassic\b/,
+    /\bfast & furious\b/,
+    /\bmission: impossible\b/,
+    /\bjames bond\b/,
+    /\b007\b/,
+    /\blord of the rings\b/,
+    /\bstar trek\b/,
+    /\bwestworld\b/,
+    /\bgame of thrones\b/,
+    /\bhouse of the dragon\b/,
+    /\bthe last of us\b(?!.*\bgame\b)/,
+    /\brogue squirrel\b/,
+  ];
+
+  for (const re of skipSignals) {
+    if (re.test(text)) return false;
+  }
+
+  return true;
+}
+
 function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
   const items: RssItem[] = [];
   for (const match of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)) {
@@ -77,6 +139,11 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
     const descWords   = descRaw.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
     const contentWords = contentRaw.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
     const description = contentWords > descWords + 10 ? contentRaw : (descRaw || contentRaw);
+
+    if (!isGamingRelated(title, description)) {
+      console.log(`  [SKIP] Non-gaming: "${title.substring(0, 60)}..."`);
+      continue;
+    }
 
     const enclosureUrl =
       block.match(/<enclosure[^>]+url="([^"]+)"/i)?.[1] ||
