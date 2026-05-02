@@ -666,7 +666,7 @@ export default function Esports() {
   const [watchingMatch, setWatchingMatch] = useState<EsportsMatch | null>(null);
 
   const { liveMatches, upcomingMatches, pastMatches, isLoading, error } = useEsportsMatches();
-  const { news, isLoading: newsLoading } = useGamingNews();
+  const { news, isLoading: newsLoading } = useGamingNews({ category: 'esports' });
 
   // Pick best featured match: first live > first upcoming
   const featuredMatch = useMemo(() => {
