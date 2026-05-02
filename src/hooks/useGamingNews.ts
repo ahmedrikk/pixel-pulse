@@ -16,7 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getAllCachedArticles, shouldRefreshCache, spotifyShuffle } from "@/lib/newsCache";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 
-export function useGamingNews() {
+export function useGamingNews(options?: { category?: string }) {
+  const category = options?.category;
   const { isLoading: isAuthLoading } = useAuthGate();
   const [news, setNews]               = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
@@ -33,7 +34,7 @@ export function useGamingNews() {
   const loadFromDB = useCallback(async (isInitial = true): Promise<number> => {
     try {
       const currentOffset = isInitial ? 0 : (page + 1) * PAGE_SIZE;
-      const articles = await getAllCachedArticles(currentOffset, PAGE_SIZE);
+      const articles = await getAllCachedArticles(currentOffset, PAGE_SIZE, category);
       
       if (articles.length < PAGE_SIZE) {
         setHasMore(false);

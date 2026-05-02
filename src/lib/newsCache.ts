@@ -289,16 +289,22 @@ export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
 /**
  * Get all cached articles (with pagination support)
  */
-export async function getAllCachedArticles(offset = 0, limit = 50): Promise<NewsItem[]> {
+export async function getAllCachedArticles(offset = 0, limit = 50, category?: string): Promise<NewsItem[]> {
   // Retry up to 3 times — Supabase auth init can abort in-flight queries
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('cached_articles')
         .select('*')
         .gt('expires_at', new Date().toISOString())
         .order('article_date', { ascending: false })
         .range(offset, offset + limit - 1);
+
+      if (category) {
+        query = query.eq('category', category);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         const isAbort = error.message?.includes('AbortError') || error.details?.includes?.('AbortError');
