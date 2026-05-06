@@ -97,6 +97,7 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     // Use onAuthStateChange instead of getSession().
     // INITIAL_SESSION fires after token refresh completes — Supabase client is
     // fully ready at that point, so subsequent DB queries won't get aborted.
+    const loadingTimeout = setTimeout(() => setIsLoading(false), 3000);
     try {
       const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
         const currentUser = session?.user || null;
@@ -127,11 +128,13 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
 
         // Mark auth as ready once the initial session event fires
         if (event === 'INITIAL_SESSION') {
+          clearTimeout(loadingTimeout);
           setIsLoading(false);
         }
       });
       subscription = data.subscription;
     } catch (err) {
+      clearTimeout(loadingTimeout);
       console.error("onAuthStateChange setup error:", err);
       setIsLoading(false); // failsafe — never leave spinner forever
     }
