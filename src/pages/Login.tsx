@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Mail, Lock, UserPlus, LogIn, Loader2, WifiOff, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,7 +68,7 @@ export default function Login() {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: signupEmail,
         password: signupPassword,
         options: {
@@ -82,8 +83,12 @@ export default function Login() {
         } else {
           setError(error.message);
         }
-      } else {
+      } else if (data?.session) {
         navigate("/profile");
+      } else {
+        // Email confirmation required
+        setError(null);
+        toast.success("Account created! Check your email to confirm before logging in.");
       }
     } catch (err) {
       setIsOffline(true);

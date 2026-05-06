@@ -71,7 +71,12 @@ export function XPProvider({ children }: { children: ReactNode }) {
 
       if (data) {
         canEarnXPRef.current = data.onboarding_completed ?? false;
-        if (typeof data.xp === "number" && data.xp > 0) {
+
+        // For fresh accounts, clear any stale guest XP from localStorage
+        if (!data.onboarding_completed) {
+          localStorage.setItem(XP_STORAGE_KEY, "0");
+          setTotalXP(0);
+        } else if (typeof data.xp === "number" && data.xp > 0) {
           const localXP = loadXP();
           // Use whichever is higher — prevents losing locally-earned XP
           const merged = Math.max(localXP, data.xp);
