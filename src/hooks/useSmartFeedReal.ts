@@ -59,7 +59,7 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     reshuffle: reshuffleNews,
     loadMore: loadMoreNews,
     hasMore: hasMoreNews,
-  } = useGamingNews();
+  } = useGamingNews({ category: 'Gaming' });
   
   const [articles, setArticles] = useState<RankedArticle[]>([]);
   const [hasMore, setHasMore] = useState(true);
