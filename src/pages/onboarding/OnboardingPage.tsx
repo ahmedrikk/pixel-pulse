@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { AvatarPicker, AvatarValue } from '@/components/onboarding/AvatarPicker';
 import { GameSearchInput, GameOption } from '@/components/onboarding/GameSearchInput';
 import {
@@ -74,6 +75,66 @@ function generateUsername(name: string): string {
 }
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken';
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-[10px] font-medium uppercase tracking-wider text-white/40 mb-1.5">
+      {children}
+    </label>
+  );
+}
+
+function StepCard({
+  active,
+  number,
+  title,
+  sub,
+  children,
+  footer,
+}: {
+  active?: boolean;
+  number: number;
+  title: string;
+  sub: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="flex flex-col rounded-xl overflow-hidden"
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: '0.5px solid rgba(255,255,255,0.08)',
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-start gap-3 p-4 pb-3">
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+          style={{ background: active ? '#534AB7' : 'rgba(255,255,255,0.08)', color: 'white' }}
+        >
+          {number}
+        </div>
+        <div>
+          <h3 className="text-[13px] font-semibold text-white leading-tight">{title}</h3>
+          <p className="text-[11px] text-white/40 mt-0.5">{sub}</p>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4 pb-3 flex flex-col gap-4 flex-1">
+        {children}
+      </div>
+
+      {/* Footer */}
+      {footer && (
+        <div className="mt-auto px-4 py-3 flex items-center gap-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+          {footer}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
@@ -175,8 +236,9 @@ export default function OnboardingPage() {
       setStep2({ platforms, skillLevel: skill });
       setPage(2);
       window.scrollTo({ top: 0 });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.message || 'Failed to save profile. Please try again.');
     } finally {
       setP1Loading(false);
     }
@@ -199,8 +261,9 @@ export default function OnboardingPage() {
       }
       clear();
       navigate('/');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error(err.message || 'Failed to complete onboarding. Please try again.');
       setCompleting(false);
     }
   }
@@ -280,56 +343,7 @@ export default function OnboardingPage() {
     </aside>
   );
 
-  // ── Card wrapper ─────────────────────────────────────────────────────────
-
-  function StepCard({ active, number, title, sub, children, footer }: {
-    active: boolean;
-    number: number;
-    title: string;
-    sub: string;
-    children: React.ReactNode;
-    footer?: React.ReactNode;
-  }) {
-    return (
-      <div className="rounded-2xl flex flex-col overflow-hidden" style={{
-        background: '#12122a',
-        border: active
-          ? '0.5px solid rgba(83,74,183,0.5)'
-          : '0.5px solid rgba(255,255,255,0.08)',
-        boxShadow: active ? '0 0 0 1px rgba(83,74,183,0.15)' : undefined,
-      }}>
-        <div className="flex items-center gap-2.5 px-4 py-3.5" style={{ borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
-          <div className={`w-[26px] h-[26px] rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0 ${
-            active ? 'bg-[#534AB7] text-white' : 'text-white/30'
-          }`} style={active ? undefined : { background: 'rgba(255,255,255,0.07)' }}>
-            {number}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-white leading-none">{title}</p>
-            <p className="text-[10px] text-white/35 mt-0.5">{sub}</p>
-          </div>
-        </div>
-
-        <div className="p-4 flex flex-col gap-3 flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
-          {children}
-        </div>
-
-        {footer && (
-          <div className="px-4 py-3 flex items-center justify-between" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
-            {footer}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Input helpers ─────────────────────────────────────────────────────────
-
-  function FieldLabel({ children }: { children: React.ReactNode }) {
-    return <p className="text-[9px] font-medium uppercase tracking-[0.05em] text-white/40 mb-1.5">{children}</p>;
-  }
-
-  const inputCls = "w-full rounded-lg px-3 py-2 text-[12px] text-white outline-none font-inherit bg-white/5 border border-white/10 placeholder:text-white/22 focus:border-[#534AB7]";
+  const inputCls = "w-full rounded-lg px-3 py-2 text-[12px] text-white outline-none bg-white/5 border border-white/10 placeholder:text-white/22 focus:border-[#534AB7]";
 
   // ── Step cards ───────────────────────────────────────────────────────────
 

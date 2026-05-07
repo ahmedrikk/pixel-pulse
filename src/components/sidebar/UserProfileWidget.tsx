@@ -55,11 +55,15 @@ export function UserProfileWidget() {
       {/* Banner Image */}
       <div className="h-16 w-full bg-secondary overflow-hidden relative">
         {profile?.banner_url ? (
-          <img 
-            src={profile.banner_url} 
-            alt="Profile Banner" 
-            className="w-full h-full object-cover opacity-80"
-          />
+          profile.banner_url.startsWith('linear-gradient') || profile.banner_url.startsWith('radial-gradient') ? (
+            <div className="w-full h-full opacity-80" style={{ background: profile.banner_url }} />
+          ) : (
+            <img 
+              src={profile.banner_url} 
+              alt="Profile Banner" 
+              className="w-full h-full object-cover opacity-80"
+            />
+          )
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-primary/20 to-accent/20" />
         )}
