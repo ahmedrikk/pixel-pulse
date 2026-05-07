@@ -40,7 +40,7 @@ export async function checkUsernameAvailable(username: string): Promise<boolean>
 
   // PGRST116 = no rows found = username is available
   if (error?.code === 'PGRST116') return true;
-  if (error) return false; // network error — treat conservatively as unavailable
+  if (error) return true; // network error — optimistically allow, server will reject on save if needed
   return !data;
 }
 

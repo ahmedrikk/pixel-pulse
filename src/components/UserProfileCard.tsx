@@ -67,11 +67,15 @@ export function UserProfileCard() {
     >
       {/* Banner */}
       <div className="relative h-24 overflow-hidden">
-        <img
-          src={bannerUrl}
-          alt="Profile banner"
-          className="w-full h-full object-cover"
-        />
+        {bannerUrl.startsWith('linear-gradient') || bannerUrl.startsWith('radial-gradient') ? (
+          <div className="w-full h-full" style={{ background: bannerUrl }} />
+        ) : (
+          <img
+            src={bannerUrl}
+            alt="Profile banner"
+            className="w-full h-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-card/30" />
 
         {/* Avatar overlapping banner */}

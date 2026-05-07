@@ -29,9 +29,9 @@ export function LeftSidebar() {
           <Link
             key={item.label}
             to={item.href}
-            className="flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-foreground hover:text-primary"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-foreground dark:text-white hover:text-primary"
           >
-            <item.icon className="h-5 w-5" />
+            <item.icon className="h-5 w-5 text-foreground dark:text-white/80" />
             <span className="font-medium">{item.label}</span>
           </Link>
         ))}

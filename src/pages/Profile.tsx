@@ -408,10 +408,17 @@ export default function Profile() {
       <div className="relative overflow-hidden group/banner">
         {/* Background Image or Gradient */}
         {profile?.banner_url ? (
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${profile.banner_url})` }}
-          />
+          profile.banner_url.startsWith('linear-gradient') || profile.banner_url.startsWith('radial-gradient') ? (
+            <div
+              className="absolute inset-0"
+              style={{ background: profile.banner_url }}
+            />
+          ) : (
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${profile.banner_url})` }}
+            />
+          )
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-accent/20 to-primary/10 dark:from-primary/20 dark:via-accent/10 dark:to-transparent" />
         )}
