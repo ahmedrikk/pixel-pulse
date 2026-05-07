@@ -332,16 +332,14 @@ async function scrapeArticleJina(url: string): Promise<ScrapeResult> {
   if (!res.ok) throw new Error(`Jina HTTP ${res.status}`);
   const text = await res.text();
 
-  const lines = text.split("\n");
-  let contentStart = 0;
-  for (let i = 0; i < Math.min(lines.length, 15); i++) {
-    if (lines[i].startsWith("Title:") || lines[i].startsWith("URL Source:") || lines[i].startsWith("Published Time:") || lines[i].startsWith("Markdown Content:")) {
-      contentStart = i + 1;
-    }
-  }
-  let content = lines.slice(contentStart).join(" ").trim();
-  // Strip "Markdown Content:" if it appeared inline on the same line as content start
-  content = content.replace(/^Markdown Content:\s*/, "");
+  // Aggressively strip Jina metadata blocks — handles both line-by-line and inline formats
+  let content = text
+    .replace(/^Title:.*$/gim, "")
+    .replace(/^URL Source:.*$/gim, "")
+    .replace(/^Published Time:.*$/gim, "")
+    .replace(/^Markdown Content:\s*/gim, "")
+    .replace(/\n\s*\n/g, "\n")
+    .trim();
 
   return {
     text: content.length > 200 ? content.substring(0, 6000) : "",
@@ -417,9 +415,15 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
   try { return JSON.parse(match[0]); } catch { return null; }
 }
 
+function countSentences(text: string): number {
+  return text.split(/[.!?]+/).filter(s => s.trim().length > 3).length;
+}
+
 async function summarizeWithGroq(title: string, content: string): Promise<SummarizeResult> {
-  if (!GROQ_API_KEY || countWords(content) < 40) {
-    return { summary: content, tags: [] };
+  // If content is extremely short, try to expand from title + content rather than returning raw
+  if (!GROQ_API_KEY || countWords(content) < 15) {
+    const combined = `${title}. ${content}`.trim();
+    return { summary: combined, tags: [] };
   }
 
   const userPrompt = `Article Title: ${title}
@@ -467,15 +471,30 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
         const parsed = extractJsonObject(raw);
         if (!parsed) { console.warn(`  ${model}: JSON parse failed`); continue; }
 
-        const summary = String(parsed.summary ?? "").trim();
+        let summary = String(parsed.summary ?? "").trim();
         if (!summary) { console.warn(`  ${model}: empty summary`); continue; }
 
+        // Strip any leaked metadata that Groq might have parroted
+        summary = summary
+          .replace(/^Title:\s*/i, "")
+          .replace(/\s*URL Source:\s*https?:\/\/\S+/gi, "")
+          .replace(/\s*Published Time:\s*[^.]+/gi, "")
+          .trim();
+
         const wc = countWords(summary);
+        const sentences = countSentences(summary);
+
+        // Reject summaries that are too short or have leaked metadata patterns
+        if (wc < 20 || sentences < 2 || summary.startsWith("http")) {
+          console.warn(`  ${model}: summary too short (${wc}w, ${sentences}s) — retrying`);
+          continue;
+        }
+
         const tags = (Array.isArray(parsed.tags) ? parsed.tags as unknown[] : [])
           .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
           .slice(0, 6);
 
-        console.log(`  ok ${wc}w (${model}) tags: ${tags.join(", ")}`);
+        console.log(`  ok ${wc}w ${sentences}s (${model}) tags: ${tags.join(", ")}`);
         return { summary, tags };
 
       } catch (err) {
@@ -504,6 +523,31 @@ serve(async (req) => {
 
   console.log("=== fetch-news pipeline starting ===");
 
+  // Step 0: Delete cached articles with bad summaries so they get re-fetched
+  const { data: badArticles } = await supabase
+    .from("cached_articles")
+    .select("source_url, ai_summary")
+    .gt("expires_at", new Date().toISOString())
+    .eq("category", "Gaming");
+
+  const urlsToDelete: string[] = [];
+  for (const row of (badArticles ?? [])) {
+    const summary = row.ai_summary || "";
+    const words = summary.split(/\s+/).filter(Boolean).length;
+    const sentences = summary.split(/[.!?]+/).filter((s: string) => s.trim().length > 3).length;
+    if (words < 20 || sentences < 2 || summary.startsWith("http") || summary.startsWith("Title:")) {
+      urlsToDelete.push(row.source_url);
+    }
+  }
+  if (urlsToDelete.length > 0) {
+    console.log(`  Deleting ${urlsToDelete.length} articles with bad summaries for re-fetch`);
+    const { error: delErr } = await supabase
+      .from("cached_articles")
+      .delete()
+      .in("source_url", urlsToDelete);
+    if (delErr) console.warn(`  Delete error: ${delErr.message}`);
+  }
+
   // Step 1: Fetch all RSS feeds sequentially
   const allItems: RssItem[] = [];
   for (const feed of RSS_FEEDS) {
@@ -519,21 +563,14 @@ serve(async (req) => {
         redirect: "follow",
       });
       clearTimeout(tid);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) { console.warn(`  RSS ${feed.source}: HTTP ${res.status}`); continue; }
       const xml = await res.text();
       const items = parseRSSItems(xml, feed.source);
+      console.log(`  ${feed.source}: ${items.length} items`);
       allItems.push(...items);
-      console.log(`${feed.source}: ${items.length} items`);
-    } catch (err) {
-      console.warn(`${feed.source}: failed — ${err}`);
+    } catch (e) {
+      console.warn(`  RSS ${feed.source}: ${e}`);
     }
-  }
-
-  console.log(`Total from RSS: ${allItems.length} items`);
-  if (allItems.length === 0) {
-    return new Response(JSON.stringify({ error: "No RSS items fetched" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
   }
 
   // Step 2: Filter out already-cached articles
@@ -546,9 +583,7 @@ serve(async (req) => {
 
   const existingUrls = new Set((existing ?? []).map(e => e.source_url));
   const newItems = allItems.filter(item => !existingUrls.has(item.link));
-
   console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
-
   // Step 3: Scrape all new articles in parallel
   interface EnrichedItem extends RssItem {
     content: string;
