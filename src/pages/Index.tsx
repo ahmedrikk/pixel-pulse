@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { NewsFeed } from "@/components/NewsFeed";
@@ -31,6 +31,8 @@ function IndexContent() {
   const { trackCardView } = useEngagementTracker(addXP);
   const [searchParams] = useSearchParams();
   const { setActiveTag, setCategoryName } = useTagFilter();
+  const { openSignupPrompt } = useAuthGate();
+  const location = useLocation();
 
   // Initialise category filter from URL on first render (shallow routing)
   useEffect(() => {
@@ -41,6 +43,15 @@ function IndexContent() {
     }
     // Only run on mount — intentionally no deps on searchParams so URL changes
     // driven by pill clicks don't double-fire (pills update state directly)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Open auth modal when redirected from /login or /signup
+  useEffect(() => {
+    if ((location.state as any)?.openAuth) {
+      window.history.replaceState({}, "");
+      openSignupPrompt();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
