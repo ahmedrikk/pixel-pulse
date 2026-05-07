@@ -136,6 +136,17 @@ function StepCard({
   );
 }
 
+function ProgBar({ step, pct }: { step: string; pct: number }) {
+  return (
+    <div className="flex-1 mr-3">
+      <p className="text-[9px] text-white/50 mb-1">{step}</p>
+      <div className="h-[3px] rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+        <div className="h-full bg-[#534AB7] rounded-sm" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
@@ -285,7 +296,7 @@ export default function OnboardingPage() {
       className="flex flex-col gap-3 p-5 flex-shrink-0 overflow-y-auto"
       style={{ background: '#1a1a35', borderRight: '0.5px solid rgba(255,255,255,0.07)', width: 220 }}
     >
-      <p className="text-[10px] font-medium uppercase tracking-widest text-white/35 mb-1">Why join?</p>
+      <p className="text-[10px] font-medium uppercase tracking-widest text-white/60 mb-1">Why join?</p>
 
       {BENEFIT_CARDS.map(b => (
         <div
@@ -300,7 +311,7 @@ export default function OnboardingPage() {
             </div>
             <span className="text-[12px] font-medium text-white">{b.label}</span>
           </div>
-          <p className="text-[10px] text-white/38 leading-[1.4]">{b.desc}</p>
+          <p className="text-[10px] text-white/65 leading-[1.4]">{b.desc}</p>
           {b.xp && (
             <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-[5px] text-[9px] font-semibold text-[#FCD34D]"
                   style={{ background: 'rgba(251,191,36,0.15)', border: '0.5px solid rgba(251,191,36,0.3)' }}>
@@ -312,7 +323,7 @@ export default function OnboardingPage() {
 
       {/* Progress */}
       <div className="mt-auto rounded-[9px] p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
-        <p className="text-[10px] text-white/35 mb-2">Your progress</p>
+        <p className="text-[10px] text-white/60 mb-2">Your progress</p>
         <div className="flex flex-col gap-1.5">
           {[
             { n: 1, label: 'Identity' },
@@ -607,19 +618,6 @@ export default function OnboardingPage() {
       <p className="text-center text-[9px] text-white/20">Free forever · No credit card required</p>
     </>
   );
-
-  // ── Progress bar ─────────────────────────────────────────────────────────
-
-  function ProgBar({ step, pct }: { step: string; pct: number }) {
-    return (
-      <div className="flex-1 mr-3">
-        <p className="text-[9px] text-white/28 mb-1">{step}</p>
-        <div className="h-[3px] rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-          <div className="h-full bg-[#534AB7] rounded-sm" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-    );
-  }
 
   // ── Render ───────────────────────────────────────────────────────────────
 
