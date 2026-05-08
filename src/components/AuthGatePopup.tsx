@@ -277,7 +277,7 @@ export function AuthGatePopup() {
 
             {/* ── White Body Panel ── */}
             <div
-              className={`px-6 pt-5 pb-[22px] transition-all duration-150 ${
+              className={`px-6 pt-5 pb-[22px] bg-white text-[#0F172A] transition-all duration-150 ${
                 isSwitching ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
               }`}
             >
@@ -390,7 +390,7 @@ export function AuthGatePopup() {
                       onChange={(e) => { setEmail(e.target.value); setAuthError(null); }}
                       placeholder="you@example.com"
                       disabled={isLoading !== null}
-                      className="h-[38px] rounded-lg border-[#CBD5E1] px-3 text-[12px] shadow-sm bg-white"
+                      className="h-[38px] rounded-lg border-[#CBD5E1] px-3 text-[12px] shadow-sm bg-white text-[#0F172A] placeholder:text-[#94A3B8] dark:bg-white dark:text-[#0F172A] dark:border-[#CBD5E1]"
                     />
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
@@ -400,7 +400,7 @@ export function AuthGatePopup() {
                         onChange={(e) => { setPassword(e.target.value); setAuthError(null); }}
                         placeholder="Password (min 6 chars)"
                         disabled={isLoading !== null}
-                        className="h-[38px] rounded-lg border-[#CBD5E1] pl-9 pr-3 text-[12px] shadow-sm bg-white"
+                        className="h-[38px] rounded-lg border-[#CBD5E1] pl-9 pr-3 text-[12px] shadow-sm bg-white text-[#0F172A] placeholder:text-[#94A3B8] dark:bg-white dark:text-[#0F172A] dark:border-[#CBD5E1]"
                       />
                     </div>
                     {authError && (
