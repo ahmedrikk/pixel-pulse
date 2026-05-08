@@ -4,7 +4,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, Star, Loader2, X } from "lucide-react";
+import { Mail, Star, Loader2, X, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -81,8 +81,10 @@ export function AuthGatePopup() {
   const isMobile = useIsMobile();
   const [tab, setTab] = useState<"signup" | "login">("signup");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState<string | null>(null);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isSwitching, setIsSwitching] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -90,6 +92,8 @@ export function AuthGatePopup() {
   const handleTabSwitch = (newTab: "signup" | "login") => {
     if (newTab === tab) return;
     setIsSwitching(true);
+    setAuthError(null);
+    setEmailSent(false);
     setTimeout(() => {
       setTab(newTab);
       setIsSwitching(false);
@@ -127,27 +131,37 @@ export function AuthGatePopup() {
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-      // Basic shake handled by CSS class or just toast for now
-      toast.error("Please enter a valid email");
+      setAuthError("Please enter a valid email");
+      return;
+    }
+    if (password.length < 6) {
+      setAuthError("Password must be at least 6 characters");
       return;
     }
     setIsLoading("email");
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: getRedirectUrl(),
-        },
-      });
-      if (error) throw error;
-      setMagicLinkSent(true);
-      setTimeout(() => {
-        closeAuthModal("continue_link");
-        setMagicLinkSent(false);
-      }, 4000);
+      if (tab === "signup") {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: getRedirectUrl() },
+        });
+        if (error) throw error;
+        if (data.session) {
+          // Auto-confirmed (email confirmation disabled in Supabase)
+          closeAuthModal("signup_success");
+        } else {
+          setEmailSent(true);
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        closeAuthModal("login_success");
+      }
     } catch (e: any) {
-      toast.error(e.message || "Failed to send login link");
+      setAuthError(e.message || "Something went wrong");
     } finally {
       setIsLoading(null);
     }
@@ -267,11 +281,11 @@ export function AuthGatePopup() {
                 isSwitching ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
               }`}
             >
-              {magicLinkSent ? (
+              {emailSent ? (
                 <div className="text-center py-8">
                   <Mail className="w-12 h-12 text-[#534AB7] mx-auto mb-4" />
                   <h3 className="text-[16px] font-medium text-[#0F172A] mb-2">Check your inbox</h3>
-                  <p className="text-[#64748B] text-[13px]">We sent you a magic link to sign in automatically.</p>
+                  <p className="text-[#64748B] text-[13px]">We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then log in.</p>
                 </div>
               ) : (
                 <>
@@ -369,19 +383,33 @@ export function AuthGatePopup() {
                   </div>
 
                   {/* Email Form */}
-                  <form onSubmit={handleEmail} className="flex gap-[7px] mb-4">
+                  <form onSubmit={handleEmail} className="flex flex-col gap-[8px] mb-4">
                     <Input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => { setEmail(e.target.value); setAuthError(null); }}
                       placeholder="you@example.com"
                       disabled={isLoading !== null}
-                      className="flex-1 h-[38px] rounded-lg border-[#CBD5E1] px-3 text-[12px] shadow-sm bg-white"
+                      className="h-[38px] rounded-lg border-[#CBD5E1] px-3 text-[12px] shadow-sm bg-white"
                     />
-                    <Button 
-                      type="submit" 
-                      disabled={isLoading !== null || !email}
-                      className="h-[38px] px-4 rounded-lg bg-[#534AB7] hover:bg-[#3C3489] text-white text-[12px] font-medium whitespace-nowrap"
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
+                      <Input
+                        type="password"
+                        value={password}
+                        onChange={(e) => { setPassword(e.target.value); setAuthError(null); }}
+                        placeholder="Password (min 6 chars)"
+                        disabled={isLoading !== null}
+                        className="h-[38px] rounded-lg border-[#CBD5E1] pl-9 pr-3 text-[12px] shadow-sm bg-white"
+                      />
+                    </div>
+                    {authError && (
+                      <p className="text-[11px] text-red-500 leading-tight">{authError}</p>
+                    )}
+                    <Button
+                      type="submit"
+                      disabled={isLoading !== null || !email || !password}
+                      className="h-[38px] rounded-lg bg-[#534AB7] hover:bg-[#3C3489] text-white text-[12px] font-medium"
                     >
                       {isLoading === "email" ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : null}
                       {tab === "signup" ? "Join free →" : "Log in →"}
