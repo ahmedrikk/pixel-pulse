@@ -360,7 +360,7 @@ export function AuthGatePopup() {
                     <button
                       onClick={() => handleOAuth("apple")}
                       disabled={isLoading !== null}
-                      className="w-full flex items-center justify-center h-[42px] max-md:h-[48px] rounded-[9px] border border-[#E2E8F0] max-md:border-black bg-white dark:bg-black text-[#0F172A] dark:text-white transition-colors"
+                      className="w-full flex items-center justify-center h-[42px] max-md:h-[48px] rounded-[9px] border border-[#E2E8F0] bg-white text-[#0F172A] transition-colors"
                     >
                       {isLoading === "apple" ? (
                         <Loader2 className="w-4 h-4 animate-spin text-current" />
