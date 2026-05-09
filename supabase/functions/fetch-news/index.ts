@@ -437,8 +437,11 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
   "tags": ["Tag1", "Tag2", "Tag3"]
 }`;
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  let totalRetries = 0;
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     for (const model of MODELS) {
+      totalRetries++;
       try {
         const res = await fetch(GROQ_API_URL, {
           method: "POST",
@@ -460,7 +463,7 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
 
         if (!res.ok) {
           const errText = await res.text();
-          console.warn(`  Groq ${model} ${res.status}: ${errText.substring(0, 200)}`);
+          console.warn(`  [retry ${totalRetries}] Groq ${model} ${res.status}: ${errText.substring(0, 200)}`);
           continue;
         }
 
@@ -469,10 +472,10 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
           .replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 
         const parsed = extractJsonObject(raw);
-        if (!parsed) { console.warn(`  ${model}: JSON parse failed`); continue; }
+        if (!parsed) { console.warn(`  [retry ${totalRetries}] ${model}: JSON parse failed`); continue; }
 
         let summary = String(parsed.summary ?? "").trim();
-        if (!summary) { console.warn(`  ${model}: empty summary`); continue; }
+        if (!summary) { console.warn(`  [retry ${totalRetries}] ${model}: empty summary`); continue; }
 
         // Strip any leaked metadata that Groq might have parroted
         summary = summary
@@ -483,12 +486,23 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
           .replace(/\s+/g, " ")
           .trim();
 
+        // Strip trailing ellipsis (Groq sometimes hits token limit and ends with ...)
+        summary = summary.replace(/\.{2,}\s*$/g, "").trim();
+
         const wc = countWords(summary);
         const sentences = countSentences(summary);
+        const lastChar = summary.slice(-1);
+        const endsCleanly = /[.!?"']/.test(lastChar);
 
-        // Reject summaries that are too short or have leaked metadata patterns
-        if (wc < 20 || sentences < 2 || summary.startsWith("http")) {
-          console.warn(`  ${model}: summary too short (${wc}w, ${sentences}s) — retrying`);
+        // Quality gate: 50-100 words, 3+ sentences, ends in punctuation, not a URL
+        const tooShort = wc < 50;
+        const tooLong = wc > 100;
+        const tooFewSentences = sentences < 3;
+        const malformed = summary.startsWith("http") || !endsCleanly;
+
+        if (tooShort || tooLong || tooFewSentences || malformed) {
+          const reason = tooShort ? `short ${wc}w` : tooLong ? `long ${wc}w` : tooFewSentences ? `${sentences}s only` : "malformed";
+          console.warn(`  [retry ${totalRetries}] ${model}: rejected (${reason}) — retrying`);
           continue;
         }
 
@@ -496,14 +510,15 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
           .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
           .slice(0, 6);
 
-        console.log(`  ok ${wc}w ${sentences}s (${model}) tags: ${tags.join(", ")}`);
+        console.log(`  ok ${wc}w ${sentences}s after ${totalRetries} attempt(s) (${model}) tags: ${tags.join(", ")}`);
         return { summary, tags };
 
       } catch (err) {
-        console.warn(`  Groq error (${model}):`, err);
+        console.warn(`  [retry ${totalRetries}] Groq error (${model}):`, err);
       }
     }
   }
+  console.warn(`  Quality gate failed after ${totalRetries} attempts — falling through`);
 
   console.warn(`  Groq failed — using raw content`);
   const rough = content.split(/\s+/).slice(0, 90).join(" ");
