@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Search, Loader2 } from 'lucide-react';
+import { fetchGameList } from '@/lib/rawg';
 
 export interface GameOption {
   id: string;
@@ -16,27 +16,39 @@ interface GameSearchInputProps {
 
 export function GameSearchInput({ onResults, onClear }: GameSearchInputProps) {
   const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const reqIdRef = useRef(0);
 
   useEffect(() => {
-    if (!query.trim()) { onClear(); return; }
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setLoading(false);
+      onClear();
+      return;
+    }
 
     clearTimeout(timerRef.current);
+    setLoading(true);
     timerRef.current = setTimeout(async () => {
-      const { data } = await supabase
-        .from('games')
-        .select('id, name, genres, cover_image')
-        .ilike('name', `%${query}%`)
-        .limit(10);
-
-      const results: GameOption[] = (data ?? []).map(g => ({
-        id: g.id,
-        name: g.name,
-        genre: g.genres?.[0] ?? 'Game',
-        coverUrl: g.cover_image ?? '',
-      }));
-      onResults(results);
-    }, 300);
+      const reqId = ++reqIdRef.current;
+      try {
+        const data = await fetchGameList({ search: trimmed, page_size: 12, ordering: '-rating' });
+        if (reqId !== reqIdRef.current) return; // stale response — ignore
+        const results: GameOption[] = (data.results ?? []).map(g => ({
+          id: String(g.id),
+          name: g.name,
+          genre: g.genres?.[0]?.name ?? 'Game',
+          coverUrl: g.background_image ?? '',
+        }));
+        onResults(results);
+      } catch (err) {
+        console.error('RAWG search failed:', err);
+        onResults([]);
+      } finally {
+        if (reqId === reqIdRef.current) setLoading(false);
+      }
+    }, 350);
 
     return () => clearTimeout(timerRef.current);
   }, [query, onResults, onClear]);
@@ -48,9 +60,10 @@ export function GameSearchInput({ onResults, onClear }: GameSearchInputProps) {
         type="search"
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder="Search games…"
-        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#534AB7]"
+        placeholder="Search games (powered by RAWG)…"
+        className="w-full pl-9 pr-9 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#534AB7]"
       />
+      {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#534AB7]" />}
     </div>
   );
 }
