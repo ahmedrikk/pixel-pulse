@@ -479,6 +479,8 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
           .replace(/^Title:\s*/i, "")
           .replace(/\s*URL Source:\s*https?:\/\/\S+/gi, "")
           .replace(/\s*Published Time:\s*[^.]+/gi, "")
+          .replace(/\s+([.,;:!?])/g, "$1")
+          .replace(/\s+/g, " ")
           .trim();
 
         const wc = countWords(summary);
@@ -602,7 +604,7 @@ serve(async (req) => {
       let scrapedImage: string | null = null;
       let scrapeMethod = "rss";
 
-      if (rssWords >= 50) {
+      if (rssWords >= 120) {
         content = rssDesc;
       } else {
         const scraped = await scrapeArticle(item.link);
