@@ -10,6 +10,7 @@ import { Navbar } from "@/components/Navbar";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { getCurrentUserProfile, type Profile } from "@/lib/profile";
 import GuestBattlePass from "@/components/battle-pass/guest/BattlePassGuestPage";
 import confetti from 'canvas-confetti';
 import {
@@ -242,7 +243,8 @@ export default function BattlePass() {
   }
   const [selectedTier, setSelectedTier] = useState(14);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
-  
+  const [profile, setProfile] = useState<Profile | null>(null);
+
   const [showDetail, setShowDetail] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTier, setModalTier] = useState<Tier | null>(null);
@@ -250,6 +252,10 @@ export default function BattlePass() {
   const seasonEnd = useMemo(() => new Date(Date.now() + 63 * 86400000), []);
   const countdown = useCountdown(seasonEnd);
   const { state: xpState, floatingXPs } = useXP();
+
+  useEffect(() => {
+    getCurrentUserProfile().then((p) => { if (p) setProfile(p); });
+  }, []);
 
   const doneCount = quests.filter((q) => q.done).length;
   const earnedXP = quests.filter((q) => q.done).reduce((s, q) => s + q.xpReward, 0);
@@ -349,13 +355,17 @@ export default function BattlePass() {
       <div className="flex">
         {/* ─── RANK TOWER (Left Panel) ─── */}
         <aside className="hidden md:flex w-[280px] min-h-[calc(100vh-56px)] sticky top-14 border-r border-border bg-card flex-col shrink-0">
-          {/* Banner image */}
+          {/* Banner — user's selected gradient or uploaded image */}
           <div className="relative h-40 overflow-hidden">
-            <img
-              src="https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&h=300&fit=crop"
-              alt="Season banner"
-              className="w-full h-full object-cover"
-            />
+            {profile?.banner_url ? (
+              profile.banner_url.startsWith('linear-gradient') || profile.banner_url.startsWith('radial-gradient') ? (
+                <div className="w-full h-full" style={{ background: profile.banner_url }} />
+              ) : (
+                <img src={profile.banner_url} alt="User banner" className="w-full h-full object-cover" />
+              )
+            ) : (
+              <div className="w-full h-full" style={{ background: 'linear-gradient(135deg,#0A1628,#FB923C)' }} />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
           </div>
 
