@@ -179,6 +179,20 @@ export default function OnboardingPage() {
   const [selectedIds, setSelectedIds]       = useState<string[]>(state.step3?.favGameIds ?? []);
   const [genres, setGenres]                 = useState<string[]>(state.step3?.favGenres ?? []);
   const [searchResults, setSearchResults]   = useState<GameOption[] | null>(null);
+  // Cache of every game the user has seen (POPULAR + searched) so selections persist when search clears
+  const [gameCache, setGameCache] = useState<Record<string, GameOption>>(() => {
+    const m: Record<string, GameOption> = {};
+    POPULAR_GAMES.forEach(g => { m[g.id] = g; });
+    return m;
+  });
+  const handleSearchResults = useCallback((results: GameOption[]) => {
+    setSearchResults(results);
+    setGameCache(prev => {
+      const next = { ...prev };
+      for (const g of results) next[g.id] = g;
+      return next;
+    });
+  }, []);
 
   // Loading
   const [p1Loading, setP1Loading] = useState(false);
@@ -279,7 +293,10 @@ export default function OnboardingPage() {
     }
   }
 
-  const displayGames = searchResults ?? POPULAR_GAMES;
+  const baseList = searchResults ?? POPULAR_GAMES;
+  const selectedGames = selectedIds.map(id => gameCache[id]).filter(Boolean) as GameOption[];
+  const unselectedBase = baseList.filter(g => !selectedIds.includes(g.id));
+  const displayGames = [...selectedGames, ...unselectedBase];
   const bannerLabel = BANNERS.find(b => b.id === bannerPreset)?.label ?? 'Ember Dawn';
   const platformLabel = platforms.slice(0, 2).join(' · ') || '—';
 
@@ -521,7 +538,7 @@ export default function OnboardingPage() {
           </span>
         </FieldLabel>
         <div className="[&_input]:!bg-white/5 [&_input]:!border-white/10 [&_input]:!text-white [&_input]:!placeholder-white/22 [&_input:focus]:!border-[#534AB7] [&_svg]:!text-white/30">
-          <GameSearchInput onResults={setSearchResults} onClear={() => setSearchResults(null)} />
+          <GameSearchInput onResults={handleSearchResults} onClear={() => setSearchResults(null)} />
         </div>
         <div className="flex flex-wrap gap-1.5 mt-2">
           {displayGames.map(g => {
