@@ -72,6 +72,13 @@ import {
   type UserNewsPreference
 } from "@/lib/profile";
 import { CATEGORIES } from "@/data/mockNews";
+import { BANNER_GRADIENTS } from "@/lib/onboardingService";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
+const BANNER_LABELS: Record<string, string> = {
+  bn1: 'Ember Dawn', bn2: 'Midnight Pulse', bn3: 'Teal Forest',
+  bn4: 'Crimson Night', bn5: 'Void Purple', bn6: 'Gold Surge',
+};
 
 const POPULAR_GAMES = [
   "Counter-Strike 2", "Valorant", "League of Legends", "Dota 2",
@@ -108,6 +115,22 @@ export default function Profile() {
   const [claimingBonus, setClaimingBonus] = useState(false);
   const [bonusGained, setBonusGained] = useState<number | null>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [bannerPickerOpen, setBannerPickerOpen] = useState(false);
+  const [savingBanner, setSavingBanner] = useState(false);
+
+  async function handleSelectBannerPreset(presetId: string) {
+    if (!user) return;
+    setSavingBanner(true);
+    try {
+      const gradient = BANNER_GRADIENTS[presetId];
+      await updateProfile(user.id, { banner_url: gradient });
+      const updated = await getCurrentUserProfile();
+      setProfile(updated);
+      setBannerPickerOpen(false);
+    } finally {
+      setSavingBanner(false);
+    }
+  }
   const [uploadingNameplate, setUploadingNameplate] = useState(false);
 
   useEffect(() => {
@@ -444,25 +467,52 @@ export default function Profile() {
           </Link>
         </div>
 
-        {/* Banner Upload Button (Always visible on hover for easier discovery) */}
+        {/* Banner Picker Button — opens preset gradient dialog (matches onboarding step 1) */}
         <div className="absolute top-4 right-4 z-20 opacity-0 group-hover/banner:opacity-100 transition-opacity">
           <Button
             variant="secondary"
             size="sm"
             className="gap-2 backdrop-blur-md bg-background/50 hover:bg-background/80"
-            onClick={() => document.getElementById('banner-upload')?.click()}
+            onClick={() => setBannerPickerOpen(true)}
           >
-            {uploadingBanner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit2 className="h-4 w-4" />}
+            {(uploadingBanner || savingBanner) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit2 className="h-4 w-4" />}
             {profile?.banner_url ? 'Change Banner' : 'Add Profile Banner'}
           </Button>
-          <input
-            id="banner-upload"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => handleAvatarUpload(e, 'banner')}
-          />
         </div>
+
+        <Dialog open={bannerPickerOpen} onOpenChange={setBannerPickerOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Choose a banner</DialogTitle>
+              <DialogDescription>Pick a gradient for your profile banner.</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {Object.entries(BANNER_GRADIENTS).map(([id, gradient]) => {
+                const selected = profile?.banner_url === gradient;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => handleSelectBannerPreset(id)}
+                    disabled={savingBanner}
+                    className="relative h-16 rounded-lg overflow-hidden border-2 transition-all"
+                    style={{
+                      background: gradient,
+                      borderColor: selected ? '#534AB7' : 'transparent',
+                      boxShadow: selected ? '0 0 0 2px rgba(83,74,183,0.3)' : 'none',
+                    }}
+                  >
+                    <span className="absolute bottom-1 left-2 text-[10px] font-medium text-white drop-shadow">
+                      {BANNER_LABELS[id]}
+                    </span>
+                    {selected && (
+                      <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#534AB7] flex items-center justify-center text-white text-[10px]">✓</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="relative container max-w-5xl mx-auto px-4 pt-16 pb-12">
           <div className="flex flex-col md:flex-row items-center md:items-end gap-8">
