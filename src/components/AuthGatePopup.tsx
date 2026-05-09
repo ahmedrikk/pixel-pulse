@@ -110,7 +110,7 @@ export function AuthGatePopup() {
     return baseUrl + '/';
   };
 
-  const handleOAuth = async (provider: "google" | "apple") => {
+  const handleOAuth = async (provider: "google") => {
     setIsLoading(provider);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -120,7 +120,7 @@ export function AuthGatePopup() {
         },
       });
       if (error) {
-        toast.error(`Failed to connect with ${provider === 'google' ? 'Google' : 'Apple'}`);
+        toast.error(`Failed to connect with Google`);
       }
     } catch (e) {
       toast.error("An unexpected error occurred");
@@ -152,6 +152,7 @@ export function AuthGatePopup() {
         if (data.session) {
           // Auto-confirmed (email confirmation disabled in Supabase)
           closeAuthModal("signup_success");
+          window.location.reload();
         } else {
           setEmailSent(true);
         }
@@ -159,6 +160,8 @@ export function AuthGatePopup() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         closeAuthModal("login_success");
+        // Hard reload so Navbar + all consumers re-read auth state from session
+        window.location.reload();
       }
     } catch (e: any) {
       setAuthError(e.message || "Something went wrong");
@@ -356,23 +359,6 @@ export function AuthGatePopup() {
                       )}
                     </button>
 
-                    {/* Apple */}
-                    <button
-                      onClick={() => handleOAuth("apple")}
-                      disabled={isLoading !== null}
-                      className="w-full flex items-center justify-center h-[42px] max-md:h-[48px] rounded-[9px] border border-[#E2E8F0] bg-white text-[#0F172A] transition-colors"
-                    >
-                      {isLoading === "apple" ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-current" />
-                      ) : (
-                        <>
-                          <svg className="w-[18px] h-[18px] mr-[10px]" viewBox="0 0 384 512" fill="currentColor">
-                            <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
-                          </svg>
-                          <span className="text-[13px] font-medium text-current">Continue with Apple</span>
-                        </>
-                      )}
-                    </button>
                   </div>
 
                   {/* Divider Row */}
