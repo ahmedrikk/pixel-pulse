@@ -273,7 +273,11 @@ export default function OnboardingPage() {
     if (!user || !canComplete || awarded.current) return;
     setCompleting(true);
     try {
-      await saveStep3(user.id, { favGameIds: selectedIds, favGenres: genres });
+      const favGames = selectedIds
+        .map(id => gameCache[id])
+        .filter(Boolean)
+        .map(g => ({ id: g.id, name: g.name, coverUrl: g.coverUrl }));
+      await saveStep3(user.id, { favGameIds: selectedIds, favGenres: genres, favGames });
       setStep3({ favGameIds: selectedIds, favGenres: genres });
       const xp = await completeOnboarding(user.id);
       awarded.current = true;

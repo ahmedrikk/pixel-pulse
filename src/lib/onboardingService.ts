@@ -28,6 +28,8 @@ export interface Step2Data {
 export interface Step3Data {
   favGameIds: string[];
   favGenres: string[];
+  /** Optional: full game metadata so we can also seed user_games table for Profile "My Games" */
+  favGames?: Array<{ id: string; name: string; coverUrl?: string }>;
 }
 
 /** Returns true if username is available */
@@ -90,6 +92,21 @@ export async function saveStep3(userId: string, data: Step3Data): Promise<void> 
     .eq('id', userId);
 
   if (error) throw new Error(`saveStep3 failed: ${error.message}`);
+
+  // Seed user_games table so Profile "My Games" section reflects onboarding picks
+  if (data.favGames && data.favGames.length > 0) {
+    const rows = data.favGames.map(g => ({
+      user_id: userId,
+      game_name: g.name,
+      platform: 'all',
+      image_url: g.coverUrl ?? null,
+      is_favorite: true,
+    }));
+    const { error: gamesError } = await supabase
+      .from('user_games')
+      .upsert(rows, { onConflict: 'user_id,game_name,platform', ignoreDuplicates: false });
+    if (gamesError) console.error('saveStep3 user_games seed failed:', gamesError);
+  }
 }
 
 /**
