@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { TrendingUp, Search, Home, Trophy, Swords, Sun, Moon, User, LogOut, LogIn, Users, Bell } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useXP } from "@/contexts/XPContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/Avatar";
@@ -28,6 +29,7 @@ export function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { state: xpState } = useXP();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -129,6 +131,14 @@ export function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) {
                     0
                   </span>
                 </Button>
+              </Link>
+            )}
+
+            {/* Tier Badge — desktop logged-in only */}
+            {user && (
+              <Link to="/battle-pass" className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors">
+                <Trophy className="h-3 w-3 text-primary" />
+                <span className="text-[10px] font-bold text-primary">T{xpState.tier}</span>
               </Link>
             )}
 

@@ -230,7 +230,7 @@ serve(async (req) => {
     const newXpToday    = isBypass ? xpToday : xpToday + awarded;
     const newXpSeason   = (profile.xp_season  ?? 0) + awarded;
     const newXpLifetime = (profile.xp         ?? 0) + awarded;
-    const newTier       = Math.min(Math.floor(newXpSeason / XP_PER_TIER), MAX_TIERS);
+    const newTier       = Math.min(Math.floor(newXpSeason / XP_PER_TIER) + 1, MAX_TIERS);
     const tierUp        = newTier > (profile.tier ?? 0);
 
     // Streak update logic
