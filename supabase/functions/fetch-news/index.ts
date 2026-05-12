@@ -605,6 +605,7 @@ serve(async (req) => {
   interface EnrichedItem extends RssItem {
     content: string;
     imageUrl: string;
+    ogImage: string | null;
     scrapeMethod: string;
   }
 
@@ -634,7 +635,7 @@ serve(async (req) => {
       const wordCount = content.split(/\s+/).filter(Boolean).length;
       console.log(`  [${item.source}] "${item.title.substring(0, 50)}..." — ${scrapeMethod} -> ${wordCount}w`);
 
-      return { ...item, content, imageUrl, scrapeMethod };
+      return { ...item, content, imageUrl, ogImage: scrapedImage, scrapeMethod };
     })
   );
 
@@ -653,7 +654,9 @@ serve(async (req) => {
   expiresAt.setHours(expiresAt.getHours() + 24);
   let processed = 0;
 
-  const PROCESS_LIMIT = 15;
+  // 20 articles × 2s delay = 40s for delays + ~20-30s API time ≈ 60-70s total
+  // This fits within Supabase's 150s edge function wall-time limit.
+  const PROCESS_LIMIT = 20;
   const itemsToProcess = enrichedItems.slice(0, PROCESS_LIMIT);
   console.log(`Processing ${itemsToProcess.length}/${enrichedItems.length} articles (limit: ${PROCESS_LIMIT})`);
   for (const item of itemsToProcess) {
@@ -666,7 +669,7 @@ serve(async (req) => {
         summary,
         source_url:   item.link,
         image_url:    item.imageUrl,
-        og_image_url: null,
+        og_image_url: item.ogImage,
         category:     "Gaming",
         source:       item.source,
         author:       item.author,
@@ -681,7 +684,7 @@ serve(async (req) => {
       if (error) console.error(`DB upsert error for "${item.title}":`, error);
       else processed++;
 
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 2000));
     } catch (err) {
       console.error(`Error processing "${item.title}":`, err);
     }
