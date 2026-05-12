@@ -41,14 +41,20 @@ const QUICK_REACTIONS = [
   { emoji: "😮", key: "wow", label: "Wow" },
 ];
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return "Recently";
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "Recently";
   const now = new Date();
   const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+  // Sanity check: negative diff means future date, very large diff = bad data
+  if (diffInHours < 0 || diffInHours > 365 * 24 * 10) return "Recently";
   if (diffInHours < 1) return "Just now";
   if (diffInHours < 24) return `${diffInHours}h ago`;
   if (diffInHours < 48) return "Yesterday";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const diffDays = Math.floor(diffInHours / 24);
+  if (diffDays < 365) return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 const JUNK_TAGS = new Set([
