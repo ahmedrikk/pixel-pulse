@@ -1,11 +1,15 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchXPProfile } from "@/lib/xp";
 
 interface XPState {
   totalXP: number;
   level: number;
   currentLevelXP: number;
   xpForNextLevel: number;
+  xpSeason: number;
+  tier: number;
+  xpToday: number;
 }
 
 interface FloatingXP {
@@ -21,6 +25,7 @@ interface XPContextType {
   justLeveledUp: boolean;
   clearLevelUp: () => void;
   enableXP: () => void;
+  refreshFromServer: () => Promise<void>;
 }
 
 const XP_STORAGE_KEY = "gt_xp_data";
@@ -30,7 +35,7 @@ function xpForLevel(level: number): number {
   return Math.floor(100 * Math.pow(1.5, level - 1));
 }
 
-function computeState(totalXP: number): XPState {
+function computeState(totalXP: number): Omit<XPState, "xpSeason" | "tier" | "xpToday"> {
   let level = 1;
   let remaining = totalXP;
   while (remaining >= xpForLevel(level)) {
@@ -52,56 +57,80 @@ const XPContext = createContext<XPContextType | null>(null);
 
 export function XPProvider({ children }: { children: ReactNode }) {
   const [totalXP, setTotalXP] = useState(loadXP);
+  const [xpSeason, setXpSeason] = useState(0);
+  const [tier, setTier] = useState(0);
+  const [xpToday, setXpToday] = useState(0);
   const [floatingXPs, setFloatingXPs] = useState<FloatingXP[]>([]);
   const [justLeveledUp, setJustLeveledUp] = useState(false);
   const prevLevelRef = useRef(computeState(loadXP()).level);
+  const prevTierRef = useRef(0);
   // Debounce Supabase writes — only flush after 3s of inactivity
   const supabaseFlushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingXPRef = useRef<number | null>(null);
   const canEarnXPRef = useRef(false);
 
-  // On login: pull XP from Supabase and overwrite localStorage if higher
+  // Sync from server — pulls xp_season, tier, xp_today from Supabase
+  const syncFromServer = useCallback(async (userId: string) => {
+    const data = await fetchXPProfile();
+    if (!data) return;
+
+    canEarnXPRef.current = true;
+
+    // Merge server season XP with local (use whichever is higher)
+    const localXP = loadXP();
+    const serverXP = data.xp ?? 0;
+    const merged = Math.max(localXP, serverXP);
+
+    if (merged !== localXP) {
+      localStorage.setItem(XP_STORAGE_KEY, String(merged));
+      setTotalXP(merged);
+    }
+
+    setXpSeason(data.xp_season ?? 0);
+    setTier(data.tier ?? 0);
+    setXpToday(data.xp_today ?? 0);
+
+    // Detect tier-up
+    const newTier = data.tier ?? 0;
+    if (newTier > prevTierRef.current && prevTierRef.current > 0) {
+      setJustLeveledUp(true);
+      setTimeout(() => setJustLeveledUp(false), 3000);
+    }
+    prevTierRef.current = newTier;
+  }, []);
+
+  // On login: pull XP from Supabase
   useEffect(() => {
-    const syncFromSupabase = async (userId: string) => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("xp, level, onboarding_completed")
-        .eq("id", userId)
-        .single();
-
-      if (data) {
-        canEarnXPRef.current = data.onboarding_completed ?? false;
-
-        // For fresh accounts, clear any stale guest XP from localStorage
-        if (!data.onboarding_completed) {
-          localStorage.setItem(XP_STORAGE_KEY, "0");
-          setTotalXP(0);
-        } else if (typeof data.xp === "number" && data.xp > 0) {
-          const localXP = loadXP();
-          // Use whichever is higher — prevents losing locally-earned XP
-          const merged = Math.max(localXP, data.xp);
-          if (merged !== localXP) {
-            localStorage.setItem(XP_STORAGE_KEY, String(merged));
-            setTotalXP(merged);
-          }
-        }
+    const handleAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await syncFromServer(user.id);
       }
     };
-
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) syncFromSupabase(user.id);
-    });
+    handleAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
-        syncFromSupabase(session.user.id);
+        syncFromServer(session.user.id);
       } else if (event === "SIGNED_OUT") {
         canEarnXPRef.current = false;
+        setXpSeason(0);
+        setTier(0);
+        setXpToday(0);
+        prevTierRef.current = 0;
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [syncFromServer]);
+
+  // Refresh from server (call after awardXP)
+  const refreshFromServer = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await syncFromServer(user.id);
+    }
+  }, [syncFromServer]);
 
   // Flush accumulated XP to Supabase (debounced, 3s after last addXP call)
   const flushToSupabase = useCallback((newTotal: number) => {
@@ -132,7 +161,7 @@ export function XPProvider({ children }: { children: ReactNode }) {
 
   const addXP = useCallback((amount: number) => {
     if (!canEarnXPRef.current) return;
-    
+
     setTotalXP((prev) => {
       const next = prev + amount;
       localStorage.setItem(XP_STORAGE_KEY, String(next));
@@ -146,9 +175,14 @@ export function XPProvider({ children }: { children: ReactNode }) {
     }, 1500);
   }, [flushToSupabase]);
 
-  const state = computeState(totalXP);
+  const state: XPState = {
+    ...computeState(totalXP),
+    xpSeason,
+    tier,
+    xpToday,
+  };
 
-  // Detect level up
+  // Detect level up (local level system)
   useEffect(() => {
     if (state.level > prevLevelRef.current) {
       setJustLeveledUp(true);
@@ -161,7 +195,7 @@ export function XPProvider({ children }: { children: ReactNode }) {
   const enableXP = useCallback(() => { canEarnXPRef.current = true; }, []);
 
   return (
-    <XPContext.Provider value={{ state, addXP, floatingXPs, justLeveledUp, clearLevelUp, enableXP }}>
+    <XPContext.Provider value={{ state, addXP, floatingXPs, justLeveledUp, clearLevelUp, enableXP, refreshFromServer }}>
       {children}
     </XPContext.Provider>
   );

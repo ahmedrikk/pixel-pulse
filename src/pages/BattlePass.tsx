@@ -11,6 +11,7 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { getCurrentUserProfile, type Profile } from "@/lib/profile";
+import { fetchUserRewards, claimReward } from "@/lib/xp";
 import GuestBattlePass from "@/components/battle-pass/guest/BattlePassGuestPage";
 import confetti from 'canvas-confetti';
 import {
@@ -45,12 +46,9 @@ interface Quest {
 }
 
 // ─── CONSTANTS ──────────────────────────────────────────────
-const CURRENT_XP = 13750;
-const CURRENT_TIER = 13;
 const MAX_TIER = 25;
 const XP_PER_TIER = 1000;
-const SEASON_XP_MAX = 25000;
-const TIER_XP_CURRENT = 750;
+const SEASON_XP_MAX = 24000; // tier 1 is free; tiers 2–25 each cost 1000 XP
 const TIER_XP_MAX = 1000;
 
 const TYPE_THEMES: Record<RewardType, { bg: string; border: string; text: string; icon: string }> = {
@@ -64,59 +62,59 @@ const TYPE_THEMES: Record<RewardType, { bg: string; border: string; text: string
 };
 
 const FREE_TIERS: Tier[] = [
-  { tier: 1,  xp: 1000,  reward: "Newcomer Badge",             type: "badge",     icon: "🏅", act: 1, unlocked: true,  track: "free" },
-  { tier: 2,  xp: 2000,  reward: "Title: Press Start",         type: "title",     icon: "🏷️", act: 1, unlocked: true,  track: "free" },
-  { tier: 3,  xp: 3000,  reward: "5% Gaming Coupon",           type: "coupon",    icon: "🎟️", act: 1, unlocked: true,  track: "free" },
-  { tier: 4,  xp: 4000,  reward: "Bronze Leaderboard Frame",   type: "frame",     icon: "🖼️", act: 1, unlocked: true,  track: "free" },
-  { tier: 5,  xp: 5000,  reward: "10% Coupon + Level Grinder", type: "milestone", icon: "⭐", act: 1, unlocked: true,  track: "free" },
-  { tier: 6,  xp: 6000,  reward: "Silver Reaction Emotes",     type: "cosmetic",  icon: "✨", act: 2, unlocked: true,  track: "free" },
-  { tier: 7,  xp: 7000,  reward: "Title: Lore Keeper",         type: "title",     icon: "🏷️", act: 2, unlocked: true,  track: "free" },
-  { tier: 8,  xp: 8000,  reward: "10% Coupon (Partner B)",     type: "coupon",    icon: "🎟️", act: 2, unlocked: true,  track: "free" },
-  { tier: 9,  xp: 9000,  reward: "Silver Leaderboard Frame",   type: "frame",     icon: "🖼️", act: 2, unlocked: true,  track: "free" },
-  { tier: 10, xp: 10000, reward: "15% Coupon + Anim Badge",    type: "milestone", icon: "⭐", act: 2, unlocked: true,  track: "free" },
-  { tier: 11, xp: 11000, reward: "Title: Meta Analyst",        type: "title",     icon: "🏷️", act: 2, unlocked: true,  track: "free" },
-  { tier: 12, xp: 12000, reward: "Dark Mode UI Skin",          type: "cosmetic",  icon: "🎨", act: 2, unlocked: true,  track: "free" },
-  { tier: 13, xp: 13000, reward: "15% Coupon (Partner C)",     type: "coupon",    icon: "🎟️", act: 3, unlocked: true,  track: "free" },
-  { tier: 14, xp: 14000, reward: "Gold Leaderboard Frame",     type: "frame",     icon: "🖼️", act: 3, unlocked: false, track: "free" },
-  { tier: 15, xp: 15000, reward: "20% Coupon + Final Boss",    type: "milestone", icon: "⭐", act: 3, unlocked: false, track: "free" },
-  { tier: 16, xp: 16000, reward: "Trivia Champion Badge",      type: "badge",     icon: "🏅", act: 3, unlocked: false, track: "free" },
-  { tier: 17, xp: 17000, reward: "Title: Esports Oracle",      type: "title",     icon: "🏷️", act: 3, unlocked: false, track: "free" },
-  { tier: 18, xp: 18000, reward: "20% Coupon + Plat Frame",    type: "coupon",    icon: "🎟️", act: 4, unlocked: false, track: "free" },
-  { tier: 19, xp: 19000, reward: "Animated Profile Border",    type: "cosmetic",  icon: "✨", act: 4, unlocked: false, track: "free" },
-  { tier: 20, xp: 20000, reward: "25% Mega Coupon Bundle",     type: "milestone", icon: "⭐", act: 4, unlocked: false, track: "free" },
-  { tier: 21, xp: 21000, reward: "Title: Elite Correspondent", type: "title",     icon: "🏷️", act: 4, unlocked: false, track: "free" },
-  { tier: 22, xp: 22000, reward: "Rare Season Badge",          type: "badge",     icon: "🏅", act: 4, unlocked: false, track: "free" },
-  { tier: 23, xp: 23000, reward: "30% Premium Coupon",         type: "coupon",    icon: "🎟️", act: 5, unlocked: false, track: "free" },
-  { tier: 24, xp: 24000, reward: "Diamond Crown Frame",        type: "frame",     icon: "🖼️", act: 5, unlocked: false, track: "free" },
-  { tier: 25, xp: 25000, reward: "SEASON CHAMPION + 40%",      type: "ultimate",  icon: "👑", act: 5, unlocked: false, track: "free" },
+  { tier: 1,  xp: 0,     reward: "Newcomer Badge",             type: "badge",     icon: "🏅", act: 1, unlocked: true,  track: "free" },
+  { tier: 2,  xp: 1000,  reward: "Title: Press Start",         type: "title",     icon: "🏷️", act: 1, unlocked: false, track: "free" },
+  { tier: 3,  xp: 2000,  reward: "5% Gaming Coupon",           type: "coupon",    icon: "🎟️", act: 1, unlocked: false, track: "free" },
+  { tier: 4,  xp: 3000,  reward: "Bronze Leaderboard Frame",   type: "frame",     icon: "🖼️", act: 1, unlocked: false, track: "free" },
+  { tier: 5,  xp: 4000,  reward: "10% Coupon + Level Grinder", type: "milestone", icon: "⭐", act: 1, unlocked: false, track: "free" },
+  { tier: 6,  xp: 5000,  reward: "Silver Reaction Emotes",     type: "cosmetic",  icon: "✨", act: 2, unlocked: false, track: "free" },
+  { tier: 7,  xp: 6000,  reward: "Title: Lore Keeper",         type: "title",     icon: "🏷️", act: 2, unlocked: false, track: "free" },
+  { tier: 8,  xp: 7000,  reward: "10% Coupon (Partner B)",     type: "coupon",    icon: "🎟️", act: 2, unlocked: false, track: "free" },
+  { tier: 9,  xp: 8000,  reward: "Silver Leaderboard Frame",   type: "frame",     icon: "🖼️", act: 2, unlocked: false, track: "free" },
+  { tier: 10, xp: 9000,  reward: "15% Coupon + Anim Badge",    type: "milestone", icon: "⭐", act: 2, unlocked: false, track: "free" },
+  { tier: 11, xp: 10000, reward: "Title: Meta Analyst",        type: "title",     icon: "🏷️", act: 2, unlocked: false, track: "free" },
+  { tier: 12, xp: 11000, reward: "Dark Mode UI Skin",          type: "cosmetic",  icon: "🎨", act: 2, unlocked: false, track: "free" },
+  { tier: 13, xp: 12000, reward: "15% Coupon (Partner C)",     type: "coupon",    icon: "🎟️", act: 3, unlocked: false, track: "free" },
+  { tier: 14, xp: 13000, reward: "Gold Leaderboard Frame",     type: "frame",     icon: "🖼️", act: 3, unlocked: false, track: "free" },
+  { tier: 15, xp: 14000, reward: "20% Coupon + Final Boss",    type: "milestone", icon: "⭐", act: 3, unlocked: false, track: "free" },
+  { tier: 16, xp: 15000, reward: "Trivia Champion Badge",      type: "badge",     icon: "🏅", act: 3, unlocked: false, track: "free" },
+  { tier: 17, xp: 16000, reward: "Title: Esports Oracle",      type: "title",     icon: "🏷️", act: 3, unlocked: false, track: "free" },
+  { tier: 18, xp: 17000, reward: "20% Coupon + Plat Frame",    type: "coupon",    icon: "🎟️", act: 4, unlocked: false, track: "free" },
+  { tier: 19, xp: 18000, reward: "Animated Profile Border",    type: "cosmetic",  icon: "✨", act: 4, unlocked: false, track: "free" },
+  { tier: 20, xp: 19000, reward: "25% Mega Coupon Bundle",     type: "milestone", icon: "⭐", act: 4, unlocked: false, track: "free" },
+  { tier: 21, xp: 20000, reward: "Title: Elite Correspondent", type: "title",     icon: "🏷️", act: 4, unlocked: false, track: "free" },
+  { tier: 22, xp: 21000, reward: "Rare Season Badge",          type: "badge",     icon: "🏅", act: 4, unlocked: false, track: "free" },
+  { tier: 23, xp: 22000, reward: "30% Premium Coupon",         type: "coupon",    icon: "🎟️", act: 5, unlocked: false, track: "free" },
+  { tier: 24, xp: 23000, reward: "Diamond Crown Frame",        type: "frame",     icon: "🖼️", act: 5, unlocked: false, track: "free" },
+  { tier: 25, xp: 24000, reward: "SEASON CHAMPION + 40%",      type: "ultimate",  icon: "👑", act: 5, unlocked: false, track: "free" },
 ];
 
 const PREMIUM_TIERS: Tier[] = [
-  { tier: 1,  xp: 1000,  reward: "Exclusive Emblem",           type: "cosmetic",  icon: "💎", act: 1, unlocked: false, track: "premium" },
-  { tier: 2,  xp: 2000,  reward: "Holographic Title",          type: "title",     icon: "🌟", act: 1, unlocked: false, track: "premium" },
-  { tier: 3,  xp: 3000,  reward: "Premium Emote Pack",         type: "cosmetic",  icon: "🎭", act: 1, unlocked: false, track: "premium" },
-  { tier: 4,  xp: 4000,  reward: "Animated Avatar Frame",      type: "frame",     icon: "💫", act: 1, unlocked: false, track: "premium" },
-  { tier: 5,  xp: 5000,  reward: "Legendary Crate",            type: "milestone", icon: "📦", act: 1, unlocked: false, track: "premium" },
-  { tier: 6,  xp: 6000,  reward: "Neon Reaction Set",          type: "cosmetic",  icon: "🌈", act: 2, unlocked: false, track: "premium" },
-  { tier: 7,  xp: 7000,  reward: "Title: Mythic Reader",       type: "title",     icon: "📖", act: 2, unlocked: false, track: "premium" },
-  { tier: 8,  xp: 8000,  reward: "15% Exclusive Coupon",       type: "coupon",    icon: "🎫", act: 2, unlocked: false, track: "premium" },
-  { tier: 9,  xp: 9000,  reward: "Gold Animated Frame",        type: "frame",     icon: "🏆", act: 2, unlocked: false, track: "premium" },
-  { tier: 10, xp: 10000, reward: "Epic Engram",                type: "milestone", icon: "🔮", act: 2, unlocked: false, track: "premium" },
-  { tier: 11, xp: 11000, reward: "Prismatic Shader",           type: "cosmetic",  icon: "🎨", act: 2, unlocked: false, track: "premium" },
-  { tier: 12, xp: 12000, reward: "Title: Data Miner",          type: "title",     icon: "⛏️", act: 2, unlocked: false, track: "premium" },
-  { tier: 13, xp: 13000, reward: "25% Partner Coupon",         type: "coupon",    icon: "🎫", act: 3, unlocked: false, track: "premium" },
-  { tier: 14, xp: 14000, reward: "Platinum Frame",             type: "frame",     icon: "🪙", act: 3, unlocked: false, track: "premium" },
-  { tier: 15, xp: 15000, reward: "Exotic Engram",              type: "milestone", icon: "💠", act: 3, unlocked: false, track: "premium" },
-  { tier: 16, xp: 16000, reward: "Legendary Badge",            type: "badge",     icon: "🎖️", act: 3, unlocked: false, track: "premium" },
-  { tier: 17, xp: 17000, reward: "Title: Grandmaster",         type: "title",     icon: "👑", act: 3, unlocked: false, track: "premium" },
-  { tier: 18, xp: 18000, reward: "30% Mega Coupon",            type: "coupon",    icon: "🎫", act: 4, unlocked: false, track: "premium" },
-  { tier: 19, xp: 19000, reward: "Celestial Border",           type: "cosmetic",  icon: "🌠", act: 4, unlocked: false, track: "premium" },
-  { tier: 20, xp: 20000, reward: "Ascendant Shard",            type: "milestone", icon: "💎", act: 4, unlocked: false, track: "premium" },
-  { tier: 21, xp: 21000, reward: "Title: Vanguard",            type: "title",     icon: "🛡️", act: 4, unlocked: false, track: "premium" },
-  { tier: 22, xp: 22000, reward: "Exotic Badge",               type: "badge",     icon: "🔱", act: 4, unlocked: false, track: "premium" },
-  { tier: 23, xp: 23000, reward: "40% Premium Coupon",         type: "coupon",    icon: "🎫", act: 5, unlocked: false, track: "premium" },
-  { tier: 24, xp: 24000, reward: "Ascendant Frame",            type: "frame",     icon: "⚜️", act: 5, unlocked: false, track: "premium" },
-  { tier: 25, xp: 25000, reward: "MYTHIC CHAMPION BUNDLE",     type: "ultimate",  icon: "🏛️", act: 5, unlocked: false, track: "premium" },
+  { tier: 1,  xp: 0,     reward: "Exclusive Emblem",           type: "cosmetic",  icon: "💎", act: 1, unlocked: false, track: "premium" },
+  { tier: 2,  xp: 1000,  reward: "Holographic Title",          type: "title",     icon: "🌟", act: 1, unlocked: false, track: "premium" },
+  { tier: 3,  xp: 2000,  reward: "Premium Emote Pack",         type: "cosmetic",  icon: "🎭", act: 1, unlocked: false, track: "premium" },
+  { tier: 4,  xp: 3000,  reward: "Animated Avatar Frame",      type: "frame",     icon: "💫", act: 1, unlocked: false, track: "premium" },
+  { tier: 5,  xp: 4000,  reward: "Legendary Crate",            type: "milestone", icon: "📦", act: 1, unlocked: false, track: "premium" },
+  { tier: 6,  xp: 5000,  reward: "Neon Reaction Set",          type: "cosmetic",  icon: "🌈", act: 2, unlocked: false, track: "premium" },
+  { tier: 7,  xp: 6000,  reward: "Title: Mythic Reader",       type: "title",     icon: "📖", act: 2, unlocked: false, track: "premium" },
+  { tier: 8,  xp: 7000,  reward: "15% Exclusive Coupon",       type: "coupon",    icon: "🎫", act: 2, unlocked: false, track: "premium" },
+  { tier: 9,  xp: 8000,  reward: "Gold Animated Frame",        type: "frame",     icon: "🏆", act: 2, unlocked: false, track: "premium" },
+  { tier: 10, xp: 9000,  reward: "Epic Engram",                type: "milestone", icon: "🔮", act: 2, unlocked: false, track: "premium" },
+  { tier: 11, xp: 10000, reward: "Prismatic Shader",           type: "cosmetic",  icon: "🎨", act: 2, unlocked: false, track: "premium" },
+  { tier: 12, xp: 11000, reward: "Title: Data Miner",          type: "title",     icon: "⛏️", act: 2, unlocked: false, track: "premium" },
+  { tier: 13, xp: 12000, reward: "25% Partner Coupon",         type: "coupon",    icon: "🎫", act: 3, unlocked: false, track: "premium" },
+  { tier: 14, xp: 13000, reward: "Platinum Frame",             type: "frame",     icon: "🪙", act: 3, unlocked: false, track: "premium" },
+  { tier: 15, xp: 14000, reward: "Exotic Engram",              type: "milestone", icon: "💠", act: 3, unlocked: false, track: "premium" },
+  { tier: 16, xp: 15000, reward: "Legendary Badge",            type: "badge",     icon: "🎖️", act: 3, unlocked: false, track: "premium" },
+  { tier: 17, xp: 16000, reward: "Title: Grandmaster",         type: "title",     icon: "👑", act: 3, unlocked: false, track: "premium" },
+  { tier: 18, xp: 17000, reward: "30% Mega Coupon",            type: "coupon",    icon: "🎫", act: 4, unlocked: false, track: "premium" },
+  { tier: 19, xp: 18000, reward: "Celestial Border",           type: "cosmetic",  icon: "🌠", act: 4, unlocked: false, track: "premium" },
+  { tier: 20, xp: 19000, reward: "Ascendant Shard",            type: "milestone", icon: "💎", act: 4, unlocked: false, track: "premium" },
+  { tier: 21, xp: 20000, reward: "Title: Vanguard",            type: "title",     icon: "🛡️", act: 4, unlocked: false, track: "premium" },
+  { tier: 22, xp: 21000, reward: "Exotic Badge",               type: "badge",     icon: "🔱", act: 4, unlocked: false, track: "premium" },
+  { tier: 23, xp: 22000, reward: "40% Premium Coupon",         type: "coupon",    icon: "🎫", act: 5, unlocked: false, track: "premium" },
+  { tier: 24, xp: 23000, reward: "Ascendant Frame",            type: "frame",     icon: "⚜️", act: 5, unlocked: false, track: "premium" },
+  { tier: 25, xp: 24000, reward: "MYTHIC CHAMPION BUNDLE",     type: "ultimate",  icon: "🏛️", act: 5, unlocked: false, track: "premium" },
 ];
 
 const ACTS = [
@@ -241,9 +239,11 @@ export default function BattlePass() {
   if (!isLoading && !isAuthenticated) {
     return <GuestBattlePass />;
   }
-  const [selectedTier, setSelectedTier] = useState(14);
+  const [selectedTier, setSelectedTier] = useState(1);
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [userRewards, setUserRewards] = useState<Array<{ tier: number; reward_type: string; claimed: boolean }>>([]);
+  const [claiming, setClaiming] = useState(false);
 
   const [showDetail, setShowDetail] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -251,25 +251,43 @@ export default function BattlePass() {
   const trackRef = useRef<HTMLDivElement>(null);
   const seasonEnd = useMemo(() => new Date(Date.now() + 63 * 86400000), []);
   const countdown = useCountdown(seasonEnd);
-  const { state: xpState, floatingXPs } = useXP();
+  const { state: xpState, floatingXPs, refreshFromServer } = useXP();
 
   useEffect(() => {
-    getCurrentUserProfile().then((p) => { if (p) setProfile(p); });
+    getCurrentUserProfile().then((p) => {
+      if (p) {
+        setProfile(p);
+        // tier is now 1-indexed (starts at 1); scroll to next locked tier
+        const tier = Math.max(1, p.tier ?? 1);
+        setSelectedTier(Math.min(tier + 1, MAX_TIER));
+      }
+    });
   }, []);
+
+  useEffect(() => {
+    if (profile?.id) {
+      fetchUserRewards().then((r) => setUserRewards(r));
+    }
+  }, [profile?.id]);
 
   const doneCount = quests.filter((q) => q.done).length;
   const earnedXP = quests.filter((q) => q.done).reduce((s, q) => s + q.xpReward, 0);
 
+  const currentTier = Math.max(1, profile?.tier ?? xpState.tier ?? 1);
+  const currentXP = profile?.xp_season ?? xpState.xpSeason ?? 0;
+  // Within-tier XP: how far into the current tier. Tier 1 is always free (xp=0).
+  const tierXP = currentTier === 1 ? Math.min(currentXP, XP_PER_TIER) : currentXP % XP_PER_TIER;
+
   // Auto-scroll to current tier
   useEffect(() => {
-    if (trackRef.current) {
+    if (trackRef.current && currentTier > 0) {
       const t = setTimeout(() => {
-        const el = trackRef.current?.querySelector(`[data-tier="${CURRENT_TIER}"]`);
+        const el = trackRef.current?.querySelector(`[data-tier="${currentTier}"]`);
         if (el) el.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
       }, 400);
       return () => clearTimeout(t);
     }
-  }, []);
+  }, [currentTier]);
 
   const completeQuest = useCallback((id: string) => {
     setQuests((prev) =>
@@ -277,7 +295,15 @@ export default function BattlePass() {
     );
   }, []);
 
-  const selected = FREE_TIERS[selectedTier - 1];
+  const freeTiersDynamic = useMemo(() =>
+    FREE_TIERS.map((t) => ({ ...t, unlocked: t.tier === 1 || currentTier >= t.tier })),
+  [currentTier]);
+
+  const premiumTiersDynamic = useMemo(() =>
+    PREMIUM_TIERS.map((t) => ({ ...t, unlocked: false })), // all premium locked until pass purchased
+  []);
+
+  const selected = freeTiersDynamic[selectedTier - 1] ?? freeTiersDynamic[0];
   const selectedTheme = TYPE_THEMES[selected.type];
 
   const selectTier = (tier: number) => {
@@ -287,14 +313,28 @@ export default function BattlePass() {
     setShowDetail(true);
   };
 
-  const handleClaim = () => {
-    confetti({
-      particleCount: 120,
-      spread: 80,
-      origin: { y: 0.6 },
-      colors: ['#a855f7', '#06b6d4', '#f59e0b'],
-    });
-    setModalOpen(false);
+  const handleClaim = async () => {
+    if (!modalTier || !profile?.id) return;
+    if (currentXP < modalTier.xp) return;
+    setClaiming(true);
+    try {
+      await claimReward(profile.id, modalTier.tier);
+      await refreshFromServer();
+      const p = await getCurrentUserProfile();
+      if (p) setProfile(p);
+      setUserRewards((prev) => [...prev, { tier: modalTier.tier, reward_type: modalTier.type, claimed: true }]);
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#a855f7', '#06b6d4', '#f59e0b'],
+      });
+      setModalOpen(false);
+    } catch (e) {
+      console.error('Claim failed', e);
+    } finally {
+      setClaiming(false);
+    }
   };
 
   return (
@@ -309,7 +349,7 @@ export default function BattlePass() {
           <span className="text-xs font-bold text-primary ml-1">S1</span>
           <div className="flex md:hidden items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 ml-2">
             <Trophy className="w-3 h-3 text-primary" />
-            <span className="text-[10px] font-bold text-primary">RANK {CURRENT_TIER}</span>
+            <span className="text-[10px] font-bold text-primary">RANK {currentTier}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -322,7 +362,7 @@ export default function BattlePass() {
           </div>
           <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
             <Trophy className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-bold text-primary">RANK {CURRENT_TIER}</span>
+            <span className="text-xs font-bold text-primary">RANK {currentTier}</span>
           </div>
         </div>
       </div>
@@ -336,17 +376,17 @@ export default function BattlePass() {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 200, damping: 15 }}
           >
-            <span className="text-2xl font-black text-primary">{CURRENT_TIER}</span>
+            <span className="text-2xl font-black text-primary">{currentTier}</span>
           </motion.div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold text-foreground">RANK {CURRENT_TIER}</h2>
+            <h2 className="text-sm font-bold text-foreground">RANK {currentTier}</h2>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Season of the Ember</p>
             <div className="mt-2">
               <div className="flex justify-between text-[10px] mb-1">
                 <span className="font-semibold text-foreground">Season XP</span>
-                <span className="text-muted-foreground">{CURRENT_XP.toLocaleString()} / {SEASON_XP_MAX.toLocaleString()}</span>
+                <span className="text-muted-foreground">{currentXP.toLocaleString()} / {SEASON_XP_MAX.toLocaleString()}</span>
               </div>
-              <XPBar percent={(CURRENT_XP / SEASON_XP_MAX) * 100} delay={400} className="h-2" />
+              <XPBar percent={(currentXP / SEASON_XP_MAX) * 100} delay={400} className="h-2" />
             </div>
           </div>
         </div>
@@ -377,9 +417,9 @@ export default function BattlePass() {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
             >
-              <span className="text-4xl font-black text-primary">{CURRENT_TIER}</span>
+              <span className="text-4xl font-black text-primary">{currentTier}</span>
             </motion.div>
-            <h2 className="mt-3 text-lg font-bold text-foreground tracking-tight">RANK {CURRENT_TIER}</h2>
+            <h2 className="mt-3 text-lg font-bold text-foreground tracking-tight">RANK {currentTier}</h2>
             <p className="text-xs text-muted-foreground tracking-widest uppercase mt-0.5">Season of the Ember</p>
 
             {/* Countdown */}
@@ -396,13 +436,13 @@ export default function BattlePass() {
             <div className="flex justify-between text-xs mb-1.5">
               <span className="font-semibold text-foreground">Season XP</span>
               <span className="text-muted-foreground">
-                {CURRENT_XP.toLocaleString()} / {SEASON_XP_MAX.toLocaleString()}
+                {currentXP.toLocaleString()} / {SEASON_XP_MAX.toLocaleString()}
               </span>
             </div>
-            <XPBar percent={(CURRENT_XP / SEASON_XP_MAX) * 100} delay={600} />
+            <XPBar percent={(currentXP / SEASON_XP_MAX) * 100} delay={600} />
             <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-muted-foreground">Rank {CURRENT_TIER}</span>
-              <span className="text-[10px] text-muted-foreground">Rank {CURRENT_TIER + 1}</span>
+              <span className="text-[10px] text-muted-foreground">Rank {currentTier}</span>
+              <span className="text-[10px] text-muted-foreground">Rank {currentTier + 1}</span>
             </div>
           </div>
 
@@ -410,9 +450,9 @@ export default function BattlePass() {
           <div className="px-6 mt-4">
             <div className="flex justify-between text-xs mb-1.5">
               <span className="font-medium text-foreground">To Next Rank</span>
-              <span className="text-muted-foreground font-semibold">{TIER_XP_CURRENT} / {TIER_XP_MAX}</span>
+              <span className="text-muted-foreground font-semibold">{tierXP} / {TIER_XP_MAX}</span>
             </div>
-            <XPBar percent={(TIER_XP_CURRENT / TIER_XP_MAX) * 100} delay={800} />
+            <XPBar percent={(tierXP / TIER_XP_MAX) * 100} delay={800} />
           </div>
 
           <div className="mx-6 my-4 h-px bg-border" />
@@ -507,9 +547,9 @@ export default function BattlePass() {
                   style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
                 >
                   <div className="flex gap-2 min-w-max">
-                    {FREE_TIERS.map((t) => {
+                    {freeTiersDynamic.map((t) => {
                       const theme = TYPE_THEMES[t.type];
-                      const isCurrent = t.tier === CURRENT_TIER;
+                      const isCurrent = t.tier === currentTier;
                       const isSelected = t.tier === selectedTier;
                       const isMilestone = [5, 10, 15, 20, 25].includes(t.tier);
 
@@ -520,12 +560,12 @@ export default function BattlePass() {
                               ▶ NOW
                             </span>
                           )}
-                          {t.tier === CURRENT_TIER + 1 && !isCurrent && (
+                          {t.tier === currentTier + 1 && !isCurrent && (
                             <span className="text-[9px] font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded">
                               NEXT
                             </span>
                           )}
-                          {t.tier !== CURRENT_TIER && t.tier !== CURRENT_TIER + 1 && <div className="h-[20px]" />}
+                          {t.tier !== currentTier && t.tier !== currentTier + 1 && <div className="h-[20px]" />}
 
                           <span className="text-[9px] font-semibold text-muted-foreground">{t.tier}</span>
 
@@ -558,7 +598,7 @@ export default function BattlePass() {
                             )}
                             <span className="text-2xl leading-none">{t.icon}</span>
                             <span className="text-[9px] font-semibold" style={{ color: t.unlocked ? theme.text : "hsl(var(--muted-foreground))" }}>
-                              {(t.xp / 1000).toFixed(0)}K XP
+                              {t.xp === 0 ? "FREE" : `${(t.xp / 1000).toFixed(0)}K XP`}
                             </span>
                           </motion.button>
                         </div>
@@ -571,7 +611,7 @@ export default function BattlePass() {
                       className="h-full rounded-full"
                       style={{ background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))" }}
                       initial={{ width: 0 }}
-                      animate={{ width: `${(CURRENT_XP / SEASON_XP_MAX) * 100}%` }}
+                      animate={{ width: `${(currentXP / SEASON_XP_MAX) * 100}%` }}
                       transition={{ duration: 1.2, delay: 0.3, type: "spring", stiffness: 80, damping: 14 }}
                     />
                   </div>
@@ -591,7 +631,7 @@ export default function BattlePass() {
               <div className="relative group">
                 <div className="overflow-x-auto pb-2 bp-scroll px-12" style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}>
                   <div className="flex gap-2 min-w-max">
-                    {PREMIUM_TIERS.map((t) => {
+                    {premiumTiersDynamic.map((t) => {
                       const theme = TYPE_THEMES[t.type];
                       return (
                         <div key={`p-${t.tier}`} className="flex flex-col items-center gap-0.5">
@@ -653,11 +693,11 @@ export default function BattlePass() {
                     <p className="font-bold text-base text-foreground">{selected.reward}</p>
                     <div className="mt-3 max-w-[300px]">
                       <XPBar
-                        percent={selected.unlocked ? 100 : Math.min(100, (CURRENT_XP / selected.xp) * 100)}
+                        percent={selected.unlocked ? 100 : Math.min(100, (currentXP / selected.xp) * 100)}
                         delay={200}
                       />
                       <p className="text-[11px] text-muted-foreground mt-1">
-                        {selected.unlocked ? "100" : Math.floor((CURRENT_XP / selected.xp) * 100)}% progress
+                        {selected.unlocked ? "100" : Math.floor((currentXP / selected.xp) * 100)}% progress
                       </p>
                     </div>
                   </div>
@@ -672,10 +712,10 @@ export default function BattlePass() {
                     ) : (
                       <div className="text-right mt-2">
                         <p className="text-sm text-muted-foreground font-medium">
-                          {(selected.xp - CURRENT_XP).toLocaleString()} XP away
+                          {(selected.xp - currentXP).toLocaleString()} XP away
                         </p>
                         <p className="text-[11px] text-muted-foreground/60 hidden sm:block">
-                          ≈ {Math.ceil((selected.xp - CURRENT_XP) / 200)} days at avg pace
+                          ≈ {Math.ceil((selected.xp - currentXP) / 200)} days at avg pace
                         </p>
                       </div>
                     )}
@@ -693,7 +733,7 @@ export default function BattlePass() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3">
               {REWARD_GRID.map((r) => {
-                const unlocked = r.level <= CURRENT_TIER;
+                const unlocked = r.level <= currentTier;
                 const rarityColor = RARITY_COLORS[r.rarity] || "hsl(var(--muted-foreground))";
                 return (
                   <motion.div
@@ -823,33 +863,40 @@ export default function BattlePass() {
                     Streak Multipliers
                   </h4>
                   <div className="space-y-2">
-                    {[
-                      { range: "Day 1–2", mult: "1.0×", active: true },
-                      { range: "Day 3–6", mult: "1.2×", active: false },
-                      { range: "Day 7–13", mult: "1.5×", active: false },
-                      { range: "Day 14–29", mult: "1.75×", active: false },
-                      { range: "Day 30+", mult: "2.0×", active: false },
-                    ].map((s) => (
-                      <div key={s.range} className="flex justify-between items-center text-xs">
-                        <span className={s.active ? "text-foreground font-semibold" : "text-muted-foreground"}>
-                          {s.range}
-                        </span>
-                        <span className={s.active ? "text-primary font-bold" : "text-muted-foreground"}>
-                          {s.mult}
-                        </span>
-                      </div>
-                    ))}
+                    {(() => {
+                      const streak = profile?.daily_streak ?? xpState.dailyStreak ?? 0;
+                      const ranges = [
+                        { range: "Day 1–2", mult: "1.0×", min: 1, max: 2 },
+                        { range: "Day 3–6", mult: "1.2×", min: 3, max: 6 },
+                        { range: "Day 7–13", mult: "1.5×", min: 7, max: 13 },
+                        { range: "Day 14–29", mult: "1.75×", min: 14, max: 29 },
+                        { range: "Day 30+", mult: "2.0×", min: 30, max: Infinity },
+                      ];
+                      return ranges.map((s) => {
+                        const active = streak >= s.min && streak <= s.max;
+                        return (
+                          <div key={s.range} className="flex justify-between items-center text-xs">
+                            <span className={active ? "text-foreground font-semibold" : "text-muted-foreground"}>
+                              {s.range}
+                            </span>
+                            <span className={active ? "text-primary font-bold" : "text-muted-foreground"}>
+                              {s.mult}
+                            </span>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
 
                 <div className="rounded-xl border bg-card p-4">
                   <h4 className="text-xs font-bold text-foreground mb-2">XP Earned Today</h4>
-                  <p className="text-2xl font-black text-primary">{earnedXP}</p>
+                  <p className="text-2xl font-black text-primary">{profile?.xp_today ?? xpState.xpToday ?? 0}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">Daily cap: 400 XP</p>
                   <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-700"
-                      style={{ width: `${Math.min(100, (earnedXP / 400) * 100)}%` }}
+                      style={{ width: `${Math.min(100, ((profile?.xp_today ?? xpState.xpToday ?? 0) / 400) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -858,9 +905,9 @@ export default function BattlePass() {
                 <div className="rounded-xl border bg-card p-4">
                   <h4 className="text-xs font-bold text-foreground mb-3">Next Unlocks</h4>
                   <div className="space-y-2.5">
-                    {FREE_TIERS.filter((t) => !t.unlocked).slice(0, 3).map((t) => {
+                    {freeTiersDynamic.filter((t) => !t.unlocked).slice(0, 3).map((t) => {
                       const theme = TYPE_THEMES[t.type];
-                      const prog = Math.min(100, (CURRENT_XP / t.xp) * 100);
+                      const prog = Math.min(100, (currentXP / t.xp) * 100);
                       return (
                         <button
                           key={t.tier}
@@ -920,14 +967,14 @@ export default function BattlePass() {
               </div>
               <Button
                 className="w-full"
-                disabled={CURRENT_XP < modalTier.xp}
+                disabled={currentXP < modalTier.xp || claiming}
                 onClick={handleClaim}
               >
-                {CURRENT_XP >= modalTier.xp ? 'Claim Reward' : 'Locked'}
+                {claiming ? 'Claiming…' : currentXP >= modalTier.xp ? 'Claim Reward' : 'Locked'}
               </Button>
-              {CURRENT_XP < modalTier.xp && (
+              {currentXP < modalTier.xp && (
                 <p className="text-xs text-center text-muted-foreground">
-                  {(modalTier.xp - CURRENT_XP).toLocaleString()} XP more to unlock
+                  {(modalTier.xp - currentXP).toLocaleString()} XP more to unlock
                 </p>
               )}
             </div>

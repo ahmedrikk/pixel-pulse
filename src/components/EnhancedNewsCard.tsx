@@ -14,6 +14,7 @@ import { Article, XP_VALUES, GameReview } from "@/types/feed";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useXP } from "@/contexts/XPContext";
+import { awardXP } from "@/lib/xp";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -64,7 +65,7 @@ function isSpecificTag(tag: string): boolean {
 export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps) {
   const { setActiveTag } = useTagFilter();
   const { isAuthenticated, openAuthModal, user } = useAuthGate();
-  const { addXP } = useXP();
+  const { addXP, refreshFromServer } = useXP();
   const { isBookmarked, toggleBookmark } = useBookmarks();
 
   const [liked, setLiked] = useState(false);
@@ -108,24 +109,34 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     } catch { /* RAWG unavailable — silently skip */ }
   }, [isAuthenticated, reviewGame]);
 
-  const handleLike = useCallback(() => {
+  const handleLike = useCallback(async () => {
     if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
     setLiked(!liked);
     setLikeCount(liked ? likeCount - 1 : likeCount + 1);
     if (!liked) {
-      addXP(XP_VALUES.REACT);
-      toast.success(`+${XP_VALUES.REACT} XP!`, { duration: 1500 });
+      const result = await awardXP("react", article.sourceUrl);
+      if (result && result.awarded > 0) {
+        toast.success(`+${result.awarded} XP! Tier ${result.tier}`, { duration: 1500 });
+        await refreshFromServer();
+      } else if (result?.capped) {
+        toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
+      }
       checkGameAndShowReview(primaryTag);
     }
-  }, [isAuthenticated, liked, likeCount, article.id, openAuthModal, addXP, checkGameAndShowReview, primaryTag]);
+  }, [isAuthenticated, liked, likeCount, article.id, article.sourceUrl, openAuthModal, addXP, refreshFromServer, checkGameAndShowReview, primaryTag]);
 
-  const handleReaction = useCallback((emoji: string) => {
+  const handleReaction = useCallback(async (emoji: string) => {
     if (!isAuthenticated) { openAuthModal("react", { articleId: article.id }); return; }
     setUserReactions(prev => ({ ...prev, [emoji]: (prev[emoji] || 0) + 1 }));
-    addXP(XP_VALUES.REACT);
-    toast.success(`+${XP_VALUES.REACT} XP!`, { duration: 1500 });
+    const result = await awardXP("react", article.sourceUrl);
+    if (result && result.awarded > 0) {
+      toast.success(`+${result.awarded} XP! Tier ${result.tier}`, { duration: 1500 });
+      await refreshFromServer();
+    } else if (result?.capped) {
+      toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
+    }
     checkGameAndShowReview(primaryTag);
-  }, [isAuthenticated, article.id, openAuthModal, addXP, checkGameAndShowReview, primaryTag]);
+  }, [isAuthenticated, article.id, article.sourceUrl, openAuthModal, refreshFromServer, checkGameAndShowReview, primaryTag]);
 
   const handleBookmark = useCallback(() => {
     if (!isAuthenticated) { openAuthModal("bookmark", { articleId: article.id }); return; }
@@ -166,11 +177,17 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     }
   }, [article]);
 
-  const awardViewXP = useCallback(() => {
+  const awardViewXP = useCallback(async () => {
     if (hasAwardedView) return;
     setHasAwardedView(true);
-    addXP(XP_VALUES.VIEW_SUMMARY);
-  }, [hasAwardedView, addXP]);
+    const result = await awardXP("read_summary", article.sourceUrl);
+    if (result && result.awarded > 0) {
+      toast.success(`+${result.awarded} XP`, { duration: 1500 });
+      await refreshFromServer();
+    } else if (result === null) {
+      addXP(XP_VALUES.VIEW_SUMMARY); // guest fallback
+    }
+  }, [hasAwardedView, article.sourceUrl, addXP, refreshFromServer]);
 
   useEffect(() => {
     const card = cardRef.current;
@@ -202,10 +219,18 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     };
   }, [article.id, awardViewXP, hasAwardedView, onCardView]);
 
-  const handleReadFull = useCallback(() => {
-    addXP(XP_VALUES.READ_FULL_ARTICLE);
-    toast.success(`+${XP_VALUES.READ_FULL_ARTICLE} XP!`, { duration: 1500 });
-  }, [addXP]);
+  const handleReadFull = useCallback(async () => {
+    const result = await awardXP("read_more", article.sourceUrl);
+    if (result && result.awarded > 0) {
+      toast.success(`+${result.awarded} XP! Tier ${result.tier}`, { duration: 1500 });
+      await refreshFromServer();
+    } else if (result?.capped) {
+      toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
+    } else if (result === null) {
+      // Guest fallback
+      addXP(XP_VALUES.READ_FULL_ARTICLE);
+    }
+  }, [article.sourceUrl, addXP, refreshFromServer]);
 
   const summaryText = article.summary || "";
   const displayTags = article.topicTags.slice(0, 4);
@@ -348,11 +373,12 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             </DropdownMenu>
           </div>
 
-          <Button asChild size="sm" className="gap-2" onClick={handleReadFull}>
-            <a href={article.sourceUrl} target="_blank" rel="noopener noreferrer">
-              Read Full Article
-              <ExternalLink className="h-3 w-3" />
-            </a>
+          <Button size="sm" className="gap-2" onClick={async () => {
+            await handleReadFull();
+            window.open(article.sourceUrl, '_blank', 'noopener,noreferrer');
+          }}>
+            Read Full Article
+            <ExternalLink className="h-3 w-3" />
           </Button>
         </div>
 
