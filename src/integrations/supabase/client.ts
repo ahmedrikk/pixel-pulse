@@ -10,6 +10,12 @@ const hasValidConfig = SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY &&
   !SUPABASE_URL.includes('your-project') &&
   !SUPABASE_PUBLISHABLE_KEY.includes('your-anon-key');
 
+// Strip bare "#" from URL on boot — a hash with no params confuses Supabase's
+// detectSessionInUrl into clearing valid sessions on refresh.
+if (typeof window !== 'undefined' && window.location.hash === '#') {
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
 // Hybrid localStorage + cookie storage for max session durability (365-day cookie backup)
 export const supabase = createClient<Database>(
   SUPABASE_URL || 'http://localhost:54321',
@@ -17,9 +23,15 @@ export const supabase = createClient<Database>(
   {
     auth: {
       storage: persistentStorage,
+      storageKey: 'sb-zxcqqsviwtwxukizibef-auth-token',
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      // Only parse session from URL when hash actually contains auth params.
+      // A bare "#" or empty hash was causing the SDK to clear valid sessions.
+      detectSessionInUrl:
+        typeof window !== 'undefined' &&
+        /[#&](access_token|refresh_token|error_description)=/.test(window.location.hash),
+      flowType: 'pkce',
     },
   }
 );
