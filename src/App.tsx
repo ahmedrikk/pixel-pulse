@@ -41,7 +41,7 @@ const App = () => (
               <Toaster />
               <Sonner />
               <AuthGatePopup />
-              <BrowserRouter basename={import.meta.env.BASE_URL}>
+              <BrowserRouter>
                 <Routes>
                   {/* Onboarding — no guard */}
                   <Route path="/onboarding" element={<OnboardingPage />} />

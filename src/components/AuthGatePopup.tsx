@@ -102,12 +102,7 @@ export function AuthGatePopup() {
 
   // Auth Submit Handlers
   const getRedirectUrl = () => {
-    const baseUrl = window.location.origin;
-    const pathname = window.location.pathname;
-    if (pathname.includes('/pixel-pulse/')) {
-      return `${baseUrl}/pixel-pulse/`;
-    }
-    return baseUrl + '/';
+    return window.location.origin + '/';
   };
 
   const handleOAuth = async (provider: "google") => {
