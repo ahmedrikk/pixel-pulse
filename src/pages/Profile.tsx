@@ -9,8 +9,6 @@ import {
   Link as LinkIcon,
   Save,
   Edit2,
-  Monitor,
-  MessageCircle,
   Trash2,
   Plus,
   Star,
@@ -419,8 +417,6 @@ export default function Profile() {
   }
 
   const steamAccount = socialAccounts.find(s => s.provider === 'steam');
-  const discordAccount = socialAccounts.find(s => s.provider === 'discord');
-  const epicAccount = socialAccounts.find(s => s.provider === 'epic');
   const totalPlaytime = games.reduce((sum, g) => sum + (g.playtime_hours || 0), 0);
 
   return (
@@ -700,28 +696,6 @@ export default function Profile() {
               onDisconnect={() => handleUnlink('steam')}
               connectColor="bg-[#1b2838] hover:bg-[#2a475e] text-white"
             />
-            {/* Discord */}
-            <AccountCard
-              icon={<MessageCircle className="h-6 w-6 text-white" />}
-              name="Discord"
-              bgColor="bg-[#5865F2]"
-              connected={!!discordAccount}
-              username={discordAccount?.username}
-              onConnect={() => { }}
-              onDisconnect={() => handleUnlink('discord')}
-              connectColor="bg-[#5865F2] hover:bg-[#4752C4] text-white"
-            />
-            {/* Epic Games */}
-            <AccountCard
-              icon={<Monitor className="h-6 w-6 text-black dark:text-white" />}
-              name="Epic Games"
-              bgColor="bg-white dark:bg-zinc-800 border"
-              connected={!!epicAccount}
-              username={epicAccount?.username}
-              onConnect={() => { }}
-              onDisconnect={() => handleUnlink('epic')}
-              connectColor=""
-            />
           </div>
 
           {/* Manual Steam ID Input */}
@@ -998,7 +972,22 @@ export default function Profile() {
               </div>
               <div className="flex items-center justify-between pl-7">
                 <p className="font-medium">••••••••</p>
-                <Button variant="ghost" size="sm" className="text-primary">Change</Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary"
+                  onClick={async () => {
+                    if (!user?.email) return;
+                    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+                      redirectTo: `${window.location.origin}/login`,
+                    });
+                    if (error) {
+                      toast({ title: "Reset failed", description: error.message, variant: "destructive" });
+                    } else {
+                      toast({ title: "Email sent", description: "Check your inbox for the password reset link." });
+                    }
+                  }}
+                >Change</Button>
               </div>
             </div>
           </div>
