@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { INITIAL_NEWS, NewsItem } from "@/data/mockNews";
+import { NewsItem } from "@/data/mockNews";
 import { supabase } from "@/integrations/supabase/client";
 import { getAllCachedArticles, shouldRefreshCache, spotifyShuffle } from "@/lib/newsCache";
 import { useAuthGate } from "@/contexts/AuthGateContext";
@@ -79,7 +79,7 @@ export function useGamingNews(options?: { category?: string }) {
   }, [isLoadingMore, hasMore, loadFromDB]);
 
   // ── Trigger server-side pipeline then reload ──────────────────────────────
-  const triggerFetch = useCallback(async (timeoutMs = 15000) => {
+  const triggerFetch = useCallback(async (timeoutMs = 60000) => {
     console.log("Invoking fetch-news edge function…");
     try {
       const result = await Promise.race([
@@ -117,12 +117,10 @@ export function useGamingNews(options?: { category?: string }) {
       if (cancelled) return;
 
       if (count === 0) {
-        // Empty — show fallback immediately so user isn't stuck on skeletons,
-        // then trigger server fetch in the background.
-        console.warn("Cache empty — showing fallback while fetching fresh data");
-        setNews(INITIAL_NEWS);
-        setIsLoading(false);
-        triggerFetch(); // fire and forget — will refresh when done
+        // Empty — try to fetch fresh articles instead of showing stale mock data.
+        console.warn("Cache empty — fetching fresh articles…");
+        await triggerFetch(60000);
+        if (!cancelled) setIsLoading(false);
       } else {
         setIsLoading(false);
         // Cache exists — check if stale and refresh in background
@@ -131,8 +129,6 @@ export function useGamingNews(options?: { category?: string }) {
           triggerFetch(); // fire and forget
         }
       }
-
-      if (!cancelled) setIsLoading(false);
     }
 
     init();

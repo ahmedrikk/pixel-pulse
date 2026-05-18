@@ -21,6 +21,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     articles,
     isLoading,
     isRefreshing,
+    isLoadingMore,
     error,
     hasMore,
     newArticlesCount,
@@ -54,7 +55,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
           if (displayedCount < filteredArticles.length) {
             // Still have local articles to reveal
             setDisplayedCount(prev => Math.min(prev + 5, filteredArticles.length));
-          } else if (hasMore && !isLoading) {
+          } else if (hasMore && !isLoading && !isLoadingMore) {
             // Local list exhausted but DB has more — fetch next page
             loadMore();
           }
@@ -258,17 +259,19 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
             ))
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              <p>No articles found matching #{activeTag}</p>
-              <Button variant="link" onClick={clearFilter} className="mt-2">
-                View all articles
-              </Button>
+              <p>{activeTag ? `No articles found matching #${activeTag}` : "No articles available yet — check back in a few minutes!"}</p>
+              {activeTag && (
+                <Button variant="link" onClick={clearFilter} className="mt-2">
+                  View all articles
+                </Button>
+              )}
             </div>
           )}
         </AnimatePresence>
       </div>
 
       {/* Infinite Scroll Trigger / Loading Indicator */}
-      {!isLoading && (displayedCount < filteredArticles.length || hasMore) && (
+      {!isLoading && !isLoadingMore && (displayedCount < filteredArticles.length || hasMore) && (
         <div ref={loadMoreRef} className="text-center py-8">
           <div className="flex flex-col items-center gap-2">
             <RefreshCw className="h-5 w-5 animate-spin text-primary/50" />
