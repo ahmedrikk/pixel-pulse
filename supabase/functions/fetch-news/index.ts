@@ -518,12 +518,23 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
       }
     }
   }
-  console.warn(`  Quality gate failed after ${totalRetries} attempts — falling through`);
+  console.warn(`  Quality gate failed after ${totalRetries} attempts — building safe fallback`);
 
-  console.warn(`  Groq failed — using raw content`);
-  const rough = content.split(/\s+/).slice(0, 90).join(" ");
-  const lastStop = Math.max(rough.lastIndexOf(". "), rough.lastIndexOf("! "), rough.lastIndexOf("? "));
-  const summary = lastStop > 60 ? rough.substring(0, lastStop + 1) : rough.split(/\s+/).slice(0, 80).join(" ");
+  // Safe fallback: truncate raw content to last sentence boundary within 50-100 word range
+  const words = content.split(/\s+/).filter(Boolean);
+  if (words.length < 50) {
+    return { summary: "", tags: [] }; // skip — will retry next run
+  }
+  const slice = words.slice(0, 95).join(" ");
+  const lastStop = Math.max(slice.lastIndexOf(". "), slice.lastIndexOf("! "), slice.lastIndexOf("? "));
+  if (lastStop < 200) {
+    return { summary: "", tags: [] }; // no clean break — skip
+  }
+  const summary = slice.substring(0, lastStop + 1).trim();
+  const wc = summary.split(/\s+/).filter(Boolean).length;
+  if (wc < 50 || wc > 100) {
+    return { summary: "", tags: [] };
+  }
   return { summary, tags: [] };
 }
 
@@ -549,10 +560,21 @@ serve(async (req) => {
 
   const urlsToDelete: string[] = [];
   for (const row of (badArticles ?? [])) {
-    const summary = row.ai_summary || "";
+    const summary = (row.ai_summary || "").trim();
     const words = summary.split(/\s+/).filter(Boolean).length;
     const sentences = summary.split(/[.!?]+/).filter((s: string) => s.trim().length > 3).length;
-    if (words < 20 || sentences < 2 || summary.startsWith("http") || summary.startsWith("Title:")) {
+    const endsInEllipsis = /\.{2,}\s*$/.test(summary) || /…\s*$/.test(summary);
+    const lastChar = summary.slice(-1);
+    const endsCleanly = /[.!?"')]/.test(lastChar);
+    if (
+      words < 50 ||
+      words > 110 ||
+      sentences < 3 ||
+      endsInEllipsis ||
+      !endsCleanly ||
+      summary.startsWith("http") ||
+      summary.startsWith("Title:")
+    ) {
       urlsToDelete.push(row.source_url);
     }
   }
@@ -662,6 +684,12 @@ serve(async (req) => {
   for (const item of itemsToProcess) {
     try {
       const { summary, tags } = await summarizeWithGroq(item.title, item.content);
+
+      if (!summary || summary.length < 100) {
+        console.warn(`  Skipping "${item.title}" — summary failed quality gate, will retry next run`);
+        await new Promise(r => setTimeout(r, 500));
+        continue;
+      }
 
       const { error } = await supabase.from("cached_articles").upsert({
         original_id:  `${item.source}-${item.link.substring(item.link.length - 60)}`,
