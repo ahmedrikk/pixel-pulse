@@ -16,17 +16,6 @@ if (typeof window !== 'undefined' && window.location.hash === '#') {
   history.replaceState(null, '', window.location.pathname + window.location.search);
 }
 
-// True only when URL contains actual OAuth/PKCE auth params.
-// Prevents Supabase from clearing a valid stored session on normal page loads.
-// PKCE callbacks arrive as ?code= (search), implicit flow as #access_token= (hash).
-const _h = typeof window !== 'undefined' ? window.location.hash : '';
-const _s = typeof window !== 'undefined' ? window.location.search : '';
-const hasAuthInUrl =
-  /access_token=|refresh_token=|error_description=/.test(_h) ||
-  /[?&]code=/.test(_s) ||
-  /[?&]token_hash=/.test(_s) ||   // email confirmation (PKCE)
-  /[?&]error=/.test(_s);
-
 // Hybrid localStorage + cookie storage — 365-day cookie backup survives localStorage clears
 export const supabase = createClient<Database>(
   SUPABASE_URL || 'http://localhost:54321',
@@ -37,7 +26,10 @@ export const supabase = createClient<Database>(
       storageKey: 'sb-zxcqqsviwtwxukizibef-auth-token',
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: hasAuthInUrl,
+      // Always true: bare "#" clearing is handled by history.replaceState above.
+      // With flowType 'pkce', detectSessionInUrl:false prevents storage restore on
+      // clean page loads — keeping it true lets Supabase read from storage normally.
+      detectSessionInUrl: true,
       flowType: 'pkce',
     },
   }
