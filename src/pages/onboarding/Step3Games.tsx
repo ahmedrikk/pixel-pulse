@@ -52,10 +52,24 @@ export default function Step3Games() {
   const [genres, setGenres]           = useState<string[]>(state.step3?.favGenres ?? []);
   const [searchResults, setSearchResults] = useState<GameOption[] | null>(null);
   const [loading, setLoading] = useState(false);
+  // Registry of all seen game objects — merges popular + RAWG search results
+  const [gameRegistry, setGameRegistry] = useState<Record<string, GameOption>>(
+    Object.fromEntries(POPULAR_GAMES.map(g => [g.id, g]))
+  );
 
   const displayList = searchResults ?? POPULAR_GAMES;
-  const selectedGames = POPULAR_GAMES.filter(g => selectedIds.includes(g.id));
+  const selectedGames = selectedIds.map(id => gameRegistry[id]).filter(Boolean) as GameOption[];
   const unselectedDisplay = displayList.filter(g => !selectedIds.includes(g.id));
+
+  function handleSearchResults(results: GameOption[]) {
+    // Add any new games to registry so selected ones remain visible
+    setGameRegistry(prev => {
+      const next = { ...prev };
+      for (const g of results) next[g.id] = g;
+      return next;
+    });
+    setSearchResults(results);
+  }
 
   function toggleGame(id: string) {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -69,7 +83,11 @@ export default function Step3Games() {
     if (!user || selectedIds.length < 3) return;
     setLoading(true);
     try {
-      await saveStep3(user.id, { favGameIds: selectedIds, favGenres: genres });
+      await saveStep3(user.id, {
+        favGameIds: selectedIds,
+        favGenres: genres,
+        favGames: selectedGames.map(g => ({ id: g.id, name: g.name, coverUrl: g.coverUrl })),
+      });
       setStep3({ favGameIds: selectedIds, favGenres: genres });
       navigate('/onboarding/step-4');
     } catch (err) {
@@ -95,7 +113,7 @@ export default function Step3Games() {
         </p>
 
         <GameSearchInput
-          onResults={setSearchResults}
+          onResults={handleSearchResults}
           onClear={() => setSearchResults(null)}
         />
 
