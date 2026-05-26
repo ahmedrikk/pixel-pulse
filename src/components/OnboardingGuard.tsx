@@ -36,7 +36,12 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
       .eq('id', user.id)
       .single()
       .then(({ data, error: sbError }) => {
-        if (sbError) { setOnboardingDone(true); return; }
+        if (sbError?.code === 'PGRST116') {
+          // No profile row yet (trigger may still be running) — treat as new user → onboarding
+          setOnboardingDone(false);
+          return;
+        }
+        if (sbError) { setOnboardingDone(true); return; } // unknown error — let through
         setOnboardingDone(data?.onboarding_completed ?? false);
       })
       .catch(() => setOnboardingDone(true));

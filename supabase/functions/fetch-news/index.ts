@@ -217,7 +217,7 @@ function extractArticleText(html: string): string {
   const mainMatch = /<main[^>]*>([\s\S]*?)<\/main>/i.exec(stripped);
   if (mainMatch) { const t = paragraphsFrom(mainMatch[1]); if (t.length > 200) return t; }
 
-  const classRe = /<div[^>]*class="[^"]*(?:article[-_]body|article[-_]content|post[-_]content|entry[-_]content|story[-_]body|content[-_]body|prose|richtext|article__body|article_body_content|post-body|entry-body|post__content|content__body|field--body|node__content|page-content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i;
+  const classRe = /<div[^>]*class="[^"]*(?:article[-_]body|article[-_]content|post[-_]content|entry[-_]content|story[-_]body|content[-_]body|prose|richtext|article__body|article_body_content|post-body|entry-body|post__content|content__body|field--body|node__content|page-content|js-post-body|post__content-body|article__content|article-body-component|body-content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i;
   const classMatch = classRe.exec(stripped);
   if (classMatch) { const t = paragraphsFrom(classMatch[1]); if (t.length > 200) return t; }
 
@@ -332,12 +332,24 @@ async function scrapeArticleJina(url: string): Promise<ScrapeResult> {
   if (!res.ok) throw new Error(`Jina HTTP ${res.status}`);
   const text = await res.text();
 
-  // Aggressively strip Jina metadata blocks — handles both line-by-line and inline formats
+  // Strip Jina metadata blocks then convert markdown to plain text
   let content = text
     .replace(/^Title:.*$/gim, "")
     .replace(/^URL Source:.*$/gim, "")
     .replace(/^Published Time:.*$/gim, "")
     .replace(/^Markdown Content:\s*/gim, "")
+    // markdown → plain text
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, "")              // images
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")           // [text](url) → text
+    .replace(/^#{1,6}\s+/gm, "")                       // ## headers
+    .replace(/\*\*([^*]+)\*\*/g, "$1")                 // **bold**
+    .replace(/\*([^*]+)\*/g, "$1")                     // *italic*
+    .replace(/`[^`]+`/g, "")                           // `code`
+    .replace(/^[-*+]\s+/gm, "")                        // bullet points
+    .replace(/^\d+\.\s+/gm, "")                        // numbered lists
+    .replace(/^>\s+/gm, "")                            // blockquotes
+    .replace(/\|[^\n]+\|/g, "")                        // tables
+    .replace(/^---+$/gm, "")                           // horizontal rules
     .replace(/\n\s*\n/g, "\n")
     .trim();
 
@@ -420,11 +432,9 @@ function countSentences(text: string): number {
 }
 
 async function summarizeWithGroq(title: string, content: string): Promise<SummarizeResult> {
-  // If content is extremely short, try to expand from title + content rather than returning raw
-  if (!GROQ_API_KEY || countWords(content) < 15) {
-    const combined = `${title}. ${content}`.trim();
-    return { summary: combined, tags: [] };
-  }
+  if (!GROQ_API_KEY) return { summary: "", tags: [] };
+  // Not enough content to produce a real summary — skip and retry next run
+  if (countWords(content) < 15) return { summary: "", tags: [] };
 
   const userPrompt = `Article Title: ${title}
 
@@ -486,8 +496,18 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
           .replace(/\s+/g, " ")
           .trim();
 
-        // Strip trailing ellipsis (Groq sometimes hits token limit and ends with ...)
-        summary = summary.replace(/\.{2,}\s*$/g, "").trim();
+        // Strip trailing ellipsis — then find last clean sentence boundary
+        if (/\.{2,}\s*$|…\s*$/.test(summary)) {
+          summary = summary.replace(/\.{2,}\s*$|…\s*$/g, "").trim();
+          // truncate back to last sentence-ending punctuation
+          const lastStop = Math.max(
+            summary.lastIndexOf(". "),
+            summary.lastIndexOf("! "),
+            summary.lastIndexOf("? "),
+          );
+          if (lastStop > 80) summary = summary.substring(0, lastStop + 1).trim();
+          else summary = ""; // nothing salvageable
+        }
 
         const wc = countWords(summary);
         const sentences = countSentences(summary);
