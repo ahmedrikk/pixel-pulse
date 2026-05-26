@@ -94,26 +94,47 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
   const handleTagClick = (tag: string) => setActiveTag(tag);
 
-  // Lazy RAWG lookup — only fires once per card, only for authenticated users
-  const checkGameAndShowReview = useCallback(async (tag: string | null) => {
-    if (!tag || !isAuthenticated || hasCheckedGameRef.current) {
-      if (hasCheckedGameRef.current && reviewGame) setShowReviewPrompt(true);
+  // Lazy RAWG lookup — only fires once per card, only for authenticated users.
+  // Prefers the article's explicit gameTags (real game names) and falls back to
+  // specific topic tags. Tries each candidate until RAWG confirms a real game.
+  const checkGameAndShowReview = useCallback(async () => {
+    if (!isAuthenticated) return;
+    // Already resolved on a prior interaction — just re-show the prompt.
+    if (hasCheckedGameRef.current) {
+      if (reviewGame) setShowReviewPrompt(true);
       return;
     }
+
+    // Candidate game names: explicit gameTags first, then non-junk topic tags.
+    const candidates = [
+      ...article.gameTags,
+      ...article.topicTags.filter(isSpecificTag),
+    ]
+      .map((t) => t.trim())
+      .filter((t, i, arr) => t.length >= 3 && arr.indexOf(t) === i);
+
+    if (candidates.length === 0) return;
     hasCheckedGameRef.current = true;
-    try {
-      const { results } = await fetchGameList({ search: tag, page_size: 1 });
-      if (results.length > 0) {
+
+    for (const tag of candidates) {
+      try {
+        const { results } = await fetchGameList({ search: tag, page_size: 1 });
+        if (results.length === 0) continue;
         const g = results[0];
         const tagNorm = tag.toLowerCase().replace(/[^a-z0-9]/g, "");
         const nameNorm = g.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-        // Require tag >= 6 chars and the tag prefix appears in the result name
-        if (tagNorm.length < 6 || !nameNorm.includes(tagNorm.substring(0, 5))) return;
+        if (tagNorm.length < 3) continue;
+        // Accept when the tag and matched game name share a leading prefix in
+        // either direction — loose enough to fire, tight enough to avoid noise.
+        const tagPrefix = tagNorm.substring(0, Math.min(4, tagNorm.length));
+        const namePrefix = nameNorm.substring(0, Math.min(4, nameNorm.length));
+        if (!nameNorm.includes(tagPrefix) && !tagNorm.includes(namePrefix)) continue;
         setReviewGame({ id: String(g.id), name: g.name, coverUrl: g.background_image ?? "" });
         setShowReviewPrompt(true);
-      }
-    } catch { /* RAWG unavailable — silently skip */ }
-  }, [isAuthenticated, reviewGame]);
+        return;
+      } catch { /* try next candidate */ }
+    }
+  }, [isAuthenticated, reviewGame, article.gameTags, article.topicTags]);
 
   const handleLike = useCallback(async () => {
     if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
@@ -127,9 +148,9 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       } else if (result?.capped) {
         toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
       }
-      checkGameAndShowReview(primaryTag);
+      checkGameAndShowReview();
     }
-  }, [isAuthenticated, liked, likeCount, article.id, article.sourceUrl, openAuthModal, addXP, refreshFromServer, checkGameAndShowReview, primaryTag]);
+  }, [isAuthenticated, liked, likeCount, article.id, article.sourceUrl, openAuthModal, addXP, refreshFromServer, checkGameAndShowReview]);
 
   const handleReaction = useCallback(async (emoji: string) => {
     if (!isAuthenticated) { openAuthModal("react", { articleId: article.id }); return; }
@@ -141,15 +162,15 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     } else if (result?.capped) {
       toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
     }
-    checkGameAndShowReview(primaryTag);
-  }, [isAuthenticated, article.id, article.sourceUrl, openAuthModal, refreshFromServer, checkGameAndShowReview, primaryTag]);
+    checkGameAndShowReview();
+  }, [isAuthenticated, article.id, article.sourceUrl, openAuthModal, refreshFromServer, checkGameAndShowReview]);
 
   const handleBookmark = useCallback(() => {
     if (!isAuthenticated) { openAuthModal("bookmark", { articleId: article.id }); return; }
     const newState = toggleBookmark(article);
     toast.success(newState ? "Saved to bookmarks" : "Removed from bookmarks");
-    if (newState) checkGameAndShowReview(primaryTag);
-  }, [isAuthenticated, article, openAuthModal, toggleBookmark, checkGameAndShowReview, primaryTag]);
+    if (newState) checkGameAndShowReview();
+  }, [isAuthenticated, article, openAuthModal, toggleBookmark, checkGameAndShowReview]);
 
   const handleReviewSubmit = useCallback(async (review: Omit<GameReview, "id" | "userId" | "createdAt">) => {
     if (!reviewGame || !user) return;
