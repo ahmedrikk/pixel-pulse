@@ -1,4 +1,4 @@
-import { Home, Star, Trophy, Swords, ExternalLink } from "lucide-react";
+import { Home, Swords, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useXP } from "@/contexts/XPContext";
 import { useAuthGate } from "@/contexts/AuthGateContext";
@@ -9,8 +9,6 @@ import { UserProfileWidget } from "@/components/sidebar/UserProfileWidget";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
-  { icon: Star, label: "Reviews", href: "/reviews" },
-  { icon: Trophy, label: "Leaderboard", href: "/leaderboard" },
 ];
 
 export function LeftSidebar() {

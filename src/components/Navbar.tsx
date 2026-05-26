@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, Search, Home, Trophy, Swords, Sun, Moon, User, LogOut, LogIn, Users, Bell } from "lucide-react";
+import { TrendingUp, Search, Home, Trophy, Swords, Sun, Moon, User, LogOut, LogIn, Users, Bell, Star } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useXP } from "@/contexts/XPContext";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { icon: Trophy, label: "Esports", href: "/esports" },
   { icon: Users, label: "Hub", href: "/hub" },
   { icon: Swords, label: "Battle Pass", href: "/battle-pass" },
+  { icon: Star, label: "Reviews", href: "/reviews" },
 ];
 
 export function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) {
