@@ -409,19 +409,34 @@ SUMMARY STRUCTURE (exactly 4 sentences, ~20 words each):
 
 TOTAL: 4 sentences x ~20 words = ~80 words. HARD MAXIMUM: 90 words. Never exceed 90 words.
 
-TAG RULES (named entities only, PascalCase, no # symbol, 3-6 tags max):
-- Game titles: "GTA6", "EldenRing", "BaldursGate3"
-- Studios/publishers: "RockstarGames", "FromSoftware", "Nintendo"
-- Real people: "HideoKojima", "PhilSpencer"
+OUTPUT FORMAT — return ONLY valid JSON with exactly these three keys:
+{
+  "summary": "4-sentence summary here",
+  "gameTags": ["GameTitle1", "GameTitle2"],
+  "tags": ["GameTitle1", "Studio", "PersonName", "EventName"]
+}
+
+gameTags RULES (game titles ONLY — this powers the review-prompt feature):
+- Include every game title explicitly mentioned in the article
+- PascalCase, no spaces, no # symbol: "Overwatch2", "GTA6", "EldenRing", "BaldursGate3"
+- Sequels/editions MUST include the number: "Overwatch2" not "Overwatch"
+- If no specific game is mentioned, use []
+- Max 3 game titles
+
+tags RULES (all named entities, PascalCase, 3-6 total, gameTags entries go here too):
+- Game titles (same as gameTags): "Overwatch2", "GTA6"
+- Studios/publishers: "RockstarGames", "FromSoftware", "Blizzard"
+- Real people: "HideoKojima", "PhilSpencer", "AaronKeller"
 - Events: "GameAwards2025", "EVO2025"
 - Platform ONLY if article is about hardware: "PS5", "Switch2"
 
-BANNED TAGS (never include): Gaming, News, Game, Games, Update, Updates, Entertainment,
-RPG, FPS, Action, Adventure, Horror, Review, Preview, Trailer, Rumor, Leak,
-Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming, Esports`;
+BANNED TAGS (never include in either array): Gaming, News, Game, Games, Update, Updates,
+Entertainment, RPG, FPS, Action, Adventure, Horror, Review, Preview, Trailer, Rumor,
+Leak, Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming, Esports`;
 
 interface SummarizeResult {
   summary: string;
+  gameTags: string[];
   tags: string[];
 }
 
@@ -440,9 +455,9 @@ function countSentences(text: string): number {
 }
 
 async function summarizeWithGroq(title: string, content: string): Promise<SummarizeResult> {
-  if (!GROQ_API_KEY) return { summary: "", tags: [] };
+  if (!GROQ_API_KEY) return { summary: "", gameTags: [], tags: [] };
   // Not enough content to produce a real summary — skip and retry next run
-  if (countWords(content) < 15) return { summary: "", tags: [] };
+  if (countWords(content) < 15) return { summary: "", gameTags: [], tags: [] };
 
   const userPrompt = `Article Title: ${title}
 
@@ -538,8 +553,12 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
           .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
           .slice(0, 6);
 
-        console.log(`  ok ${wc}w ${sentences}s after ${totalRetries} attempt(s) (${model}) tags: ${tags.join(", ")}`);
-        return { summary, tags };
+        const gameTags = (Array.isArray(parsed.gameTags) ? parsed.gameTags as unknown[] : [])
+          .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
+          .slice(0, 3);
+
+        console.log(`  ok ${wc}w ${sentences}s after ${totalRetries} attempt(s) (${model}) gameTags: [${gameTags.join(", ")}] tags: [${tags.join(", ")}]`);
+        return { summary, gameTags, tags };
 
       } catch (err) {
         console.warn(`  [retry ${totalRetries}] Groq error (${model}):`, err);
@@ -549,7 +568,7 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
   console.warn(`  Quality gate failed after ${totalRetries} attempts — skipping (will retry next run)`);
   // Never fall back to raw scraped content as a summary — that produces garbage.
   // Skip the article; it will be retried on the next pipeline run.
-  return { summary: "", tags: [] };
+  return { summary: "", gameTags: [], tags: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -702,7 +721,7 @@ serve(async (req) => {
   console.log(`Processing ${itemsToProcess.length}/${enrichedItems.length} articles (limit: ${PROCESS_LIMIT})`);
   for (const item of itemsToProcess) {
     try {
-      const { summary, tags } = await summarizeWithGroq(item.title, item.content);
+      const { summary, gameTags, tags } = await summarizeWithGroq(item.title, item.content);
 
       if (!summary || summary.length < 100) {
         console.warn(`  Skipping "${item.title}" — summary failed quality gate, will retry next run`);
@@ -722,6 +741,7 @@ serve(async (req) => {
         author:       item.author,
         ai_title:     item.title,
         ai_summary:   summary,
+        game_tags:    gameTags,
         tags,
         likes:        0,
         article_date: (() => { try { return new Date(item.pubDate).toISOString(); } catch { return new Date().toISOString(); } })(),

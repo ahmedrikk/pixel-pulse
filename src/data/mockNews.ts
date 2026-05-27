@@ -9,6 +9,7 @@ export interface NewsItem {
   source: string;
   author: string;
   tags: string[];
+  gameTags?: string[];
   likes?: number;
   comments?: number;
   fetchedAt?: string;
