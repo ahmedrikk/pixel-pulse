@@ -464,10 +464,11 @@ async function summarizeWithGroq(title: string, content: string): Promise<Summar
 Article Content:
 ${content.substring(0, 4000)}
 
-Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON:
+Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with ALL THREE keys:
 {
   "summary": "your summary here",
-  "tags": ["Tag1", "Tag2", "Tag3"]
+  "gameTags": ["GameTitle1", "GameTitle2"],
+  "tags": ["GameTitle1", "Tag2", "Tag3"]
 }`;
 
   let totalRetries = 0;
@@ -616,8 +617,20 @@ serve(async (req) => {
       urlsToDelete.push(row.source_url);
     }
   }
+  // Also queue articles with empty game_tags (they predate the gameTags prompt fix)
+  const { data: missingGameTags } = await supabase
+    .from("cached_articles")
+    .select("source_url")
+    .gt("expires_at", new Date().toISOString())
+    .eq("category", "Gaming")
+    .eq("game_tags", "{}");
+
+  for (const row of (missingGameTags ?? [])) {
+    if (!urlsToDelete.includes(row.source_url)) urlsToDelete.push(row.source_url);
+  }
+
   if (urlsToDelete.length > 0) {
-    console.log(`  Deleting ${urlsToDelete.length} articles with bad summaries for re-fetch`);
+    console.log(`  Deleting ${urlsToDelete.length} articles for re-fetch (bad summary or missing game_tags)`);
     const { error: delErr } = await supabase
       .from("cached_articles")
       .delete()
