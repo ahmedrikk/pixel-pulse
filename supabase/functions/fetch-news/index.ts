@@ -330,14 +330,16 @@ async function scrapeArticleJina(url: string): Promise<ScrapeResult> {
   clearTimeout(tid);
 
   if (!res.ok) throw new Error(`Jina HTTP ${res.status}`);
-  const text = await res.text();
+  const raw = await res.text();
 
-  // Strip Jina metadata blocks then convert markdown to plain text
+  // Normalise line endings so the metadata regexes always match
+  const text = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // Strip Jina metadata header block — match greedily up to "Markdown Content:"
+  // then drop the header label itself, leaving only the article body.
   let content = text
-    .replace(/^Title:.*$/gim, "")
-    .replace(/^URL Source:.*$/gim, "")
-    .replace(/^Published Time:.*$/gim, "")
-    .replace(/^Markdown Content:\s*/gim, "")
+    .replace(/^﻿/, "")                            // strip BOM if present
+    .replace(/^[\s\S]*?Markdown Content:\s*/i, "")     // drop everything before article body
     // markdown → plain text
     .replace(/!\[[^\]]*\]\([^)]+\)/g, "")              // images
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")           // [text](url) → text
@@ -352,6 +354,12 @@ async function scrapeArticleJina(url: string): Promise<ScrapeResult> {
     .replace(/^---+$/gm, "")                           // horizontal rules
     .replace(/\n\s*\n/g, "\n")
     .trim();
+
+  // Safety net: if metadata stripping didn't work and raw markers survived, bail out
+  if (/^(Title:|URL Source:|Published Time:)/i.test(content)) {
+    console.warn("  [jina] metadata stripping failed — skipping");
+    return { text: "", ogImage: null, method: "jina" };
+  }
 
   return {
     text: content.length > 200 ? content.substring(0, 6000) : "",
@@ -538,24 +546,10 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
       }
     }
   }
-  console.warn(`  Quality gate failed after ${totalRetries} attempts — building safe fallback`);
-
-  // Safe fallback: truncate raw content to last sentence boundary within 50-100 word range
-  const words = content.split(/\s+/).filter(Boolean);
-  if (words.length < 50) {
-    return { summary: "", tags: [] }; // skip — will retry next run
-  }
-  const slice = words.slice(0, 95).join(" ");
-  const lastStop = Math.max(slice.lastIndexOf(". "), slice.lastIndexOf("! "), slice.lastIndexOf("? "));
-  if (lastStop < 200) {
-    return { summary: "", tags: [] }; // no clean break — skip
-  }
-  const summary = slice.substring(0, lastStop + 1).trim();
-  const wc = summary.split(/\s+/).filter(Boolean).length;
-  if (wc < 50 || wc > 100) {
-    return { summary: "", tags: [] };
-  }
-  return { summary, tags: [] };
+  console.warn(`  Quality gate failed after ${totalRetries} attempts — skipping (will retry next run)`);
+  // Never fall back to raw scraped content as a summary — that produces garbage.
+  // Skip the article; it will be retried on the next pipeline run.
+  return { summary: "", tags: [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -593,7 +587,12 @@ serve(async (req) => {
       endsInEllipsis ||
       !endsCleanly ||
       summary.startsWith("http") ||
-      summary.startsWith("Title:")
+      summary.startsWith("Title:") ||
+      summary.startsWith("URL Source:") ||
+      summary.startsWith("Published Time:") ||
+      summary.startsWith("Markdown Content:") ||
+      /\[Skip to content\]/i.test(summary) ||
+      (summary.match(/https?:\/\//g) || []).length >= 3
     ) {
       urlsToDelete.push(row.source_url);
     }
