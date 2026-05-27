@@ -23,6 +23,7 @@ export interface CachedArticle {
   ai_title: string | null;
   ai_summary: string | null;
   tags: string[];
+  game_tags: string[];
   likes: number;
   article_date: string;
   fetched_at: string;
@@ -76,6 +77,7 @@ function toNewsItem(article: CachedArticle): NewsItem {
     source: article.source,
     author: article.author,
     tags: article.tags,
+    gameTags: article.game_tags || [],
     likes: article.likes,
     fetchedAt: article.fetched_at,
   };
