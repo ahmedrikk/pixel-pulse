@@ -95,8 +95,9 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const handleTagClick = (tag: string) => setActiveTag(tag);
 
   // Lazy RAWG lookup — only fires once per card, only for authenticated users.
-  // Prefers the article's explicit gameTags (real game names) and falls back to
-  // specific topic tags. Tries each candidate until RAWG confirms a real game.
+  // Prefers the article's explicit gameTags (real game names), falls back to
+  // specific topic tags, then finally tries the article title itself so that
+  // articles with no tags (e.g. "Overwatch celebrates 10 years") still trigger.
   const checkGameAndShowReview = useCallback(async () => {
     if (!isAuthenticated) return;
     // Already resolved on a prior interaction — just re-show the prompt.
@@ -106,35 +107,55 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     }
 
     // Candidate game names: explicit gameTags first, then non-junk topic tags.
-    const candidates = [
+    const tagCandidates = [
       ...article.gameTags,
       ...article.topicTags.filter(isSpecificTag),
     ]
       .map((t) => t.trim())
       .filter((t, i, arr) => t.length >= 3 && arr.indexOf(t) === i);
 
-    if (candidates.length === 0) return;
     hasCheckedGameRef.current = true;
 
-    for (const tag of candidates) {
+    // Helper: try one candidate tag against RAWG.
+    // For tag-based candidates: require a shared prefix.
+    // For title-based fallback: accept if the RAWG game name appears in the title.
+    const tryCandidate = async (candidate: string, isTitleFallback: boolean): Promise<boolean> => {
       try {
-        const { results } = await fetchGameList({ search: tag, page_size: 1 });
-        if (results.length === 0) continue;
+        const { results } = await fetchGameList({ search: candidate, page_size: 1 });
+        if (results.length === 0) return false;
         const g = results[0];
-        const tagNorm = tag.toLowerCase().replace(/[^a-z0-9]/g, "");
         const nameNorm = g.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (tagNorm.length < 3) continue;
-        // Accept when the tag and matched game name share a leading prefix in
-        // either direction — loose enough to fire, tight enough to avoid noise.
-        const tagPrefix = tagNorm.substring(0, Math.min(4, tagNorm.length));
-        const namePrefix = nameNorm.substring(0, Math.min(4, nameNorm.length));
-        if (!nameNorm.includes(tagPrefix) && !tagNorm.includes(namePrefix)) continue;
+
+        if (isTitleFallback) {
+          // Title fallback: accept if the matched game name appears in the title
+          const titleLower = article.title.toLowerCase();
+          // Strip the " 2", " 3" suffix for a looser base match too
+          const baseName = g.name.replace(/\s*\d+$/, "").toLowerCase();
+          if (!titleLower.includes(baseName) && !titleLower.includes(g.name.toLowerCase())) return false;
+        } else {
+          const tagNorm = candidate.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (tagNorm.length < 3) return false;
+          const tagPrefix = tagNorm.substring(0, Math.min(4, tagNorm.length));
+          const namePrefix = nameNorm.substring(0, Math.min(4, nameNorm.length));
+          if (!nameNorm.includes(tagPrefix) && !tagNorm.includes(namePrefix)) return false;
+        }
+
         setReviewGame({ id: String(g.id), name: g.name, coverUrl: g.background_image ?? "" });
         setShowReviewPrompt(true);
-        return;
-      } catch { /* try next candidate */ }
+        return true;
+      } catch { return false; }
+    };
+
+    // 1. Try explicit tag candidates first
+    for (const tag of tagCandidates) {
+      if (await tryCandidate(tag, false)) return;
     }
-  }, [isAuthenticated, reviewGame, article.gameTags, article.topicTags]);
+
+    // 2. No tags matched — fall back to the article title
+    if (article.title.trim().length >= 3) {
+      await tryCandidate(article.title, true);
+    }
+  }, [isAuthenticated, reviewGame, article.gameTags, article.topicTags, article.title]);
 
   const handleLike = useCallback(async () => {
     if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
