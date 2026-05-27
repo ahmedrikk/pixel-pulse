@@ -99,29 +99,13 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     // fully ready at that point, so subsequent DB queries won't get aborted.
     const loadingTimeout = setTimeout(() => setIsLoading(false), 3000);
     try {
-      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
         const currentUser = session?.user || null;
         const isAuthed = !!currentUser;
 
-        if (isAuthed) {
-          try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('onboarding_completed, display_name')
-              .eq('id', currentUser.id)
-              .single();
-
-            // Only toast on explicit sign-in, not on session restore
-            if (event === 'SIGNED_IN' && profile?.onboarding_completed) {
-              toast.success(`Welcome back, ${profile.display_name || 'Gamer'}!`);
-              const pending = sessionStorage.getItem('pending_action');
-              if (pending) setPendingAction(JSON.parse(pending));
-            }
-          } catch (e) {
-            console.error("Profile fetch error:", e);
-          }
-        }
-
+        // Set state synchronously — NEVER await inside onAuthStateChange,
+        // calling Supabase from within this callback causes a lock deadlock
+        // in supabase-js v2 and the state updates never fire.
         setUser(currentUser);
         setIsAuthenticated(isAuthed);
         if (!isAuthed) setPendingAction(null);
@@ -130,6 +114,27 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
         if (event === 'INITIAL_SESSION') {
           clearTimeout(loadingTimeout);
           setIsLoading(false);
+        }
+
+        // Profile side-effects run outside the Supabase lock via setTimeout
+        if (isAuthed && currentUser && event === 'SIGNED_IN') {
+          setTimeout(async () => {
+            try {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('onboarding_completed, display_name')
+                .eq('id', currentUser.id)
+                .single();
+
+              if (profile?.onboarding_completed) {
+                toast.success(`Welcome back, ${profile.display_name || 'Gamer'}!`);
+                const pending = sessionStorage.getItem('pending_action');
+                if (pending) setPendingAction(JSON.parse(pending));
+              }
+            } catch (e) {
+              console.error("Profile fetch error:", e);
+            }
+          }, 0);
         }
       });
       subscription = data.subscription;
