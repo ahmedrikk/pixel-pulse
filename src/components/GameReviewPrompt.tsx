@@ -49,6 +49,8 @@ export function GameReviewPrompt({
       const timer = setTimeout(() => setShowPrompt(true), 2000);
       return () => clearTimeout(timer);
     }
+    // Dismissed — hide immediately, otherwise the prompt stays stuck on screen
+    setShowPrompt(false);
   }, [isVisible]);
 
   const handleTagToggle = useCallback((tagId: string) => {
@@ -109,11 +111,17 @@ export function GameReviewPrompt({
     <div className="bg-card border rounded-xl p-5 mt-4 animate-in slide-in-from-bottom-2">
       {/* Header */}
       <div className="flex items-start gap-4 mb-4">
-        <img
-          src={gameCoverUrl}
-          alt={gameName}
-          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-        />
+        {gameCoverUrl ? (
+          <img
+            src={gameCoverUrl}
+            alt={gameName}
+            className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+          />
+        ) : (
+          <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+            <Star className="h-6 w-6 text-muted-foreground" />
+          </div>
+        )}
         <div className="flex-1">
           <p className="text-sm text-muted-foreground mb-1">
             You read about this game — have you played it?

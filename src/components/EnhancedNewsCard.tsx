@@ -78,6 +78,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const [likeCount, setLikeCount] = useState(article.likes || 0);
   const [showComments, setShowComments] = useState(false);
   const [userReactions, setUserReactions] = useState<Record<string, number>>(article.reactions || {});
+  const [myReactions, setMyReactions] = useState<Set<string>>(new Set());
   const [hasAwardedView, setHasAwardedView] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
@@ -175,6 +176,15 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
   const handleReaction = useCallback(async (emoji: string) => {
     if (!isAuthenticated) { openAuthModal("react", { articleId: article.id }); return; }
+
+    // Toggle: clicking an emoji you already reacted with removes it
+    if (myReactions.has(emoji)) {
+      setMyReactions(prev => { const next = new Set(prev); next.delete(emoji); return next; });
+      setUserReactions(prev => ({ ...prev, [emoji]: Math.max((prev[emoji] || 1) - 1, 0) }));
+      return;
+    }
+
+    setMyReactions(prev => new Set(prev).add(emoji));
     setUserReactions(prev => ({ ...prev, [emoji]: (prev[emoji] || 0) + 1 }));
     const result = await awardXP("react", article.sourceUrl);
     if (result && result.awarded > 0) {
@@ -184,7 +194,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
     }
     checkGameAndShowReview();
-  }, [isAuthenticated, article.id, article.sourceUrl, openAuthModal, refreshFromServer, checkGameAndShowReview]);
+  }, [isAuthenticated, myReactions, article.id, article.sourceUrl, openAuthModal, refreshFromServer, checkGameAndShowReview]);
 
   const handleBookmark = useCallback(() => {
     if (!isAuthenticated) { openAuthModal("bookmark", { articleId: article.id }); return; }
@@ -327,9 +337,17 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           <span>by {article.author}</span>
         </div>
 
-        {/* Headline */}
-        <h2 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors leading-tight line-clamp-3">
-          {article.title}
+        {/* Headline — clickable, opens the full article */}
+        <h2 className="text-xl font-bold mb-3 leading-tight line-clamp-3">
+          <a
+            href={article.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => handleReadFull()}
+            className="hover:text-primary transition-colors cursor-pointer"
+          >
+            {article.title}
+          </a>
         </h2>
 
         {/* Summary */}
@@ -354,12 +372,17 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
         {/* Reaction Row */}
         <div className="flex items-center gap-1 mb-3">
-          {QUICK_REACTIONS.map(({ emoji, key }) => (
+          {QUICK_REACTIONS.map(({ emoji, key, label }) => (
             <button
               key={key}
               onClick={() => handleReaction(emoji)}
-              className="flex items-center gap-1 px-2 py-1 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm"
-              title={key}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-full transition-colors text-sm",
+                myReactions.has(emoji)
+                  ? "bg-primary/15 ring-1 ring-primary/40"
+                  : "bg-secondary/50 hover:bg-secondary"
+              )}
+              title={label}
             >
               <span>{emoji}</span>
               {userReactions[emoji] > 0 && (

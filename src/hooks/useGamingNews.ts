@@ -10,7 +10,7 @@
  *   3. Expose a manual refresh
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { NewsItem } from "@/data/mockNews";
 import { supabase } from "@/integrations/supabase/client";
 import { getAllCachedArticles, shouldRefreshCache, spotifyShuffle } from "@/lib/newsCache";
@@ -30,34 +30,41 @@ export function useGamingNews(options?: { category?: string }) {
 
   const PAGE_SIZE = 20;
 
+  // Mirror of news.length so loadFromDB can tell a cold start from a
+  // background refresh without adding `news` to its deps.
+  const newsCountRef = useRef(0);
+  useEffect(() => { newsCountRef.current = news.length; }, [news]);
+
   // ── Read from DB ──────────────────────────────────────────────────────────
   const loadFromDB = useCallback(async (isInitial = true): Promise<number> => {
     try {
       const currentOffset = isInitial ? 0 : (page + 1) * PAGE_SIZE;
       const articles = await getAllCachedArticles(currentOffset, PAGE_SIZE, category);
-      
-      if (articles.length < PAGE_SIZE) {
-        setHasMore(false);
-      }
+      const wasEmpty = newsCountRef.current === 0;
 
       if (articles.length > 0) {
         setNews(prev => {
-          if (isInitial) return articles;
-          // Avoid duplicates by checking sourceUrl
+          if (prev.length === 0) return articles;
+          // Merge — never replace a list the user is already reading.
+          // New articles from a background refresh go to the front;
+          // paginated (older) articles go to the back.
           const existingUrls = new Set(prev.map(a => a.sourceUrl));
           const uniqueNew = articles.filter(a => !existingUrls.has(a.sourceUrl));
-          return [...prev, ...uniqueNew];
+          return isInitial ? [...uniqueNew, ...prev] : [...prev, ...uniqueNew];
         });
-        
-        if (isInitial) {
+
+        if (isInitial && wasEmpty) {
           setPage(0);
           setHasMore(articles.length === PAGE_SIZE);
-        } else {
+        } else if (!isInitial) {
           setPage(p => p + 1);
+          if (articles.length < PAGE_SIZE) setHasMore(false);
         }
-        
+
         setLastUpdated(new Date());
       } else if (!isInitial) {
+        setHasMore(false);
+      } else if (wasEmpty) {
         setHasMore(false);
       }
       return articles.length;
@@ -65,7 +72,7 @@ export function useGamingNews(options?: { category?: string }) {
       console.error("loadFromDB error:", err);
       return 0;
     }
-  }, [page]);
+  }, [page, category]);
 
   // ── Load more (exposed to UI) ─────────────────────────────────────────────
   const loadMore = useCallback(async () => {

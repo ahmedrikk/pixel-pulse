@@ -438,6 +438,7 @@ interface SummarizeResult {
   summary: string;
   gameTags: string[];
   tags: string[];
+  rateLimited?: boolean;
 }
 
 function countWords(text: string): number {
@@ -462,7 +463,7 @@ async function summarizeWithGroq(title: string, content: string): Promise<Summar
   const userPrompt = `Article Title: ${title}
 
 Article Content:
-${content.substring(0, 4000)}
+${content.substring(0, 2800)}
 
 Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with ALL THREE keys:
 {
@@ -472,6 +473,9 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
 }`;
 
   let totalRetries = 0;
+  let sawRateLimit = false;
+  let rateLimitWaitMs = 0;
+  const MAX_RATE_LIMIT_WAIT_MS = 20000; // per-article budget for 429 backoff
   const MAX_ATTEMPTS = 3;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     for (const model of MODELS) {
@@ -494,6 +498,22 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
             response_format: { type: "json_object" },
           }),
         });
+
+        if (res.status === 429) {
+          await res.text(); // drain body
+          sawRateLimit = true;
+          // Respect Retry-After if present, otherwise back off 5s.
+          const retryAfterSec = parseFloat(res.headers.get("retry-after") ?? "") || 5;
+          const waitMs = Math.min(retryAfterSec * 1000, MAX_RATE_LIMIT_WAIT_MS - rateLimitWaitMs);
+          if (waitMs <= 0) {
+            console.warn(`  [retry ${totalRetries}] Groq ${model} 429 — backoff budget exhausted`);
+            return { summary: "", gameTags: [], tags: [], rateLimited: true };
+          }
+          console.warn(`  [retry ${totalRetries}] Groq ${model} 429 — waiting ${Math.round(waitMs / 1000)}s`);
+          rateLimitWaitMs += waitMs;
+          await new Promise(r => setTimeout(r, waitMs));
+          continue;
+        }
 
         if (!res.ok) {
           const errText = await res.text();
@@ -569,7 +589,7 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
   console.warn(`  Quality gate failed after ${totalRetries} attempts — skipping (will retry next run)`);
   // Never fall back to raw scraped content as a summary — that produces garbage.
   // Skip the article; it will be retried on the next pipeline run.
-  return { summary: "", gameTags: [], tags: [] };
+  return { summary: "", gameTags: [], tags: [], rateLimited: sawRateLimit };
 }
 
 // ---------------------------------------------------------------------------
@@ -617,20 +637,8 @@ serve(async (req) => {
       urlsToDelete.push(row.source_url);
     }
   }
-  // Also queue articles with empty game_tags (they predate the gameTags prompt fix)
-  const { data: missingGameTags } = await supabase
-    .from("cached_articles")
-    .select("source_url")
-    .gt("expires_at", new Date().toISOString())
-    .eq("category", "Gaming")
-    .eq("game_tags", "{}");
-
-  for (const row of (missingGameTags ?? [])) {
-    if (!urlsToDelete.includes(row.source_url)) urlsToDelete.push(row.source_url);
-  }
-
   if (urlsToDelete.length > 0) {
-    console.log(`  Deleting ${urlsToDelete.length} articles for re-fetch (bad summary or missing game_tags)`);
+    console.log(`  Deleting ${urlsToDelete.length} articles with bad summaries for re-fetch`);
     const { error: delErr } = await supabase
       .from("cached_articles")
       .delete()
@@ -726,21 +734,42 @@ serve(async (req) => {
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + 24);
   let processed = 0;
+  const skipReasons: Record<string, number> = {};
+  const skip = (reason: string) => { skipReasons[reason] = (skipReasons[reason] || 0) + 1; };
 
-  // 20 articles × 2s delay = 40s for delays + ~20-30s API time ≈ 60-70s total
-  // This fits within Supabase's 150s edge function wall-time limit.
+  // Stop processing when we get close to Supabase's 150s edge-function
+  // wall-time limit — unprocessed articles are picked up on the next run.
+  const pipelineStart = Date.now();
+  const TIME_BUDGET_MS = 110_000;
   const PROCESS_LIMIT = 20;
+  let consecutiveRateLimits = 0;
   const itemsToProcess = enrichedItems.slice(0, PROCESS_LIMIT);
   console.log(`Processing ${itemsToProcess.length}/${enrichedItems.length} articles (limit: ${PROCESS_LIMIT})`);
   for (const item of itemsToProcess) {
+    if (Date.now() - pipelineStart > TIME_BUDGET_MS) {
+      console.warn(`  Time budget exhausted — deferring remaining articles to next run`);
+      skip("time_budget");
+      break;
+    }
     try {
-      const { summary, gameTags, tags } = await summarizeWithGroq(item.title, item.content);
+      const { summary, gameTags, tags, rateLimited } = await summarizeWithGroq(item.title, item.content);
 
       if (!summary || summary.length < 100) {
-        console.warn(`  Skipping "${item.title}" — summary failed quality gate, will retry next run`);
+        if (rateLimited) {
+          consecutiveRateLimits++;
+          skip("rate_limited");
+          if (consecutiveRateLimits >= 3) {
+            console.warn(`  3 consecutive rate-limit failures — stopping early, will retry next run`);
+            break;
+          }
+        } else {
+          skip(countWords(item.content) < 15 ? "thin_content" : "quality_gate");
+        }
+        console.warn(`  Skipping "${item.title}" — summary failed, will retry next run`);
         await new Promise(r => setTimeout(r, 500));
         continue;
       }
+      consecutiveRateLimits = 0;
 
       const { error } = await supabase.from("cached_articles").upsert({
         original_id:  `${item.source}-${item.link.substring(item.link.length - 60)}`,
@@ -778,5 +807,7 @@ serve(async (req) => {
     new:       newItems.length,
     scraped:   enrichedItems.length,
     processed,
+    skipped:   skipReasons,
+    elapsedMs: Date.now() - pipelineStart,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });

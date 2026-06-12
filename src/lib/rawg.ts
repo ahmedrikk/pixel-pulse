@@ -43,7 +43,11 @@ export async function fetchGameList(params: {
       page_size: params.page_size ?? 20,
       ...(params.search && { search: params.search }),
       ...(params.genres && { genres: params.genres }),
-      ordering: params.ordering ?? "-rating",
+      // When searching, let RAWG rank by relevance — forcing "-rating"
+      // returns the highest-rated fuzzy match instead of the right game.
+      ...(params.search
+        ? (params.ordering ? { ordering: params.ordering } : {})
+        : { ordering: params.ordering ?? "-rating" }),
     })
   );
   if (!res.ok) throw new Error(`RAWG list failed: ${res.status}`);
