@@ -122,28 +122,37 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     // For title-based fallback: accept if the RAWG game name appears in the title.
     const tryCandidate = async (candidate: string, isTitleFallback: boolean): Promise<boolean> => {
       try {
-        const { results } = await fetchGameList({ search: candidate, page_size: 1 });
+        const { results } = await fetchGameList({ search: candidate, page_size: 5 });
         if (results.length === 0) return false;
-        const g = results[0];
-        const nameNorm = g.name.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-        if (isTitleFallback) {
-          // Title fallback: accept if the matched game name appears in the title
-          const titleLower = article.title.toLowerCase();
-          // Strip the " 2", " 3" suffix for a looser base match too
-          const baseName = g.name.replace(/\s*\d+$/, "").toLowerCase();
-          if (!titleLower.includes(baseName) && !titleLower.includes(g.name.toLowerCase())) return false;
-        } else {
-          const tagNorm = candidate.toLowerCase().replace(/[^a-z0-9]/g, "");
-          if (tagNorm.length < 3) return false;
-          const tagPrefix = tagNorm.substring(0, Math.min(4, tagNorm.length));
-          const namePrefix = nameNorm.substring(0, Math.min(4, nameNorm.length));
-          if (!nameNorm.includes(tagPrefix) && !tagNorm.includes(namePrefix)) return false;
+        // RAWG relevance search surfaces obscure name-twins first
+        // ("Halo (itch)" for "Halo") — prefer games people actually know,
+        // falling back to the raw list only if nothing popular matches.
+        const popular = results.filter((r) => (r.added ?? 0) >= 50);
+        const pool = popular.length > 0 ? popular : results;
+
+        for (const g of pool) {
+          const nameNorm = g.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+          if (isTitleFallback) {
+            // Title fallback: accept if the matched game name appears in the title
+            const titleLower = article.title.toLowerCase();
+            // Strip the " 2", " 3" suffix for a looser base match too
+            const baseName = g.name.replace(/\s*\d+$/, "").toLowerCase();
+            if (!titleLower.includes(baseName) && !titleLower.includes(g.name.toLowerCase())) continue;
+          } else {
+            const tagNorm = candidate.toLowerCase().replace(/[^a-z0-9]/g, "");
+            if (tagNorm.length < 3) return false;
+            const tagPrefix = tagNorm.substring(0, Math.min(4, tagNorm.length));
+            const namePrefix = nameNorm.substring(0, Math.min(4, nameNorm.length));
+            if (!nameNorm.includes(tagPrefix) && !tagNorm.includes(namePrefix)) continue;
+          }
+
+          setReviewGame({ id: String(g.id), name: g.name, coverUrl: g.background_image ?? "" });
+          setShowReviewPrompt(true);
+          return true;
         }
-
-        setReviewGame({ id: String(g.id), name: g.name, coverUrl: g.background_image ?? "" });
-        setShowReviewPrompt(true);
-        return true;
+        return false;
       } catch { return false; }
     };
 

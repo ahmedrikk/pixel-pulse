@@ -8,6 +8,8 @@ export interface RawgGame {
   name: string;
   background_image: string | null;
   rating: number;           // 0–5
+  ratings_count?: number;
+  added?: number;           // how many RAWG users added the game — popularity proxy
   metacritic: number | null;
   released: string | null;
   genres: { id: number; slug: string; name: string }[];
