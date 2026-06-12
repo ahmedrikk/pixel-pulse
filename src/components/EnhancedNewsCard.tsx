@@ -108,11 +108,18 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     }
 
     // Candidate game names: explicit gameTags first, then non-junk topic tags.
+    // Tags are PascalCase ("ModernWarfare4") but RAWG search needs spaces
+    // ("Modern Warfare 4") — it returns zero results for the squashed form.
+    const dePascal = (t: string) =>
+      t
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/([a-zA-Z])(\d)/g, "$1 $2")
+        .trim();
     const tagCandidates = [
       ...article.gameTags,
       ...article.topicTags.filter(isSpecificTag),
     ]
-      .map((t) => t.trim())
+      .map((t) => dePascal(t.trim()))
       .filter((t, i, arr) => t.length >= 3 && arr.indexOf(t) === i);
 
     hasCheckedGameRef.current = true;
