@@ -38,14 +38,24 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
   
   const { activeTag, categoryName, clearFilter } = useTagFilter();
   const [displayedCount, setDisplayedCount] = useState(6);
+  const [sortMode, setSortMode] = useState<"smart" | "recent" | "popular">("smart");
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Filter articles by active tag — must be declared before the observer useEffect
-  const filteredArticles = activeTag
+  const tagFiltered = activeTag
     ? articles.filter((item) =>
         item.topicTags.includes(activeTag) || item.gameTags.includes(activeTag)
       )
     : articles;
+
+  const filteredArticles =
+    sortMode === "recent"
+      ? [...tagFiltered].sort(
+          (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+        )
+      : sortMode === "popular"
+      ? [...tagFiltered].sort((a, b) => b.engagementScore - a.engagementScore)
+      : tagFiltered;
 
   // Infinite scroll observer
   useEffect(() => {
@@ -85,7 +95,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
         return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-medium">For You</span>;
       case "trending":
         return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-500 font-medium">Trending</span>;
-      case "new":
+      case "fresh":
         return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-500 font-medium">New</span>;
       default:
         return null;
@@ -145,10 +155,14 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
           </div>
         )}
         
-        <select className="bg-secondary text-foreground text-sm px-3 py-1.5 rounded-md border-0 focus:ring-2 focus:ring-primary">
-          <option>Smart Feed</option>
-          <option>Most Recent</option>
-          <option>Most Popular</option>
+        <select
+          value={sortMode}
+          onChange={(e) => setSortMode(e.target.value as "smart" | "recent" | "popular")}
+          className="bg-secondary text-foreground text-sm px-3 py-1.5 rounded-md border-0 focus:ring-2 focus:ring-primary"
+        >
+          <option value="smart">Smart Feed</option>
+          <option value="recent">Most Recent</option>
+          <option value="popular">Most Popular</option>
         </select>
       </div>
 
@@ -259,10 +273,20 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
             ))
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              <p>{activeTag ? `No articles found matching #${activeTag}` : "No articles available yet — check back in a few minutes!"}</p>
-              {activeTag && (
+              <p>{activeTag ? `No articles found matching #${activeTag}` : "No articles available yet."}</p>
+              {activeTag ? (
                 <Button variant="link" onClick={clearFilter} className="mt-2">
                   View all articles
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={loadFeed}
+                  disabled={isRefreshing}
+                  className="mt-4 gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                  Fetch latest news
                 </Button>
               )}
             </div>

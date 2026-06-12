@@ -1,26 +1,13 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useGamingNews } from "./useGamingNews";
+import { NewsItem } from "@/data/mockNews";
 import { supabase } from "@/integrations/supabase/client";
 import { Article, RankedArticle, FeedPriority, UserImpression, FeedSession } from "@/types/feed";
 import { getEngagementWeights, weightedShuffle } from "@/lib/newsCache";
 import { toast } from "sonner";
 
 // Convert NewsItem to Article format
-function convertToArticle(news: {
-  id: string;
-  title: string;
-  summary: string;
-  sourceUrl: string;
-  imageUrl: string;
-  category: string;
-  timestamp: string;
-  source: string;
-  author: string;
-  tags: string[];
-  likes?: number;
-  comments?: number;
-  fetchedAt?: string;
-}): Article {
+function convertToArticle(news: NewsItem): Article {
   return {
     id: news.id,
     title: news.title,
@@ -194,15 +181,43 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     ];
   }, [calculatePriority, engagementWeights]);
 
+  // Stable order of article ids for the session. Once an article is placed,
+  // it never moves on its own — re-ranking only positions NEW articles.
+  // Without this, every impression/engagement update reshuffled the whole
+  // feed while the user was reading it.
+  const orderRef = useRef<string[]>([]);
+
   // Load and rank articles when news changes
   useEffect(() => {
-    if (news.length === 0) return;
-    
-    const ranked = rankArticles(allArticles);
-    setArticles(ranked);
+    if (allArticles.length === 0) return;
+
+    const byId = new Map(allArticles.map(a => [a.id, a]));
+    const kept = orderRef.current.filter(id => byId.has(id));
+    const known = new Set(kept);
+    const newcomers = allArticles.filter(a => !known.has(a.id));
+    const rankedNew = rankArticles(newcomers);
+
+    let order: string[];
+    if (kept.length === 0) {
+      // First load — full ranking
+      order = rankedNew.map(a => a.id);
+    } else {
+      // Freshly fetched articles surface on top; paginated (older) ones append.
+      // Everything already on screen keeps its position.
+      const prepend = rankedNew.filter(a => a.priority === "fresh").map(a => a.id);
+      const append = rankedNew.filter(a => a.priority !== "fresh").map(a => a.id);
+      order = [...prepend, ...kept, ...append];
+    }
+    orderRef.current = order;
+
+    setArticles(order.map(id => {
+      const a = byId.get(id)!;
+      const { priority, score } = calculatePriority(a);
+      return { ...a, priority, priorityScore: score };
+    }));
     initialLoadComplete.current = true;
     lastLoadTimeRef.current = new Date();
-  }, [news, allArticles, rankArticles]);
+  }, [allArticles, rankArticles, calculatePriority]);
 
   // Load user data on mount
   useEffect(() => {
@@ -298,13 +313,17 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
         tiers[a.priority].push(a);
       }
       const ws = (arr: RankedArticle[]) => weightedShuffle(arr, engagementWeights);
-      return [
+      const next = [
         ...ws(tiers["fresh"] || []),
         ...ws(tiers["personalized"] || []),
         ...ws(tiers["unseen"] || []),
         ...ws(tiers["trending"] || []),
         ...ws(tiers["fallback"] || []),
       ];
+      // Keep the stable-order ref in sync so the ranking effect
+      // doesn't snap the feed back to the pre-shuffle order.
+      orderRef.current = next.map(a => a.id);
+      return next;
     });
   }, [reshuffleNews, engagementWeights]);
 
