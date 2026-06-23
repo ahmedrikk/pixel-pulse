@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSearchParams, useLocation } from "react-router-dom";
+import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { NewsFeed } from "@/components/NewsFeed";
 import { RightSidebar } from "@/components/RightSidebar";
@@ -56,10 +57,12 @@ function IndexContent() {
 
   return (
     <div className="min-h-screen pb-16 md:pb-0">
+      <Navbar />
+
       <div className="container py-6">
         <div className="flex gap-6">
           <div className="hidden lg:block flex-shrink-0">
-            <div className="sticky top-6 w-64 max-h-[calc(100vh-3rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <div className="sticky top-20 w-64 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
               <LeftSidebar />
             </div>
           </div>
@@ -69,7 +72,7 @@ function IndexContent() {
           </div>
 
           <div className="hidden xl:block flex-shrink-0">
-            <div className="sticky top-6 w-72 max-h-[calc(100vh-3rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <div className="sticky top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
               <RightSidebar />
             </div>
           </div>
