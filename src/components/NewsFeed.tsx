@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { RefreshCw, AlertCircle, X, Sparkles } from "lucide-react";
+import { RefreshCw, AlertCircle, X, Sparkles, Sun, Moon } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useSmartFeedReal } from "@/hooks/useSmartFeedReal";
 import { EnhancedNewsCard } from "./EnhancedNewsCard";
 import { NewsCardSkeleton } from "./NewsCardSkeleton";
@@ -16,7 +17,8 @@ interface NewsFeedProps {
 
 export function NewsFeed({ onCardView }: NewsFeedProps) {
   const { isAuthenticated, user } = useAuthGate();
-  
+  const { theme, toggleTheme } = useTheme();
+
   const {
     articles,
     isLoading,
@@ -155,15 +157,26 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
           </div>
         )}
         
-        <select
-          value={sortMode}
-          onChange={(e) => setSortMode(e.target.value as "smart" | "recent" | "popular")}
-          className="bg-secondary text-foreground text-sm px-3 py-1.5 rounded-md border-0 focus:ring-2 focus:ring-primary"
-        >
-          <option value="smart">Smart Feed</option>
-          <option value="recent">Most Recent</option>
-          <option value="popular">Most Popular</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value as "smart" | "recent" | "popular")}
+            className="bg-secondary text-foreground text-sm px-3 py-1.5 rounded-md border-0 focus:ring-2 focus:ring-primary"
+          >
+            <option value="smart">Smart Feed</option>
+            <option value="recent">Most Recent</option>
+            <option value="popular">Most Popular</option>
+          </select>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="h-9 w-9 flex-shrink-0"
+            title="Toggle theme"
+          >
+            {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4 text-primary" />}
+          </Button>
+        </div>
       </div>
 
       {/* New Articles Banner */}

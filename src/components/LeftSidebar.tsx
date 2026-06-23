@@ -4,7 +4,6 @@ import { useXP } from "@/contexts/XPContext";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { Button } from "@/components/ui/button";
 import { BattlePassPromoWidget } from "@/components/sidebar/BattlePassPromoWidget";
-import { CategoryPillsWidget } from "@/components/sidebar/CategoryPillsWidget";
 import { UserProfileWidget } from "@/components/sidebar/UserProfileWidget";
 
 const NAV_ITEMS = [
@@ -80,9 +79,6 @@ export function LeftSidebar() {
         /* Guest view: Battle Pass Promo Widget */
         <BattlePassPromoWidget />
       )}
-
-      {/* ── Category Pills Widget (shown to ALL users) ── */}
-      <CategoryPillsWidget />
     </aside>
   );
 }
