@@ -13,6 +13,7 @@ import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds
 import { motion, AnimatePresence } from "framer-motion";
 import { XPProgressBar } from "@/components/XPProgressBar";
 import { Navbar } from "@/components/Navbar";
+import { LeftSidebar } from "@/components/LeftSidebar";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { XPConnectionStrip } from "@/components/esports/XPConnectionStrip";
@@ -728,7 +729,16 @@ export default function Esports() {
       {/* Featured Match Hero */}
       <FeaturedMatchHero match={featuredMatch} />
 
-      <main className="container py-6 max-w-7xl">
+      <div className="container py-6 max-w-7xl">
+       <div className="flex gap-6">
+        {/* Left Sidebar — consistent nav with the rest of the app */}
+        <div className="hidden lg:block flex-shrink-0">
+          <div className="sticky top-20 w-64 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <LeftSidebar />
+          </div>
+        </div>
+
+        <main className="flex-1 min-w-0">
         {/* XP Bar */}
         <div className="mb-6">
           <XPProgressBar />
@@ -792,7 +802,9 @@ export default function Esports() {
           {/* News Sidebar */}
           <NewsSidebar news={news} activeGame={activeGame} isLoading={newsLoading} />
         </div>
-      </main>
+        </main>
+       </div>
+      </div>
 
       {/* Predictor Leaderboard */}
       <PredictorLeaderboard />

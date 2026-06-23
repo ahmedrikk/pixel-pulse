@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
-  Home, Lock, Trophy, Zap, Star, Gift, Shield, Crown,
+  Home, Lock, Trophy, Zap, Star, Gift, Shield, Crown, Users, Swords,
   ChevronRight, ChevronLeft, Clock, Flame, Award, Sparkles, Target,
 } from "lucide-react";
 import { useXP } from "@/contexts/XPContext";
 import { Navbar } from "@/components/Navbar";
+import { NavLink } from "@/components/NavLink";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { useAuthGate } from "@/contexts/AuthGateContext";
@@ -338,11 +339,11 @@ export default function BattlePass() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-16 md:pb-0">
+    <div className="min-h-screen text-foreground pb-16 md:pb-0">
       <Navbar />
 
       {/* Season Info Bar */}
-      <div className="flex items-center justify-between px-4 md:px-6 py-2 bg-card border-b border-border shadow-sm">
+      <div className="relative flex items-center justify-between px-4 md:px-6 py-2 bg-card border-b border-border shadow-sm">
         <div className="flex items-center gap-2">
           <Flame className="w-4 h-4 text-primary" />
           <span className="font-bold text-foreground tracking-tight text-sm">GAME PULSE</span>
@@ -352,6 +353,28 @@ export default function BattlePass() {
             <span className="text-[10px] font-bold text-primary">RANK {currentTier}</span>
           </div>
         </div>
+
+        {/* Center nav — consistent navigation across the app */}
+        <nav className="hidden lg:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+          {[
+            { icon: Home, label: "Home", href: "/" },
+            { icon: Trophy, label: "Esports", href: "/esports" },
+            { icon: Users, label: "Hub", href: "/hub" },
+            { icon: Swords, label: "Battle Pass", href: "/battle-pass" },
+            { icon: Star, label: "Reviews", href: "/reviews" },
+          ].map((item) => (
+            <NavLink
+              key={item.label}
+              to={item.href}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              activeClassName="text-primary bg-primary/10 hover:text-primary"
+            >
+              <item.icon className="h-3.5 w-3.5" />
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs">
             <Clock className="w-3 h-3 text-muted-foreground" />
