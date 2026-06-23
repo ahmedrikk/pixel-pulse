@@ -115,7 +115,7 @@ export default function DailyTrivia() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Brain className="h-12 w-12 text-primary animate-pulse" />
           <p className="text-muted-foreground">Loading trivia...</p>
@@ -126,7 +126,7 @@ export default function DailyTrivia() {
 
   if (alreadyCompleted) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <header className="sticky top-0 z-50 border-b bg-nav backdrop-blur-sm">
           <div className="container flex h-14 items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -154,7 +154,7 @@ export default function DailyTrivia() {
   const progress = ((currentIndex) / Math.min(questions.length, TOTAL_QUESTIONS)) * 100;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-nav backdrop-blur-sm">
         <div className="container flex h-14 items-center gap-4">

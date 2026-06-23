@@ -55,8 +55,7 @@ export function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) {
           {/* Mobile: Profile avatar (left) */}
           <button
             onClick={() => setIsProfileOpen(true)}
-            className="md:hidden flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-foreground overflow-hidden"
-            style={{ background: "linear-gradient(135deg, hsl(142 71% 45%), hsl(186 100% 50%))" }}
+            className="md:hidden flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-on-brand overflow-hidden bg-brand-gradient"
           >
             {user ? (
               user.user_metadata?.avatar_url

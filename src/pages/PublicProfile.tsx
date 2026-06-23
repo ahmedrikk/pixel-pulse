@@ -111,7 +111,7 @@ export default function PublicProfile() {
     const totalPlaytime = featuredGames.reduce((sum, g) => sum + (g.playtime_hours || 0), 0);
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen">
             {/* ======================================== */}
             {/* HERO BANNER                              */}
             {/* ======================================== */}

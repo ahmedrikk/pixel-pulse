@@ -26,92 +26,124 @@
 
 @layer base {
   :root {
-    /* Light Mode - Clean & Professional */
-    --background: 0 0% 97%;
-    --foreground: 220 14% 10%;
+    /* ───────────────────────────────────────────────────────────────
+       LIGHT MODE — purple-forward brand (violet primary, blue accent).
+       Same brand identity as dark mode, just on light surfaces.
+       ─────────────────────────────────────────────────────────────── */
+    --background: 264 40% 99%;
+    --foreground: 264 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 14% 10%;
+    --card-foreground: 264 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 14% 10%;
+    --popover-foreground: 264 25% 12%;
 
-    --primary: 221 83% 53%;
+    /* Brand: violet primary */
+    --primary: 262 83% 58%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 14% 20%;
+    --secondary: 264 33% 96%;
+    --secondary-foreground: 264 20% 25%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 264 30% 96%;
+    --muted-foreground: 264 10% 46%;
 
-    --accent: 263 70% 50%;
+    /* Secondary accent: blue */
+    --accent: 221 83% 56%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 221 83% 53%;
+    --border: 264 24% 91%;
+    --input: 264 24% 91%;
+    --ring: 262 83% 58%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* Custom tokens */
     --nav-bg: 0 0% 100%;
-    --nav-border: 220 13% 91%;
-    --card-hover: 220 14% 98%;
-    --tag-bg: 221 83% 96%;
-    --tag-text: 221 83% 45%;
+    --nav-border: 264 24% 91%;
+    --card-hover: 264 33% 98%;
+    --tag-bg: 262 83% 96%;
+    --tag-text: 262 70% 48%;
     --online-indicator: 142 71% 45%;
-    --neon-glow: 221 83% 53%;
+    --neon-glow: 262 83% 58%;
     --live-glow: 0 84% 60%;
-    --win-color: 142 71% 45%;
-    --gold: 45 93% 58%;
+    --win-color: 142 71% 42%;
+    --loss-color: 0 72% 51%;
+    --gold: 38 92% 50%;
+
+    /* Brand gradient — violet → indigo → blue (used on hero/promo/CTA surfaces) */
+    --brand-from: 262 83% 58%;
+    --brand-via: 250 83% 60%;
+    --brand-to: 221 83% 56%;
+    --brand-foreground: 0 0% 100%;
+
+    /* App background gradient (subtle, theme-aware) */
+    --app-grad-1: 262 70% 97%;
+    --app-grad-2: 264 40% 99%;
+    --app-grad-3: 221 70% 97%;
   }
 
   .dark {
-    /* Dark Mode - Gaming Aesthetic */
-    --background: 0 0% 6%;
-    --foreground: 0 0% 98%;
+    /* ───────────────────────────────────────────────────────────────
+       DARK MODE — identical brand, dark surfaces. No separate palette.
+       ─────────────────────────────────────────────────────────────── */
+    --background: 264 28% 7%;
+    --foreground: 264 20% 96%;
 
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 98%;
+    --card: 264 22% 11%;
+    --card-foreground: 264 20% 96%;
 
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 264 22% 11%;
+    --popover-foreground: 264 20% 96%;
 
-    --primary: 186 100% 50%;
-    --primary-foreground: 0 0% 6%;
+    /* Brand: violet primary (brighter for dark surfaces) */
+    --primary: 262 83% 67%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 90%;
+    --secondary: 264 18% 17%;
+    --secondary-foreground: 264 15% 88%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 264 16% 17%;
+    --muted-foreground: 264 12% 64%;
 
-    --accent: 83 100% 50%;
-    --accent-foreground: 0 0% 6%;
+    /* Secondary accent: blue (brighter for dark surfaces) */
+    --accent: 221 83% 66%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 186 100% 50%;
+    --border: 264 16% 21%;
+    --input: 264 16% 21%;
+    --ring: 262 83% 67%;
 
     /* Custom tokens */
-    --nav-bg: 0 0% 8%;
-    --nav-border: 0 0% 15%;
-    --card-hover: 0 0% 15%;
-    --tag-bg: 186 100% 10%;
-    --tag-text: 186 100% 50%;
-    --online-indicator: 142 71% 45%;
-    --neon-glow: 186 100% 50%;
-    --live-glow: 0 84% 60%;
-    --win-color: 142 71% 45%;
-    --loss-color: 0 62% 50%;
-    --gold: 45 93% 58%;
+    --nav-bg: 264 26% 9%;
+    --nav-border: 264 16% 19%;
+    --card-hover: 264 18% 15%;
+    --tag-bg: 262 55% 22%;
+    --tag-text: 262 83% 82%;
+    --online-indicator: 142 65% 50%;
+    --neon-glow: 262 83% 67%;
+    --live-glow: 0 84% 62%;
+    --win-color: 142 65% 50%;
+    --loss-color: 0 72% 58%;
+    --gold: 38 92% 56%;
+
+    /* Brand gradient — same hues, tuned for dark */
+    --brand-from: 262 83% 62%;
+    --brand-via: 250 83% 60%;
+    --brand-to: 221 83% 58%;
+    --brand-foreground: 0 0% 100%;
+
+    /* App background gradient (deep, subtle) */
+    --app-grad-1: 264 32% 9%;
+    --app-grad-2: 264 28% 6%;
+    --app-grad-3: 230 35% 9%;
   }
 }
 
@@ -121,8 +153,20 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Cohesive app background: a soft diagonal brand-tinted gradient that
+       sits behind the floating card columns (matches reference design).
+       Theme-aware via the --app-grad-* tokens. */
+    min-height: 100vh;
+    background-color: hsl(var(--background));
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--app-grad-1)) 0%,
+      hsl(var(--app-grad-2)) 45%,
+      hsl(var(--app-grad-3)) 100%
+    );
+    background-attachment: fixed;
   }
 }
 
@@ -131,19 +175,40 @@
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
   }
 
+  /* ─── Brand gradient surfaces (cohesive across light & dark) ───────────
+     Use these for intentional brand moments — promo cards, hero banners,
+     primary CTAs — instead of hardcoding dark navy / hex colors. They read
+     the same in both themes so they always look on-brand, never "the dark
+     box in a light page". */
+  .bg-brand-gradient {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--brand-from)),
+      hsl(var(--brand-via)) 55%,
+      hsl(var(--brand-to))
+    );
+  }
+  .text-on-brand {
+    color: hsl(var(--brand-foreground));
+  }
+  .bg-brand-soft {
+    /* Tinted, low-contrast brand surface that adapts to the theme. */
+    background-color: hsl(var(--primary) / 0.08);
+  }
+
   .card-shadow {
-    box-shadow: 0 1px 3px 0 hsl(var(--foreground) / 0.04), 
+    box-shadow: 0 1px 3px 0 hsl(var(--foreground) / 0.04),
                 0 1px 2px -1px hsl(var(--foreground) / 0.04);
   }
 
   .card-shadow-hover {
-    box-shadow: 0 4px 6px -1px hsl(var(--foreground) / 0.08), 
-                0 2px 4px -2px hsl(var(--foreground) / 0.06);
+    box-shadow: 0 8px 24px -8px hsl(var(--primary) / 0.18),
+                0 2px 6px -2px hsl(var(--foreground) / 0.08);
   }
 
   .dark .neon-border {
-    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.3),
-                0 0 20px -5px hsl(var(--primary) / 0.4);
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.25),
+                0 0 24px -6px hsl(var(--primary) / 0.35);
   }
 
   .line-clamp-3 {
