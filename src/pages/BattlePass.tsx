@@ -192,8 +192,8 @@ function XPBar({ percent, delay = 0, className = "" }: { percent: number; delay?
       <motion.div
         className="h-full rounded-full relative overflow-hidden"
         style={{
-          background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))",
-          boxShadow: "0 0 12px hsl(186 100% 50% / 0.3)",
+          background: "linear-gradient(90deg, hsl(var(--brand-from)), hsl(var(--brand-to)))",
+          boxShadow: "0 0 12px hsl(var(--primary) / 0.3)",
         }}
         initial={{ width: 0 }}
         animate={{ width: `${percent}%` }}
@@ -609,7 +609,7 @@ export default function BattlePass() {
                   <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
                     <motion.div
                       className="h-full rounded-full"
-                      style={{ background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))" }}
+                      style={{ background: "linear-gradient(90deg, hsl(var(--brand-from)), hsl(var(--brand-to)))" }}
                       initial={{ width: 0 }}
                       animate={{ width: `${(currentXP / SEASON_XP_MAX) * 100}%` }}
                       transition={{ duration: 1.2, delay: 0.3, type: "spring", stiffness: 80, damping: 14 }}

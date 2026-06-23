@@ -15,7 +15,7 @@ export function XPProgressBar({ compact }: { compact?: boolean }) {
             className="h-full rounded-full transition-all duration-500"
             style={{
               width: `${progress}%`,
-              background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))",
+              background: "linear-gradient(90deg, hsl(var(--brand-from)), hsl(var(--brand-to)))",
             }}
           />
         </div>
@@ -38,8 +38,8 @@ export function XPProgressBar({ compact }: { compact?: boolean }) {
         <motion.div
           className="h-full rounded-full"
           style={{
-            background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))",
-            boxShadow: "0 0 12px hsl(186 100% 50% / 0.5)",
+            background: "linear-gradient(90deg, hsl(var(--brand-from)), hsl(var(--brand-to)))",
+            boxShadow: "0 0 12px hsl(var(--primary) / 0.5)",
           }}
           initial={false}
           animate={{ width: `${progress}%` }}
@@ -59,7 +59,7 @@ export function XPProgressBar({ compact }: { compact?: boolean }) {
           <motion.span
             key={f.id}
             className="absolute left-1/2 -top-1 text-xs font-black pointer-events-none"
-            style={{ color: "hsl(142 71% 45%)" }}
+            style={{ color: "hsl(var(--primary))" }}
             initial={{ opacity: 1, y: 0, x: "-50%" }}
             animate={{ opacity: 0, y: -32, x: "-50%" }}
             exit={{ opacity: 0 }}
