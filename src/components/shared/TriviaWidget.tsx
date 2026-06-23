@@ -61,8 +61,8 @@ export function TriviaWidget() {
 
   const getOptionStyle = (letter: string) => {
     if (!revealed) return "border-border bg-card text-muted-foreground hover:bg-secondary/50";
-    if (letter === dailyData.correctLetter) return "border-[#16A34A] bg-[#EAF3DE] text-[#16A34A] font-medium";
-    if (letter === selectedLetter) return "border-[#DC2626] bg-[#FEF2F2] text-[#DC2626]";
+    if (letter === dailyData.correctLetter) return "border-emerald-500/60 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium";
+    if (letter === selectedLetter) return "border-destructive/60 bg-destructive/10 text-destructive";
     return "border-border bg-card text-muted-foreground opacity-50";
   };
 
@@ -94,8 +94,8 @@ export function TriviaWidget() {
               className={`w-full flex items-center gap-2.5 p-2 rounded-md border text-[11px] text-left transition-all ${getOptionStyle(opt.letter)} ${(!revealed && !isSubmitting) ? "cursor-pointer" : "cursor-default"}`}
             >
               <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] flex-shrink-0 transition-colors ${
-                revealed && opt.letter === dailyData.correctLetter ? "bg-[#16A34A] text-white" :
-                revealed && opt.letter === selectedLetter ? "bg-[#DC2626] text-white" :
+                revealed && opt.letter === dailyData.correctLetter ? "bg-emerald-500 text-white" :
+                revealed && opt.letter === selectedLetter ? "bg-destructive text-white" :
                 "bg-secondary border border-border"
               }`}>
                 {revealed && opt.letter === dailyData.correctLetter ? "✓" :

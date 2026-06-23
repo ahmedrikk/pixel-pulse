@@ -40,76 +40,28 @@ interface PillProps {
 function Pill({ category, isActive, onClick }: PillProps) {
   const { isTrending } = category;
 
-  // Determine base styles
-  const getStyle = (hovered: boolean): React.CSSProperties => {
-    if (isActive) {
-      return {
-        background: "#EEEDFE",
-        border: "0.5px solid #534AB7",
-        color: "#534AB7",
-        fontWeight: 500,
-        opacity: hovered ? 0.85 : 1,
-      };
-    }
-    if (isTrending) {
-      return {
-        background: hovered ? "rgba(22,163,74,0.12)" : "rgba(22,163,74,0.06)",
-        border: `0.5px solid rgba(22,163,74,${hovered ? "0.5" : "0.35"})`,
-        color: "#16A34A",
-      };
-    }
-    return {
-      background: "transparent",
-      border: "0.5px solid var(--color-border-secondary, rgba(255,255,255,0.12))",
-      color: "var(--color-text-secondary, hsl(var(--muted-foreground)))",
-      ...(hovered
-        ? {
-            border: "0.5px solid #534AB7",
-            color: "#534AB7",
-            background: "#EEEDFE",
-          }
-        : {}),
-    };
-  };
+  // Token-based, theme-aware pill styling (purple-forward brand).
+  const base =
+    "inline-flex items-center gap-1 px-2.5 py-[5px] rounded-full text-[11px] cursor-pointer select-none transition-all border";
+  const variant = isActive
+    ? "bg-primary text-primary-foreground border-primary font-medium hover:opacity-90"
+    : isTrending
+    ? "bg-primary/[0.08] text-primary border-primary/30 hover:bg-primary/15 hover:border-primary/50"
+    : "bg-transparent text-muted-foreground border-border hover:bg-primary/[0.08] hover:text-primary hover:border-primary/40";
 
   return (
-    <button
-      id={`cat-pill-${category.slug}`}
-      onClick={onClick}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "4px",
-        padding: "5px 10px",
-        borderRadius: "20px",
-        fontSize: "11px",
-        cursor: "pointer",
-        transition: "all 0.15s",
-        userSelect: "none",
-        ...getStyle(false),
-      }}
-      onMouseEnter={(e) => {
-        Object.assign((e.currentTarget as HTMLButtonElement).style, getStyle(true));
-      }}
-      onMouseLeave={(e) => {
-        Object.assign((e.currentTarget as HTMLButtonElement).style, getStyle(false));
-      }}
-    >
+    <button id={`cat-pill-${category.slug}`} onClick={onClick} className={`${base} ${variant}`}>
       {/* Trending fire emoji */}
-      {isTrending && (
-        <span style={{ fontSize: "9px" }}>🔥</span>
-      )}
+      {isTrending && <span className="text-[9px]">🔥</span>}
 
       {/* Category name */}
       <span>{category.name}</span>
 
       {/* Article count */}
-      <span style={{ fontSize: "9px", opacity: 0.6 }}>{category.articleCount}</span>
+      <span className="text-[9px] opacity-60">{category.articleCount}</span>
 
       {/* Active × */}
-      {isActive && (
-        <span style={{ fontSize: "10px", marginLeft: "3px" }}>×</span>
-      )}
+      {isActive && <span className="text-[10px] ml-[3px]">×</span>}
     </button>
   );
 }
@@ -143,50 +95,15 @@ export function CategoryPillsWidget({
   };
 
   return (
-    <div
-      style={{
-        background: "var(--color-background-primary, hsl(var(--card)))",
-        border: "0.5px solid var(--color-border-tertiary, hsl(var(--border)))",
-        borderRadius: "12px",
-        padding: "14px",
-      }}
-    >
+    <div className="bg-card border rounded-xl p-3.5 card-shadow">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
-          marginBottom: "12px",
-        }}
-      >
-        <span
-          style={{
-            fontSize: "12px",
-            fontWeight: 500,
-            color: "var(--color-text-primary, hsl(var(--foreground)))",
-          }}
-        >
-          Browse by category
-        </span>
-        <span
-          style={{
-            fontSize: "10px",
-            color: "var(--color-text-tertiary, hsl(var(--muted-foreground)))",
-          }}
-        >
-          Top 10
-        </span>
+      <div className="flex justify-between items-baseline mb-3">
+        <span className="text-xs font-semibold text-foreground">Browse by category</span>
+        <span className="text-[10px] text-muted-foreground">Top 10</span>
       </div>
 
       {/* Pill wrap */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "6px",
-        }}
-      >
+      <div className="flex flex-wrap gap-1.5">
         {sorted.map((cat) => (
           <Pill
             key={cat.slug}

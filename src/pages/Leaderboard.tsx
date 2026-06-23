@@ -308,7 +308,7 @@ export default function Leaderboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-nav backdrop-blur-sm">
         <div className="container flex h-14 items-center gap-4">

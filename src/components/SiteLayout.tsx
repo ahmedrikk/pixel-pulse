@@ -14,7 +14,7 @@ export function SiteLayout({ children }: SiteLayoutProps) {
 
   return (
     <TagFilterProvider>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         <Navbar
           onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMobileMenuOpen={isMobileMenuOpen}

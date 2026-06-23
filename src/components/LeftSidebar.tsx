@@ -31,9 +31,9 @@ export function LeftSidebar() {
           <Link
             key={item.label}
             to={item.href}
-            className="flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-foreground dark:text-white hover:text-primary"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-foreground hover:text-primary"
           >
-            <item.icon className="h-5 w-5 text-foreground dark:text-white/80" />
+            <item.icon className="h-5 w-5 text-muted-foreground" />
             <span className="font-medium">{item.label}</span>
           </Link>
         ))}
@@ -61,11 +61,8 @@ export function LeftSidebar() {
             </div>
             <div className="relative h-2 w-full rounded-full bg-secondary/60 overflow-hidden mb-2">
               <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${bpProgress}%`,
-                  background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(186 100% 50%))",
-                }}
+                className="h-full rounded-full transition-all duration-500 bg-brand-gradient"
+                style={{ width: `${bpProgress}%` }}
               />
             </div>
             <p className="text-xs text-muted-foreground mb-3">

@@ -420,7 +420,7 @@ export default function Profile() {
   const totalPlaytime = games.reduce((sum, g) => sum + (g.playtime_hours || 0), 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* ======================================== */}
       {/* HERO BANNER                              */}
       {/* ======================================== */}

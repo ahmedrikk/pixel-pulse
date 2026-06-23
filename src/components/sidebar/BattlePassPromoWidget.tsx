@@ -71,33 +71,30 @@ function RewardRow({ reward }: { reward: PromoReward }) {
   return (
     <div
       className={`flex items-center gap-[9px] px-[10px] py-2 rounded-lg
-        bg-black/[0.06] dark:bg-white/[0.06]
-        border border-black/[0.08] dark:border-white/[0.08]
+        bg-white/10 border border-white/15
         ${reward.blurred ? "opacity-60" : "opacity-100"}`}
       style={{ filter: reward.blurred ? "blur(0.5px)" : "none" }}
     >
       {/* Icon */}
       <div
-        className="w-7 h-7 rounded-[7px] flex items-center justify-center flex-shrink-0 text-sm"
-        style={{ background: reward.iconBg }}
+        className="w-7 h-7 rounded-[7px] flex items-center justify-center flex-shrink-0 text-sm bg-white/15"
       >
         {reward.icon}
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-medium text-foreground m-0 truncate">
+        <p className="text-[11px] font-medium text-white m-0 truncate">
           {reward.name}
         </p>
-        <p className="text-[9px] text-muted-foreground mt-[1px] m-0">
+        <p className="text-[9px] text-white/55 mt-[1px] m-0">
           {reward.type} · Tier {reward.tier}
         </p>
       </div>
 
       {/* Tier badge */}
       <span
-        className="text-[9px] font-medium px-[6px] py-[2px] rounded-lg whitespace-nowrap flex-shrink-0"
-        style={{ background: reward.badgeBg, color: reward.badgeColor }}
+        className="text-[9px] font-semibold px-[6px] py-[2px] rounded-lg whitespace-nowrap flex-shrink-0 bg-white/20 text-white"
       >
         T{reward.tier}
       </span>
@@ -124,54 +121,33 @@ export function BattlePassPromoWidget({
 
   return (
     /*
-     * Container:
-     *   Light — soft indigo-tinted surface (slate-100 + indigo tint) with a
-     *           visible border so it sits naturally in the white sidebar.
-     *   Dark  — deep navy (#0F2347 equivalent via indigo-950) — same as before.
+     * Intentional brand-gradient promo card. It reads identically in light
+     * and dark mode (a deliberate violet→blue brand moment), so it never
+     * looks like "the dark box in a light page". All inner text/surfaces use
+     * white-alpha so contrast holds against the gradient in both themes.
      */
-    <div
-      className="
-        rounded-xl p-4 overflow-hidden relative
-        bg-indigo-50 border border-indigo-100
-        dark:bg-[#0F2347] dark:border-transparent
-      "
-    >
+    <div className="bg-brand-gradient rounded-xl p-4 overflow-hidden relative card-shadow">
       {/* ── Season Header Row ── */}
       <div className="flex items-center justify-between mb-[10px]">
         {/* Left label */}
-        <span
-          className="
-            text-[9px] font-medium tracking-[0.07em] uppercase
-            text-indigo-400 dark:text-white/40
-          "
-        >
+        <span className="text-[9px] font-semibold tracking-[0.07em] uppercase text-white/55">
           Season {seasonNumber} · Free Battle Pass
         </span>
 
         {/* Live dot */}
         <div className="flex items-center gap-1">
-          <div className="w-[5px] h-[5px] rounded-full bg-emerald-500" />
-          <span className="text-[9px] text-indigo-400 dark:text-white/40">Live</span>
+          <div className="w-[5px] h-[5px] rounded-full bg-emerald-300" />
+          <span className="text-[9px] text-white/55">Live</span>
         </div>
       </div>
 
       {/* ── Headline ── */}
-      <p
-        className="
-          text-[15px] font-medium leading-[1.3] mb-1
-          text-indigo-900 dark:text-white
-        "
-      >
+      <p className="text-[15px] font-semibold leading-[1.3] mb-1 text-white">
         Unlock real rewards while you read
       </p>
 
       {/* ── Subheadline ── */}
-      <p
-        className="
-          text-[11px] leading-[1.4] mb-[14px]
-          text-indigo-500 dark:text-white/45
-        "
-      >
+      <p className="text-[11px] leading-[1.4] mb-[14px] text-white/65">
         Read articles, predict matches, review games — every action earns XP toward these rewards.
       </p>
 
@@ -183,30 +159,17 @@ export function BattlePassPromoWidget({
       </div>
 
       {/* ── Divider ── */}
-      <div
-        className="
-          h-[0.5px] mb-3
-          bg-indigo-200 dark:bg-white/[0.08]
-        "
-      />
+      <div className="h-px mb-3 bg-white/15" />
 
       {/* ── XP Signup Row ── */}
       <div className="flex items-center gap-[7px] mb-3">
-        {/* Amber badge */}
-        <span
-          className="
-            text-[10px] font-medium px-2 py-[3px] rounded-[10px] whitespace-nowrap
-            bg-amber-100 border border-amber-300 text-amber-700
-            dark:bg-amber-400/15 dark:border-amber-400/30 dark:text-amber-300
-          "
-        >
+        {/* XP badge */}
+        <span className="text-[10px] font-semibold px-2 py-[3px] rounded-[10px] whitespace-nowrap bg-white/20 text-white">
           +{signupXpBonus} XP on sign up
         </span>
 
         {/* Hint */}
-        <span
-          className="text-[10px] leading-[1.3] text-indigo-400 dark:text-white/40"
-        >
+        <span className="text-[10px] leading-[1.3] text-white/55">
           Free to join — no credit card
         </span>
       </div>
@@ -216,8 +179,8 @@ export function BattlePassPromoWidget({
         id="bp-promo-cta"
         onClick={() => openAuthModal("battlepass")}
         className="
-          w-full h-9 rounded-lg text-[12px] font-medium text-white border-none cursor-pointer
-          bg-[#534AB7] hover:bg-[#3C3489]
+          w-full h-9 rounded-lg text-[12px] font-semibold border-none cursor-pointer
+          bg-white text-primary hover:bg-white/90
           transition-colors duration-150
         "
       >
@@ -225,15 +188,7 @@ export function BattlePassPromoWidget({
       </button>
 
       {/* ── Footer Note ── */}
-      <p
-        className={`
-          text-center mt-[7px] text-[10px] mb-0
-          ${isUrgent
-            ? "text-red-400/70 dark:text-red-400/60"
-            : "text-indigo-400 dark:text-white/30"
-          }
-        `}
-      >
+      <p className={`text-center mt-[7px] text-[10px] mb-0 ${isUrgent ? "text-red-200" : "text-white/50"}`}>
         {totalTiers} tiers · Season ends in {daysRemaining} days
       </p>
     </div>
