@@ -41,7 +41,7 @@ export function HypeSubmitModal({ game, isOpen, onClose, onSubmit, isSubmitting 
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="button" onClick={onSubmit} disabled={isSubmitting} className="bg-[#534AB7] hover:bg-[#534AB7]/90 text-white gap-2">
+          <Button type="button" onClick={onSubmit} disabled={isSubmitting} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2">
             {isSubmitting ? "Submitting..." : "Submit + Hype it 🔥"}
           </Button>
         </DialogFooter>

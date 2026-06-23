@@ -94,7 +94,7 @@ export function HypeSearch({ onSelectGame, onSubmitNewGame }: HypeSearchProps) {
 
   return (
     <div className="relative mb-[14px]" ref={dropdownRef}>
-      <div className="flex items-center gap-2 bg-secondary border-[0.5px] border-border rounded-[9px] px-3 py-[9px] transition-colors focus-within:border-[#534AB7] focus-within:bg-background">
+      <div className="flex items-center gap-2 bg-secondary border-[0.5px] border-border rounded-[9px] px-3 py-[9px] transition-colors focus-within:border-primary focus-within:bg-background">
         <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
         <input
           type="text"
@@ -105,7 +105,7 @@ export function HypeSearch({ onSelectGame, onSubmitNewGame }: HypeSearchProps) {
           className="bg-transparent border-none outline-none text-xs text-foreground w-full placeholder:text-muted-foreground"
         />
         {isSearching && (
-          <div className="w-3 h-3 rounded-full border-2 border-[#534AB7] border-t-transparent animate-spin" />
+          <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         )}
       </div>
 
@@ -135,11 +135,11 @@ export function HypeSearch({ onSelectGame, onSubmitNewGame }: HypeSearchProps) {
                 <div className="text-right flex-shrink-0">
                   {game.isInHypeMeter ? (
                     <>
-                      <div className="text-[9px] text-[#16A34A] mb-0.5">In hype ✓</div>
-                      <div className="text-[11px] font-medium text-[#534AB7]">{game.hypePercent}% hyped</div>
+                      <div className="text-[9px] text-emerald-600 dark:text-emerald-400 mb-0.5">In hype ✓</div>
+                      <div className="text-[11px] font-medium text-primary">{game.hypePercent}% hyped</div>
                     </>
                   ) : (
-                    <div className="text-[10px] font-medium text-[#534AB7]">+ Submit</div>
+                    <div className="text-[10px] font-medium text-primary">+ Submit</div>
                   )}
                 </div>
               </div>
@@ -154,7 +154,7 @@ export function HypeSearch({ onSelectGame, onSubmitNewGame }: HypeSearchProps) {
           {!results.some(r => r.name.toLowerCase() === query.toLowerCase()) && (
             <div 
               onClick={handleCustomSubmit}
-              className="flex items-center gap-2 p-[10px_13px] cursor-pointer text-xs text-[#534AB7] font-medium hover:bg-[#EEEDFE]"
+              className="flex items-center gap-2 p-[10px_13px] cursor-pointer text-xs text-primary font-medium hover:bg-primary/10"
             >
               + Submit "{query}" →
             </div>

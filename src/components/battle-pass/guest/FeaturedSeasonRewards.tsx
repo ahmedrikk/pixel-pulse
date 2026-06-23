@@ -44,7 +44,7 @@ export default function FeaturedSeasonRewards({ season }: { season: any }) {
               </div>
               
               {reward.isFounderReward && (
-                <span className="text-[9px] font-medium text-[#16A34A] bg-[#EAF3DE] px-1.5 py-[1px] rounded-[6px]">
+                <span className="text-[9px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-[1px] rounded-[6px]">
                   Founder
                 </span>
               )}
