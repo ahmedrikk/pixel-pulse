@@ -12,74 +12,42 @@ export function XPConnectionStrip({ isAuthenticated, currentTier, currentXP, tie
   const fillPct = currentXP && tierXP ? Math.min(100, Math.round((currentXP / tierXP) * 100)) : 0;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '8px',
-        padding: '7px 20px',
-        background: '#0F2347',
-        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
-      }}
-    >
+    <div className="flex justify-between items-center flex-wrap gap-2 px-5 py-2 bg-secondary/50 border-b border-border">
       {/* Left: XP pills */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <Star style={{ width: 11, height: 11, color: '#FCD34D' }} />
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <Star className="w-[11px] h-[11px] text-amber-500" />
+          <span className="text-[10px] font-medium text-muted-foreground">
             Predictions earn XP:
           </span>
         </div>
 
         {/* Pre-match pill */}
-        <span style={{
-          fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 7,
-          whiteSpace: 'nowrap',
-          background: 'rgba(83,74,183,0.18)',
-          border: '0.5px solid rgba(83,74,183,0.35)',
-          color: '#AFA9EC',
-        }}>
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-primary/10 border border-primary/25 text-primary">
           Before match: +20 XP predict / +45 if correct
         </span>
 
         {/* Live pill */}
-        <span style={{
-          fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 7,
-          whiteSpace: 'nowrap',
-          background: 'rgba(220,38,38,0.12)',
-          border: '0.5px solid rgba(220,38,38,0.25)',
-          color: '#FCA5A5',
-        }}>
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-destructive/10 border border-destructive/25 text-destructive">
           During match: +5 XP predict / +10 if correct
         </span>
 
         {/* Streak pill */}
-        <span style={{
-          fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 7,
-          whiteSpace: 'nowrap',
-          background: 'rgba(251,191,36,0.12)',
-          border: '0.5px solid rgba(251,191,36,0.3)',
-          color: '#FCD34D',
-        }}>
+        <span className="text-[10px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400">
           7-day streak: 2× all XP
         </span>
       </div>
 
       {/* Right: mini Battle Pass bar (auth only, hidden on mobile) */}
       {isAuthenticated && currentTier !== undefined && (
-        <div
-          className="bp-mini"
-          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+        <div className="bp-mini flex items-center gap-1.5">
+          <span className="text-[10px] text-muted-foreground">
             Tier {currentTier}
           </span>
-          <div style={{ width: 72, height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${fillPct}%`, background: '#534AB7', borderRadius: 2 }} />
+          <div className="w-[72px] h-[3px] rounded-full bg-border overflow-hidden">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${fillPct}%` }} />
           </div>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+          <span className="text-[10px] text-muted-foreground">
             {currentXP}/{tierXP} XP
           </span>
         </div>
