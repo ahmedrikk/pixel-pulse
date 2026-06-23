@@ -208,7 +208,7 @@ export function AuthGatePopup() {
             animate="visible"
             exit="hidden"
             onClick={() => closeAuthModal("overlay")}
-            className="fixed inset-0 z-[9998] bg-[#0A1628]/65"
+            className="fixed inset-0 z-[9998] bg-black/60"
             style={{ backdropFilter: "none" }} // No blur as requested
           />
 
@@ -226,13 +226,13 @@ export function AuthGatePopup() {
             animate="visible"
             exit="exit"
             className="
-              fixed z-[9999] overflow-hidden bg-white
-              md:top-1/2 md:left-1/2 md:w-full md:max-w-[440px] md:rounded-[20px] md:shadow-2xl md:border md:border-white/10
+              fixed z-[9999] overflow-hidden bg-card
+              md:top-1/2 md:left-1/2 md:w-full md:max-w-[440px] md:rounded-[20px] md:shadow-2xl md:border md:border-border
               max-md:bottom-0 max-md:left-0 max-md:w-full max-md:rounded-t-[20px] max-md:rounded-b-none
             "
           >
             {/* ── Dark Header Panel ── */}
-            <div className="bg-[#0F2347] pt-[26px] max-md:pt-5 pb-[22px] px-[26px] relative rounded-t-[20px]">
+            <div className="bg-brand-gradient pt-[26px] max-md:pt-5 pb-[22px] px-[26px] relative rounded-t-[20px]">
               {/* Mobile Drag Handle */}
               {isMobile && (
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 w-9 h-1 rounded-full bg-white/20" />
@@ -275,15 +275,15 @@ export function AuthGatePopup() {
 
             {/* ── White Body Panel ── */}
             <div
-              className={`px-6 pt-5 pb-[22px] bg-white text-[#0F172A] transition-all duration-150 ${
+              className={`px-6 pt-5 pb-[22px] bg-card text-foreground transition-all duration-150 ${
                 isSwitching ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
               }`}
             >
               {emailSent ? (
                 <div className="text-center py-8">
-                  <Mail className="w-12 h-12 text-[#534AB7] mx-auto mb-4" />
-                  <h3 className="text-[16px] font-medium text-[#0F172A] mb-2">Check your inbox</h3>
-                  <p className="text-[#64748B] text-[13px]">We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then log in.</p>
+                  <Mail className="w-12 h-12 text-primary mx-auto mb-4" />
+                  <h3 className="text-[16px] font-medium text-foreground mb-2">Check your inbox</h3>
+                  <p className="text-muted-foreground text-[13px]">We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then log in.</p>
                 </div>
               ) : (
                 <>
@@ -291,32 +291,32 @@ export function AuthGatePopup() {
                   {tab === "signup" ? (
                     <div className="grid grid-cols-2 gap-2 mb-[18px]">
                       {PERKS.map((perk, i) => (
-                        <div key={i} className="flex items-start gap-[9px] p-[10px] pb-[11px] rounded-[10px] border border-[#E2E8F0] bg-[#F8FAFC]">
+                        <div key={i} className="flex items-start gap-[9px] p-[10px] pb-[11px] rounded-[10px] border border-border bg-secondary">
                           <div
                             className="w-[30px] h-[30px] rounded-lg shrink-0 flex items-center justify-center"
-                            style={{ backgroundColor: perk.bg, color: perk.color }}
+                            style={{ backgroundColor: `${perk.color}22`, color: perk.color }}
                           >
                             {perk.icon}
                           </div>
                           <div>
-                            <h4 className="text-[11px] font-medium text-[#0F172A] mb-[2px] leading-[1.2]">{perk.title}</h4>
-                            <p className="text-[10px] text-[#64748B] leading-[1.3] m-0">{perk.desc}</p>
+                            <h4 className="text-[11px] font-medium text-foreground mb-[2px] leading-[1.2]">{perk.title}</h4>
+                            <p className="text-[10px] text-muted-foreground leading-[1.3] m-0">{perk.desc}</p>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <h3 className="text-[14px] font-medium text-[#0F172A] mb-4 text-center">
+                    <h3 className="text-[14px] font-medium text-foreground mb-4 text-center">
                       Welcome back. Your XP is waiting.
                     </h3>
                   )}
 
                   {/* Tabs */}
-                  <div className="flex h-[34px] rounded-lg border border-[#E2E8F0] overflow-hidden mb-4 p-0.5 bg-[#F8FAFC]">
+                  <div className="flex h-[34px] rounded-lg border border-border overflow-hidden mb-4 p-0.5 bg-secondary">
                     <button
                       onClick={() => handleTabSwitch("signup")}
                       className={`flex-1 rounded-md text-[13px] transition-all duration-150 ${
-                        tab === "signup" ? "bg-[#534AB7] text-white font-medium shadow-sm" : "text-[#64748B] font-normal hover:bg-black/5"
+                        tab === "signup" ? "bg-primary text-white font-medium shadow-sm" : "text-muted-foreground font-normal hover:bg-black/5"
                       }`}
                     >
                       Sign up free
@@ -324,7 +324,7 @@ export function AuthGatePopup() {
                     <button
                       onClick={() => handleTabSwitch("login")}
                       className={`flex-1 rounded-md text-[13px] transition-all duration-150 ${
-                        tab === "login" ? "bg-[#534AB7] text-white font-medium shadow-sm" : "text-[#64748B] font-normal hover:bg-black/5"
+                        tab === "login" ? "bg-primary text-white font-medium shadow-sm" : "text-muted-foreground font-normal hover:bg-black/5"
                       }`}
                     >
                       Log in
@@ -337,10 +337,10 @@ export function AuthGatePopup() {
                     <button
                       onClick={() => handleOAuth("google")}
                       disabled={isLoading !== null}
-                      className="w-full flex items-center justify-center h-[42px] max-md:h-[48px] rounded-[9px] border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] transition-colors"
+                      className="w-full flex items-center justify-center h-[42px] max-md:h-[48px] rounded-[9px] border border-border bg-card hover:bg-secondary transition-colors"
                     >
                       {isLoading === "google" ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-[#0F172A]" />
+                        <Loader2 className="w-4 h-4 animate-spin text-foreground" />
                       ) : (
                         <>
                           <svg className="w-[18px] h-[18px] mr-[10px]" viewBox="0 0 24 24">
@@ -349,7 +349,7 @@ export function AuthGatePopup() {
                             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                           </svg>
-                          <span className="text-[13px] font-medium text-[#0F172A]">Continue with Google</span>
+                          <span className="text-[13px] font-medium text-foreground">Continue with Google</span>
                         </>
                       )}
                     </button>
@@ -359,7 +359,7 @@ export function AuthGatePopup() {
                   {/* Divider Row */}
                   <div className="flex items-center gap-[10px] mb-[14px]">
                     <div className="flex-1 h-[0.5px] bg-[#E2E8F0]" />
-                    <span className="text-[11px] text-[#94A3B8] whitespace-nowrap">or continue with email</span>
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">or continue with email</span>
                     <div className="flex-1 h-[0.5px] bg-[#E2E8F0]" />
                   </div>
 
@@ -371,17 +371,17 @@ export function AuthGatePopup() {
                       onChange={(e) => { setEmail(e.target.value); setAuthError(null); }}
                       placeholder="you@example.com"
                       disabled={isLoading !== null}
-                      className="h-[38px] rounded-lg border-[#CBD5E1] px-3 text-[12px] shadow-sm bg-white text-[#0F172A] placeholder:text-[#94A3B8] dark:bg-white dark:text-[#0F172A] dark:border-[#CBD5E1]"
+                      className="h-[38px] rounded-lg border-input px-3 text-[12px] shadow-sm bg-background text-foreground placeholder:text-muted-foreground"
                     />
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94A3B8] pointer-events-none" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                       <Input
                         type="password"
                         value={password}
                         onChange={(e) => { setPassword(e.target.value); setAuthError(null); }}
                         placeholder="Password (min 6 chars)"
                         disabled={isLoading !== null}
-                        className="h-[38px] rounded-lg border-[#CBD5E1] pl-9 pr-3 text-[12px] shadow-sm bg-white text-[#0F172A] placeholder:text-[#94A3B8] dark:bg-white dark:text-[#0F172A] dark:border-[#CBD5E1]"
+                        className="h-[38px] rounded-lg border-input pl-9 pr-3 text-[12px] shadow-sm bg-background text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                     {authError && (
@@ -390,7 +390,7 @@ export function AuthGatePopup() {
                     <Button
                       type="submit"
                       disabled={isLoading !== null || !email || !password}
-                      className="h-[38px] rounded-lg bg-[#534AB7] hover:bg-[#3C3489] text-white text-[12px] font-medium"
+                      className="h-[38px] rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] font-medium"
                     >
                       {isLoading === "email" ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : null}
                       {tab === "signup" ? "Join free →" : "Log in →"}
@@ -400,16 +400,16 @@ export function AuthGatePopup() {
                   {/* Toggle Link */}
                   <div className="text-center mb-5">
                     {tab === "signup" ? (
-                      <span className="text-[12px] text-[#0F172A]">
+                      <span className="text-[12px] text-foreground">
                         Already have an account?{" "}
-                        <button onClick={() => handleTabSwitch("login")} className="text-[#534AB7] font-medium hover:underline">
+                        <button onClick={() => handleTabSwitch("login")} className="text-primary font-medium hover:underline">
                           Log in
                         </button>
                       </span>
                     ) : (
-                      <span className="text-[12px] text-[#0F172A]">
+                      <span className="text-[12px] text-foreground">
                         New here?{" "}
-                        <button onClick={() => handleTabSwitch("signup")} className="text-[#534AB7] font-medium hover:underline">
+                        <button onClick={() => handleTabSwitch("signup")} className="text-primary font-medium hover:underline">
                           Create a free account
                         </button>
                       </span>
@@ -419,8 +419,8 @@ export function AuthGatePopup() {
               )}
 
               {/* Legal Line */}
-              <p className="text-center text-[10px] text-[#94A3B8] leading-[1.4] m-0 pb-1">
-                By joining you agree to our <a href="#" className="underline hover:text-[#0F172A]">Terms of Service</a> and <a href="#" className="underline hover:text-[#0F172A]">Privacy Policy</a>.<br/>
+              <p className="text-center text-[10px] text-muted-foreground leading-[1.4] m-0 pb-1">
+                By joining you agree to our <a href="#" className="underline hover:text-foreground">Terms of Service</a> and <a href="#" className="underline hover:text-foreground">Privacy Policy</a>.<br/>
                 <span className="font-medium">Free forever — no credit card required.</span>
               </p>
             </div>

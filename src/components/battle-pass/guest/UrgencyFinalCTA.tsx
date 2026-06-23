@@ -33,7 +33,7 @@ export default function UrgencyFinalCTA({ season }: { season: any }) {
             fontWeight: 500
           }}
         >
-          <div className="w-[5px] h-[5px] rounded-full bg-[#10b981]" />
+          <div className="w-[5px] h-[5px] rounded-full bg-emerald-500" />
           Season {season.number} is live now
         </div>
 
