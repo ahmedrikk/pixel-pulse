@@ -34,13 +34,13 @@ export function OnboardingLayout({
 
         <div className="flex flex-1 flex-col md:items-center md:justify-center px-6 pt-6 pb-24 md:pb-0 md:px-16 md:py-20">
           <div className="w-full max-w-[480px]">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#534AB7] mb-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-2">
               Step {step} of 4
             </p>
-            <h1 className="text-2xl md:text-3xl font-semibold text-[#0A1628] leading-tight mb-2">
+            <h1 className="text-2xl md:text-3xl font-semibold text-foreground leading-tight mb-2">
               {title}
             </h1>
-            <p className="text-sm text-gray-500 mb-8">{subtitle}</p>
+            <p className="text-sm text-muted-foreground mb-8">{subtitle}</p>
 
             <div className="animate-in slide-in-from-right-8 duration-200">
               {children}
@@ -48,13 +48,13 @@ export function OnboardingLayout({
           </div>
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 md:static bg-white md:bg-transparent border-t md:border-0 px-6 py-4 md:px-0 md:py-0">
+        <div className="fixed bottom-0 left-0 right-0 md:static bg-card md:bg-transparent border-t md:border-0 px-6 py-4 md:px-0 md:py-0">
           <div className="max-w-[480px] mx-auto md:mx-0 flex items-center justify-between gap-3">
             {showBack ? (
               <button
                 type="button"
                 onClick={() => navigate(-1)}
-                className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition-colors"
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" /> Back
               </button>
@@ -64,10 +64,10 @@ export function OnboardingLayout({
               type="button"
               onClick={onContinue}
               disabled={continueDisabled || continueLoading}
-              className="flex items-center gap-2 rounded-xl bg-[#534AB7] px-6 py-3 text-sm font-semibold text-white transition-all
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all
                 md:w-40 justify-center
                 disabled:opacity-40 disabled:cursor-not-allowed
-                hover:bg-[#3C3489] active:scale-[0.98]
+                hover:bg-primary/90 active:scale-[0.98]
                 max-md:flex-1"
             >
               {continueLoading ? (
