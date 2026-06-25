@@ -129,13 +129,18 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     };
 
     // Respect RAWG's relevance order (the right game is almost always first),
-    // and just skip obscure name-twins by requiring a popularity floor. Do NOT
-    // re-sort by popularity — that surfaces globally-huge but irrelevant games
-    // (e.g. "Resident Evil 6" outranking "Grand Theft Auto VI" for "GTA 6").
+    // but filter out itch.io / fan / demo twins which often outrank the real
+    // game on popularity ("Deltarune (itch)" added 695 vs "DELTARUNE" 32).
+    // Then take the first result above a small popularity floor — NOT the
+    // globally-most-popular, which surfaces irrelevant giants ("Resident Evil 6"
+    // for "GTA 6").
+    const JUNK_TWIN = /\((itch|leaked|demo|beta|fan[- ]?made|mobile|android|ios|mod)\)/i;
     const tryGameTag = async (candidate: string): Promise<boolean> => {
       try {
         const { results } = await fetchGameList({ search: candidate, page_size: 8 });
-        const match = results.find((r) => (r.added ?? 0) >= 50);
+        const clean = results.filter((r) => !JUNK_TWIN.test(r.name));
+        const pool = clean.length > 0 ? clean : results;
+        const match = pool.find((r) => (r.added ?? 0) >= 15);
         if (!match) return false;
         accept(match);
         return true;

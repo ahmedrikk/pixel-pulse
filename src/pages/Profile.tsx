@@ -981,7 +981,7 @@ export default function Profile() {
                         {[1, 2, 3, 4, 5].map((s) => (
                           <Star
                             key={s}
-                            className={`h-3.5 w-3.5 ${s <= rev.starRating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`}
+                            className={`h-3.5 w-3.5 ${s <= Number(rev.starRating) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`}
                           />
                         ))}
                       </div>
