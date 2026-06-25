@@ -102,6 +102,22 @@ export function useMyReviews(userId: string | undefined) {
   });
 }
 
+export function useDeleteReview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (reviewId: string) => {
+      const { error } = await supabase
+        .from("user_game_reviews")
+        .delete()
+        .eq("id", reviewId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reviews", "mine"] });
+    },
+  });
+}
+
 export function useSubmitReview(gameId: string) {
   const queryClient = useQueryClient();
   const { user } = useAuthGate();
