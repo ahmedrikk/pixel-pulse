@@ -45,8 +45,8 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
   ];
 
   return (
-    <div className="container max-w-7xl pt-6">
-      <div className="max-w-3xl mx-auto bg-card border rounded-2xl card-shadow p-5 md:p-6">
+    <div className="mb-6">
+      <div className="mx-auto bg-card border rounded-2xl card-shadow p-5 md:p-6">
         {/* Eyebrow */}
         <div className="flex items-center gap-2 mb-4">
           {isLive && (

@@ -300,9 +300,10 @@ export function EnhancedCommentSection({
         </div>
       </div>
 
-      {/* Comments List */}
+      {/* Comments List — grows with content, caps + scrolls past 500px so a
+          short thread doesn't leave a big empty gap before anything below. */}
       {isExpanded && (
-        <ScrollArea className="h-[500px]">
+        <ScrollArea className="max-h-[500px]">
           <div className="space-y-4">
             {sortedComments.map((comment) => (
               <CommentThread

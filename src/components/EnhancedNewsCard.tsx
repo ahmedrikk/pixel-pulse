@@ -107,72 +107,70 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       return;
     }
 
-    // Candidate game names: explicit gameTags first, then non-junk topic tags.
-    // Tags are PascalCase ("ModernWarfare4") but RAWG search needs spaces
-    // ("Modern Warfare 4") — it returns zero results for the squashed form.
+    // ONLY real game titles drive the review prompt. We deliberately do NOT
+    // use topic tags here — those include studios, people and platforms
+    // (e.g. "RockstarGames"), which fuzzy-match the wrong game in RAWG
+    // ("Santa Rockstar"). Tags are PascalCase ("GTA6") but RAWG search needs
+    // spaces ("GTA 6"), so de-PascalCase first.
     const dePascal = (t: string) =>
       t
         .replace(/([a-z])([A-Z])/g, "$1 $2")
         .replace(/([a-zA-Z])(\d)/g, "$1 $2")
         .trim();
-    const tagCandidates = [
-      ...article.gameTags,
-      ...article.topicTags.filter(isSpecificTag),
-    ]
+    const gameTagCandidates = article.gameTags
       .map((t) => dePascal(t.trim()))
       .filter((t, i, arr) => t.length >= 3 && arr.indexOf(t) === i);
 
     hasCheckedGameRef.current = true;
 
-    // Helper: try one candidate tag against RAWG.
-    // For tag-based candidates: require a shared prefix.
-    // For title-based fallback: accept if the RAWG game name appears in the title.
-    const tryCandidate = async (candidate: string, isTitleFallback: boolean): Promise<boolean> => {
-      try {
-        const { results } = await fetchGameList({ search: candidate, page_size: 5 });
-        if (results.length === 0) return false;
+    const accept = (g: { id: number; name: string; background_image: string | null }) => {
+      setReviewGame({ id: String(g.id), name: g.name, coverUrl: g.background_image ?? "" });
+      setShowReviewPrompt(true);
+    };
 
-        // RAWG relevance search surfaces obscure name-twins first
-        // ("Halo (itch)" for "Halo") — prefer games people actually know,
-        // falling back to the raw list only if nothing popular matches.
+    // Game tags are curated real titles — trust RAWG relevance + popularity.
+    // Pick the most-added result so abbreviations resolve correctly
+    // ("GTA 6" -> "Grand Theft Auto VI") and obscure name-twins never win.
+    const tryGameTag = async (candidate: string): Promise<boolean> => {
+      try {
+        const { results } = await fetchGameList({ search: candidate, page_size: 8 });
+        if (results.length === 0) return false;
+        const best = [...results].sort((a, b) => (b.added ?? 0) - (a.added ?? 0))[0];
+        if (!best || (best.added ?? 0) < 30) return false;
+        accept(best);
+        return true;
+      } catch { return false; }
+    };
+
+    // Fallback for articles with no game tags: only accept a game whose name
+    // actually appears in the headline.
+    const tryTitle = async (): Promise<boolean> => {
+      try {
+        const { results } = await fetchGameList({ search: article.title, page_size: 5 });
         const popular = results.filter((r) => (r.added ?? 0) >= 50);
         const pool = popular.length > 0 ? popular : results;
-
+        const titleLower = article.title.toLowerCase();
         for (const g of pool) {
-          const nameNorm = g.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-          if (isTitleFallback) {
-            // Title fallback: accept if the matched game name appears in the title
-            const titleLower = article.title.toLowerCase();
-            // Strip the " 2", " 3" suffix for a looser base match too
-            const baseName = g.name.replace(/\s*\d+$/, "").toLowerCase();
-            if (!titleLower.includes(baseName) && !titleLower.includes(g.name.toLowerCase())) continue;
-          } else {
-            const tagNorm = candidate.toLowerCase().replace(/[^a-z0-9]/g, "");
-            if (tagNorm.length < 3) return false;
-            const tagPrefix = tagNorm.substring(0, Math.min(4, tagNorm.length));
-            const namePrefix = nameNorm.substring(0, Math.min(4, nameNorm.length));
-            if (!nameNorm.includes(tagPrefix) && !tagNorm.includes(namePrefix)) continue;
+          const baseName = g.name.replace(/\s*\d+$/, "").toLowerCase();
+          if (titleLower.includes(baseName) || titleLower.includes(g.name.toLowerCase())) {
+            accept(g);
+            return true;
           }
-
-          setReviewGame({ id: String(g.id), name: g.name, coverUrl: g.background_image ?? "" });
-          setShowReviewPrompt(true);
-          return true;
         }
         return false;
       } catch { return false; }
     };
 
-    // 1. Try explicit tag candidates first
-    for (const tag of tagCandidates) {
-      if (await tryCandidate(tag, false)) return;
+    // 1. Try explicit game tags
+    for (const tag of gameTagCandidates) {
+      if (await tryGameTag(tag)) return;
     }
 
-    // 2. No tags matched — fall back to the article title
-    if (article.title.trim().length >= 3) {
-      await tryCandidate(article.title, true);
+    // 2. No game tags resolved — fall back to the article title
+    if (gameTagCandidates.length === 0 && article.title.trim().length >= 3) {
+      await tryTitle();
     }
-  }, [isAuthenticated, reviewGame, article.gameTags, article.topicTags, article.title]);
+  }, [isAuthenticated, reviewGame, article.gameTags, article.title]);
 
   const handleLike = useCallback(async () => {
     if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }

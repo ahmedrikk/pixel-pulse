@@ -724,9 +724,6 @@ export default function Esports() {
       {/* XP Connection Strip */}
       <XPConnectionStrip isAuthenticated={isAuthenticated} />
 
-      {/* Featured Match Hero */}
-      <FeaturedMatchHero match={featuredMatch} />
-
       <div className="container py-6 max-w-7xl">
        <div className="flex gap-6">
         {/* Left Sidebar — consistent nav with the rest of the app */}
@@ -737,6 +734,10 @@ export default function Esports() {
         </div>
 
         <main className="flex-1 min-w-0">
+        {/* Featured Match Hero — centered in the content column, aligned with
+            the left & right rails so the page reads as one cohesive block. */}
+        <FeaturedMatchHero match={featuredMatch} />
+
         {/* XP Bar */}
         <div className="mb-6">
           <XPProgressBar />
