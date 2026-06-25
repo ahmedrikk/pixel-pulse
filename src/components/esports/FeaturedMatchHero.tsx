@@ -25,11 +25,6 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
 
   const isLive = match.status === 'running';
 
-  // Mock community predictions
-  const communityA = 62;
-  const communityB = 38;
-  const communityTotal = 3241;
-
   function handlePredict(team: 'teamA' | 'teamB') {
     if (!isAuthenticated) {
       openAuthModal('esports_predict');
@@ -129,18 +124,7 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
             })}
           </div>
 
-          {/* Community bar */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-medium text-primary min-w-[26px]">{communityA}%</span>
-            <div className="flex-1 h-1 rounded-full bg-border overflow-hidden flex">
-              <div className="bg-primary rounded-l-full" style={{ width: `${communityA}%` }} />
-              <div className="flex-1 bg-muted-foreground/30" />
-            </div>
-            <span className="text-[10px] text-muted-foreground min-w-[26px] text-right">{communityB}%</span>
-          </div>
-
           <p className="text-[10px] text-muted-foreground text-center mt-2">
-            {communityTotal.toLocaleString()} community predictions ·{' '}
             Pre-match: <b className="text-amber-600 dark:text-amber-400">+65 XP</b> if correct ·{' '}
             Live: <b className="text-amber-600 dark:text-amber-400">+10 XP</b>
           </p>

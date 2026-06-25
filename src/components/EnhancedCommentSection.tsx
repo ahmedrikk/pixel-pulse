@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { MessageCircle, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Comment, COMMENT_CONSTANTS } from "@/types/feed";
 import { CommentThread } from "./CommentThread";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { fetchComments, insertComment, updateComment, softDeleteComment } from "@/lib/comments";
 import { toast } from "sonner";
 
 type SortMode = "top" | "new" | "hot";
@@ -18,14 +19,6 @@ interface EnhancedCommentSectionProps {
   initialComments?: Comment[];
   className?: string;
 }
-
-// Mock current user
-const CURRENT_USER = {
-  id: "user-1",
-  name: "You",
-  avatar: "",
-  tier: 1,
-};
 
 // Wilson score for "hot" sorting
 function wilsonScore(upvotes: number, total: number): number {
@@ -79,9 +72,19 @@ export function EnhancedCommentSection({
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>("top");
+  const [sortMode, setSortMode] = useState<SortMode>("new");
   const [isExpanded, setIsExpanded] = useState(true);
-  const { isAuthenticated, openAuthModal } = useAuthGate();
+  const { isAuthenticated, openAuthModal, user } = useAuthGate();
+
+  // Load persisted comments for this article (visible to everyone).
+  const reload = useCallback(async () => {
+    const rows = await fetchComments(articleId);
+    setComments(rows);
+  }, [articleId]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   // Sort comments based on mode
   const sortedComments = useMemo(() => {
@@ -138,60 +141,32 @@ export function EnhancedCommentSection({
     }));
   }, [isAuthenticated, openAuthModal]);
 
-  // Handle reply
-  const handleReply = useCallback((parentId: string, body: string) => {
-    if (!isAuthenticated) {
+  // Handle reply — persisted to the DB
+  const handleReply = useCallback(async (parentId: string, body: string) => {
+    if (!isAuthenticated || !user) {
       openAuthModal("comment", { commentId: parentId });
       return;
     }
+    const ok = await insertComment(articleId, user.id, body, parentId);
+    if (ok) { await reload(); toast.success("Reply posted!"); }
+    else toast.error("Couldn't post reply");
+  }, [articleId, isAuthenticated, user, openAuthModal, reload]);
 
-    const parentComment = comments.find(c => c.id === parentId);
-    if (!parentComment) return;
+  // Handle edit — persisted
+  const handleEdit = useCallback(async (commentId: string, body: string) => {
+    const ok = await updateComment(commentId, body);
+    if (ok) { await reload(); toast.success("Comment updated"); }
+  }, [reload]);
 
-    const newReply: Comment = {
-      id: `comment-${Date.now()}`,
-      articleId,
-      userId: CURRENT_USER.id,
-      parentCommentId: parentId,
-      body,
-      depth: Math.min(parentComment.depth + 1, COMMENT_CONSTANTS.MAX_DEPTH),
-      upvotes: 1,
-      downvotes: 0,
-      score: 1,
-      createdAt: new Date().toISOString(),
-      editedAt: null,
-      deletedAt: null,
-      author: CURRENT_USER,
-      userVote: "up",
-    };
+  // Handle delete — soft delete, persisted
+  const handleDelete = useCallback(async (commentId: string) => {
+    const ok = await softDeleteComment(commentId);
+    if (ok) { await reload(); toast.success("Comment deleted"); }
+  }, [reload]);
 
-    setComments(prev => [newReply, ...prev]);
-    toast.success("Reply posted!");
-  }, [articleId, comments, isAuthenticated, openAuthModal]);
-
-  // Handle edit
-  const handleEdit = useCallback((commentId: string, body: string) => {
-    setComments(prev => prev.map(comment => 
-      comment.id === commentId 
-        ? { ...comment, body, editedAt: new Date().toISOString() }
-        : comment
-    ));
-    toast.success("Comment updated");
-  }, []);
-
-  // Handle delete
-  const handleDelete = useCallback((commentId: string) => {
-    setComments(prev => prev.map(comment => 
-      comment.id === commentId 
-        ? { ...comment, deletedAt: new Date().toISOString(), body: "[deleted]" }
-        : comment
-    ));
-    toast.success("Comment deleted");
-  }, []);
-
-  // Handle root comment submit
+  // Handle root comment submit — persisted so others can see it
   const handleSubmit = async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !user) {
       openAuthModal("comment", { articleId });
       return;
     }
@@ -202,32 +177,16 @@ export function EnhancedCommentSection({
     }
 
     setIsSubmitting(true);
-
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const comment: Comment = {
-      id: `comment-${Date.now()}`,
-      articleId,
-      userId: CURRENT_USER.id,
-      parentCommentId: null,
-      body: newComment.trim(),
-      depth: 0,
-      upvotes: 1,
-      downvotes: 0,
-      score: 1,
-      createdAt: new Date().toISOString(),
-      editedAt: null,
-      deletedAt: null,
-      author: CURRENT_USER,
-      userVote: "up",
-    };
-
-    setComments(prev => [comment, ...prev]);
-    setNewComment("");
+    const ok = await insertComment(articleId, user.id, newComment.trim());
     setIsSubmitting(false);
-    
-    toast.success("+25 XP! Comment posted");
+
+    if (ok) {
+      setNewComment("");
+      await reload();
+      toast.success("+25 XP! Comment posted");
+    } else {
+      toast.error("Couldn't post comment");
+    }
   };
 
   const totalComments = comments.length;
@@ -258,9 +217,9 @@ export function EnhancedCommentSection({
       {/* Comment Input */}
       <div className="flex gap-3 mb-4">
         <Avatar className="w-8 h-8 flex-shrink-0">
-          <AvatarImage src={CURRENT_USER.avatar} />
+          <AvatarImage src={user?.user_metadata?.avatar_url} />
           <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-            {CURRENT_USER.name.slice(0, 2).toUpperCase()}
+            {(user?.email ?? "G").slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1 space-y-2">
@@ -313,7 +272,7 @@ export function EnhancedCommentSection({
                 onReply={handleReply}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                currentUserId={CURRENT_USER.id}
+                currentUserId={user?.id ?? ""}
               />
             ))}
 

@@ -43,6 +43,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/Avatar";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { useMyReviews } from "@/hooks/useGameReviews";
 import {
   getCurrentUserProfile,
   updateProfile,
@@ -94,6 +95,7 @@ export default function Profile() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<ProfileType | null>(null);
+  const { data: myReviews = [] } = useMyReviews(user?.id);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [games, setGames] = useState<UserGame[]>([]);
   const [preferences, setPreferences] = useState<UserNewsPreference[]>([]);
@@ -951,6 +953,52 @@ export default function Profile() {
                   </Badge>
                 ))}
               </div>
+            </div>
+          )}
+        </Section>
+
+        {/* ---- MY REVIEWS ---- */}
+        <Section title={`My Reviews (${myReviews.length})`} icon={<Star className="h-5 w-5" />}>
+          {myReviews.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">
+              No reviews yet — rate a game from a news article or the Reviews tab and it'll show up here.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {myReviews.map((rev) => (
+                <div key={rev.id} className="flex gap-3 p-3 rounded-lg border border-border/50 bg-card">
+                  {rev.gameCover ? (
+                    <img src={rev.gameCover} alt={rev.gameName} className="w-12 h-12 rounded-md object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-md bg-secondary flex items-center justify-center flex-shrink-0">
+                      <Gamepad2 className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold text-sm truncate">{rev.gameName}</h3>
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`h-3.5 w-3.5 ${s <= rev.starRating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {rev.reviewText && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-3">{rev.reviewText}</p>
+                    )}
+                    {rev.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {rev.tags.map((t) => (
+                          <Badge key={t} variant="secondary" className="text-[10px] py-0 px-1.5 capitalize">{t}</Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Section>

@@ -220,7 +220,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const handleReviewSubmit = useCallback(async (review: Omit<GameReview, "id" | "userId" | "createdAt">) => {
     if (!reviewGame || !user) return;
     await supabase.from("games").upsert(
-      { id: reviewGame.id, name: reviewGame.name, slug: reviewGame.id, expires_at: new Date(Date.now() + 86400000).toISOString() },
+      { id: reviewGame.id, name: reviewGame.name, slug: reviewGame.id, cover_image: reviewGame.coverUrl || null, expires_at: new Date(Date.now() + 86400000).toISOString() },
       { onConflict: "id", ignoreDuplicates: true }
     );
     await supabase.from("user_game_reviews").insert({
