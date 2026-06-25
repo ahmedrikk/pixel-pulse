@@ -20,7 +20,6 @@ import { XPConnectionStrip } from "@/components/esports/XPConnectionStrip";
 import { FeaturedMatchHero } from "@/components/esports/FeaturedMatchHero";
 import { RightSidebar } from "@/components/RightSidebar";
 import { InlinePrediction } from "@/components/esports/InlinePrediction";
-import { PredictorLeaderboard } from "@/components/esports/PredictorLeaderboard";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { WatchLiveButton } from "@/components/esports/WatchLiveButton";
 
@@ -805,9 +804,6 @@ export default function Esports() {
         </div>
        </div>
       </div>
-
-      {/* Predictor Leaderboard */}
-      <PredictorLeaderboard />
 
       {/* Twitch Embed Modal */}
       <AnimatePresence>

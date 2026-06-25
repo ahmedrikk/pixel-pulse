@@ -168,7 +168,7 @@ export const XP_VALUES = {
 // Comment Constants
 export const COMMENT_CONSTANTS = {
   MAX_DEPTH: 3,
-  MIN_LENGTH: 20,
+  MIN_LENGTH: 2,
   MAX_LENGTH: 2000,
   EDIT_WINDOW_MINUTES: 15,
   COOLDOWN_SECONDS: 60,

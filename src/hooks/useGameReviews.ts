@@ -57,6 +57,51 @@ export function useUserReviews(gameId: string | undefined) {
   });
 }
 
+// ── A single user's own reviews (across all games), for their profile ────────
+export interface MyReview {
+  id: string;
+  gameId: string;
+  gameName: string;
+  gameCover: string | null;
+  starRating: number;
+  reviewText: string | null;
+  tags: string[];
+  createdAt: string;
+}
+
+async function fetchMyReviews(userId: string): Promise<MyReview[]> {
+  const { data, error } = await supabase
+    .from("user_game_reviews")
+    .select(`
+      id, game_id, star_rating, review_text, tags, created_at,
+      games ( name, cover_image )
+    `)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    gameId: r.game_id,
+    gameName: r.games?.name ?? r.game_id,
+    gameCover: r.games?.cover_image ?? null,
+    starRating: r.star_rating,
+    reviewText: r.review_text,
+    tags: r.tags ?? [],
+    createdAt: r.created_at,
+  }));
+}
+
+export function useMyReviews(userId: string | undefined) {
+  return useQuery({
+    queryKey: ["reviews", "mine", userId],
+    queryFn: () => fetchMyReviews(userId!),
+    enabled: !!userId,
+  });
+}
+
 export function useSubmitReview(gameId: string) {
   const queryClient = useQueryClient();
   const { user } = useAuthGate();
