@@ -289,6 +289,47 @@ export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
 }
 
 /**
+ * Tag frequency across all live (non-expired) cached articles.
+ * Powers the real "Browse by category" counts — each count is the number
+ * of articles actually tagged with that entity. An article counts once per
+ * distinct tag (tags + game_tags merged & de-duped).
+ */
+export interface TrendingTag { tag: string; count: number; }
+
+const CATEGORY_JUNK = new Set([
+  "gaming", "news", "game", "games", "update", "updates", "entertainment",
+  "review", "preview", "trailer", "rumor", "leak", "gameplay",
+]);
+
+export async function getTrendingTags(limit = 12): Promise<TrendingTag[]> {
+  try {
+    const { data, error } = await supabase
+      .from('cached_articles')
+      .select('tags, game_tags')
+      .gt('expires_at', new Date().toISOString());
+
+    if (error || !data) return [];
+
+    const counts = new Map<string, number>();
+    for (const row of data) {
+      const seen = new Set<string>();
+      for (const t of [...(row.tags ?? []), ...(row.game_tags ?? [])]) {
+        if (typeof t === 'string' && t.trim().length > 1) seen.add(t.trim());
+      }
+      for (const t of seen) counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+
+    return [...counts.entries()]
+      .filter(([tag]) => !CATEGORY_JUNK.has(tag.toLowerCase()))
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Get all cached articles (with pagination support)
  */
 export async function getAllCachedArticles(offset = 0, limit = 50, category?: string): Promise<NewsItem[]> {
