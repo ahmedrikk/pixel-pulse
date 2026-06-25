@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { RefreshCw, AlertCircle, X, Sparkles } from "lucide-react";
+import { RefreshCw, AlertCircle, Sparkles, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useSmartFeedReal } from "@/hooks/useSmartFeedReal";
 import { EnhancedNewsCard } from "./EnhancedNewsCard";
 import { NewsCardSkeleton } from "./NewsCardSkeleton";
@@ -36,7 +37,9 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     userId: isAuthenticated ? user?.id : undefined
   });
   
-  const { activeTag, categoryName, clearFilter } = useTagFilter();
+  const { activeTag, categoryName } = useTagFilter();
+  const navigate = useNavigate();
+  const exitFilter = () => navigate("/");
   const [displayedCount, setDisplayedCount] = useState(6);
   const [sortMode, setSortMode] = useState<"smart" | "recent" | "popular">("smart");
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -124,20 +127,36 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
 
       {/* Feed Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">{feedTitle}</h1>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => { reshuffle(); checkForNewArticles(); }}
-            disabled={isRefreshing}
-            className="h-8 w-8"
-            title="Shuffle feed"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-          {isRefreshing && (
-            <span className="text-xs text-muted-foreground">Checking...</span>
+        <div className="flex items-center gap-3 min-w-0">
+          {activeTag ? (
+            /* Bluesky-style filtered header: back button + category title */
+            <button
+              onClick={exitFilter}
+              className="flex items-center gap-2.5 group min-w-0"
+              title="Back to feed"
+            >
+              <span className="flex items-center justify-center h-9 w-9 rounded-full border bg-card group-hover:bg-secondary transition-colors flex-shrink-0">
+                <ArrowLeft className="h-4 w-4" />
+              </span>
+              <h1 className="text-2xl font-bold truncate">#{categoryName ?? activeTag}</h1>
+            </button>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold">{feedTitle}</h1>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => { reshuffle(); checkForNewArticles(); }}
+                disabled={isRefreshing}
+                className="h-8 w-8"
+                title="Shuffle feed"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+              {isRefreshing && (
+                <span className="text-xs text-muted-foreground">Checking...</span>
+              )}
+            </>
           )}
         </div>
         
@@ -189,24 +208,6 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
             View
           </Button>
         </motion.div>
-      )}
-
-      {/* Active Filter Banner */}
-      {activeTag && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
-          <span className="text-sm font-medium">
-            Filtering by: <span className="text-primary font-bold">#{activeTag}</span>
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilter}
-            className="ml-auto gap-1 h-7"
-          >
-            <X className="h-3 w-3" />
-            Clear
-          </Button>
-        </div>
       )}
 
       {/* Error Banner */}
@@ -275,7 +276,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
             <div className="text-center py-12 text-muted-foreground">
               <p>{activeTag ? `No articles found matching #${activeTag}` : "No articles available yet."}</p>
               {activeTag ? (
-                <Button variant="link" onClick={clearFilter} className="mt-2">
+                <Button variant="link" onClick={exitFilter} className="mt-2">
                   View all articles
                 </Button>
               ) : (

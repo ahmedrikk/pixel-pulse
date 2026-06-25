@@ -18,11 +18,10 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { XPConnectionStrip } from "@/components/esports/XPConnectionStrip";
 import { FeaturedMatchHero } from "@/components/esports/FeaturedMatchHero";
-import { NewsSidebar } from "@/components/esports/NewsSidebar";
+import { RightSidebar } from "@/components/RightSidebar";
 import { InlinePrediction } from "@/components/esports/InlinePrediction";
 import { PredictorLeaderboard } from "@/components/esports/PredictorLeaderboard";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { useGamingNews } from "@/hooks/useGamingNews";
 import { WatchLiveButton } from "@/components/esports/WatchLiveButton";
 
 type TabType = "live" | "upcoming" | "results";
@@ -667,7 +666,6 @@ export default function Esports() {
   const [watchingMatch, setWatchingMatch] = useState<EsportsMatch | null>(null);
 
   const { liveMatches, upcomingMatches, pastMatches, isLoading, error } = useEsportsMatches();
-  const { news, isLoading: newsLoading } = useGamingNews({ category: 'esports' });
 
   // Pick best featured match: first live > first upcoming
   const featuredMatch = useMemo(() => {
@@ -770,39 +768,40 @@ export default function Esports() {
           ))}
         </div>
 
-        {/* Split Layout: Matches + News Sidebar */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 0, minHeight: 440 }} className="esports-split">
-          {/* Matches Column */}
-          <div style={{ borderRight: '0.5px solid hsl(var(--border))', paddingRight: 16 }}>
-            <AnimatePresence mode="wait">
-              {activeGame === "all" ? (
-                <AllGamesView
-                  liveMatches={liveMatches}
-                  upcomingMatches={upcomingMatches}
-                  pastMatches={pastMatches}
-                  isLoading={isLoading}
-                  gameFilters={gameFilters}
-                  onWatchLive={handleWatchLive}
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                />
-              ) : (
-                <GameView
-                  gameId={activeGame}
-                  liveMatches={liveMatches}
-                  upcomingMatches={upcomingMatches}
-                  pastMatches={pastMatches}
-                  gameFilters={gameFilters}
-                  onWatchLive={handleWatchLive}
-                />
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* News Sidebar */}
-          <NewsSidebar news={news} activeGame={activeGame} isLoading={newsLoading} />
+        {/* Matches */}
+        <div className="min-h-[440px]">
+          <AnimatePresence mode="wait">
+            {activeGame === "all" ? (
+              <AllGamesView
+                liveMatches={liveMatches}
+                upcomingMatches={upcomingMatches}
+                pastMatches={pastMatches}
+                isLoading={isLoading}
+                gameFilters={gameFilters}
+                onWatchLive={handleWatchLive}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+              />
+            ) : (
+              <GameView
+                gameId={activeGame}
+                liveMatches={liveMatches}
+                upcomingMatches={upcomingMatches}
+                pastMatches={pastMatches}
+                gameFilters={gameFilters}
+                onWatchLive={handleWatchLive}
+              />
+            )}
+          </AnimatePresence>
         </div>
         </main>
+
+        {/* Right Sidebar — cohesive with the rest of the app */}
+        <div className="hidden xl:block flex-shrink-0">
+          <div className="sticky top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <RightSidebar />
+          </div>
+        </div>
        </div>
       </div>
 

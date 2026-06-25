@@ -10,20 +10,7 @@ import { TagFilterProvider, useTagFilter } from "@/contexts/TagFilterContext";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { useXP } from "@/contexts/XPContext";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-
-// Top-10 category lookup so we can resolve name from slug on URL init
-const SLUG_TO_NAME: Record<string, string> = {
-  PlayStation: "PlayStation",
-  GTA6: "GTA 6",
-  Esports: "Esports",
-  PCGaming: "PC Gaming",
-  FPS: "FPS",
-  RPG: "RPG",
-  Nintendo: "Nintendo",
-  Xbox: "Xbox",
-  Indie: "Indie Games",
-  Streaming: "Streaming",
-};
+import { prettifyTag } from "@/hooks/useTrendingCategories";
 
 // Inner component so it can use TagFilterContext
 function IndexContent() {
@@ -34,17 +21,19 @@ function IndexContent() {
   const { openSignupPrompt } = useAuthGate();
   const location = useLocation();
 
-  // Initialise category filter from URL on first render (shallow routing)
+  // The ?category= URL param is the single source of truth for the feed
+  // filter. Category pills navigate to /?category=slug (from any page), and
+  // the back button navigates to /, so we sync the filter on every change.
+  const categorySlug = searchParams.get("category");
   useEffect(() => {
-    const slug = searchParams.get("category");
-    if (slug) {
-      setActiveTag(slug);
-      setCategoryName(SLUG_TO_NAME[slug] ?? slug);
+    if (categorySlug) {
+      setActiveTag(categorySlug);
+      setCategoryName(prettifyTag(categorySlug));
+    } else {
+      setActiveTag(null);
+      setCategoryName(null);
     }
-    // Only run on mount — intentionally no deps on searchParams so URL changes
-    // driven by pill clicks don't double-fire (pills update state directly)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [categorySlug, setActiveTag, setCategoryName]);
 
   // Open auth modal when redirected from /login or /signup
   useEffect(() => {

@@ -1,38 +1,10 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useTagFilter } from "@/contexts/TagFilterContext";
+import { useTrendingCategories, type TrendingCategory } from "@/hooks/useTrendingCategories";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface Category {
-  name: string;
-  slug: string;
-  articleCount: number;
-  isTrending: boolean;
-}
-
-interface CategoryPillsWidgetProps {
-  categories?: Category[];
-}
-
-// ─── Static mock data (matches spec Section 3.7) ──────────────────────────────
-
-const TOP_CATEGORIES: Category[] = [
-  { name: "PlayStation", slug: "PlayStation",  articleCount: 142, isTrending: true },
-  { name: "GTA 6",       slug: "GTA6",         articleCount: 98,  isTrending: true },
-  { name: "Esports",     slug: "Esports",      articleCount: 79,  isTrending: true },
-  { name: "PC Gaming",   slug: "PCGaming",     articleCount: 118, isTrending: false },
-  { name: "FPS",         slug: "FPS",          articleCount: 95,  isTrending: false },
-  { name: "RPG",         slug: "RPG",          articleCount: 88,  isTrending: false },
-  { name: "Nintendo",    slug: "Nintendo",     articleCount: 76,  isTrending: false },
-  { name: "Xbox",        slug: "Xbox",         articleCount: 65,  isTrending: false },
-  { name: "Indie Games", slug: "Indie",        articleCount: 58,  isTrending: false },
-  { name: "Streaming",   slug: "Streaming",    articleCount: 51,  isTrending: false },
-];
-
-// ─── Pill Component ───────────────────────────────────────────────────────────
+// ─── Pill ───────────────────────────────────────────────────────────────────
 
 interface PillProps {
-  category: Category;
+  category: TrendingCategory;
   isActive: boolean;
   onClick: () => void;
 }
@@ -40,7 +12,6 @@ interface PillProps {
 function Pill({ category, isActive, onClick }: PillProps) {
   const { isTrending } = category;
 
-  // Token-based, theme-aware pill styling (purple-forward brand).
   const base =
     "inline-flex items-center gap-1 px-2.5 py-[5px] rounded-full text-[11px] cursor-pointer select-none transition-all border";
   const variant = isActive
@@ -50,118 +21,85 @@ function Pill({ category, isActive, onClick }: PillProps) {
     : "bg-transparent text-muted-foreground border-border hover:bg-primary/[0.08] hover:text-primary hover:border-primary/40";
 
   return (
-    <button id={`cat-pill-${category.slug}`} onClick={onClick} className={`${base} ${variant}`}>
-      {/* Trending fire emoji */}
+    <button onClick={onClick} className={`${base} ${variant}`}>
       {isTrending && <span className="text-[9px]">🔥</span>}
-
-      {/* Category name */}
       <span>{category.name}</span>
-
-      {/* Article count */}
-      <span className="text-[9px] opacity-60">{category.articleCount}</span>
-
-      {/* Active × */}
+      <span className="text-[9px] opacity-60">{category.count}</span>
       {isActive && <span className="text-[10px] ml-[3px]">×</span>}
     </button>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
-export function CategoryPillsWidget({
-  categories = TOP_CATEGORIES,
-}: CategoryPillsWidgetProps) {
-  const { activeTag, setActiveTag, setCategoryName } = useTagFilter();
+// ─── Shared click behaviour ───────────────────────────────────────────────────
+// Bluesky-style: selecting a category always takes you to the home feed
+// filtered by it (and toggles off back to the full feed). Driven entirely by
+// the ?category= URL param, so the widget works on any page without context.
+function useCategoryNav() {
   const navigate = useNavigate();
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const activeSlug = searchParams.get("category");
 
-  // Trending pills first (spec 3.3)
-  const sorted = [
-    ...categories.filter((c) => c.isTrending),
-    ...categories.filter((c) => !c.isTrending),
-  ];
-
-  const handlePillClick = (cat: Category) => {
-    if (activeTag === cat.slug) {
-      // Clear filter
-      setActiveTag(null);
-      setCategoryName(null);
-      navigate("/", { replace: true });
-    } else {
-      setActiveTag(cat.slug);
-      setCategoryName(cat.name);
-      setSearchParams({ category: cat.slug }, { replace: true });
-    }
+  const onSelect = (slug: string) => {
+    if (activeSlug === slug) navigate("/");
+    else navigate(`/?category=${encodeURIComponent(slug)}`);
   };
+
+  return { activeSlug, onSelect };
+}
+
+// ─── Sidebar widget ───────────────────────────────────────────────────────────
+
+export function CategoryPillsWidget() {
+  const { categories, isLoading } = useTrendingCategories(12);
+  const { activeSlug, onSelect } = useCategoryNav();
+
+  if (!isLoading && categories.length === 0) return null;
 
   return (
     <div className="bg-card border rounded-xl p-3.5 card-shadow">
-      {/* Header */}
       <div className="flex justify-between items-baseline mb-3">
         <span className="text-xs font-semibold text-foreground">Browse by category</span>
-        <span className="text-[10px] text-muted-foreground">Top 10</span>
+        <span className="text-[10px] text-muted-foreground">Trending now</span>
       </div>
 
-      {/* Pill wrap */}
-      <div className="flex flex-wrap gap-1.5">
-        {sorted.map((cat) => (
-          <Pill
-            key={cat.slug}
-            category={cat}
-            isActive={activeTag === cat.slug}
-            onClick={() => handlePillClick(cat)}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="flex flex-wrap gap-1.5">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-[26px] w-16 rounded-full bg-secondary animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {categories.map((cat) => (
+            <Pill
+              key={cat.slug}
+              category={cat}
+              isActive={activeSlug === cat.slug}
+              onClick={() => onSelect(cat.slug)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Mobile horizontal scroll variant ────────────────────────────────────────
 
-export function MobileCategoryScroll({
-  categories = TOP_CATEGORIES,
-}: CategoryPillsWidgetProps) {
-  const { activeTag, setActiveTag, setCategoryName } = useTagFilter();
-  const navigate = useNavigate();
-  const [, setSearchParams] = useSearchParams();
+export function MobileCategoryScroll() {
+  const { categories, isLoading } = useTrendingCategories(12);
+  const { activeSlug, onSelect } = useCategoryNav();
 
-  const sorted = [
-    ...categories.filter((c) => c.isTrending),
-    ...categories.filter((c) => !c.isTrending),
-  ];
-
-  const handlePillClick = (cat: Category) => {
-    if (activeTag === cat.slug) {
-      setActiveTag(null);
-      setCategoryName(null);
-      navigate("/", { replace: true });
-    } else {
-      setActiveTag(cat.slug);
-      setCategoryName(cat.name);
-      setSearchParams({ category: cat.slug }, { replace: true });
-    }
-  };
+  if (isLoading || categories.length === 0) return null;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: "6px",
-        overflowX: "auto",
-        scrollbarWidth: "none",
-        padding: "0 0 8px 0",
-        msOverflowStyle: "none",
-      }}
-      // Hide webkit scrollbar via className below
-      className="mobile-cat-scroll"
-    >
-      {sorted.map((cat) => (
+    <div className="mobile-cat-scroll flex gap-1.5 overflow-x-auto pb-2">
+      {categories.map((cat) => (
         <Pill
           key={cat.slug}
           category={cat}
-          isActive={activeTag === cat.slug}
-          onClick={() => handlePillClick(cat)}
+          isActive={activeSlug === cat.slug}
+          onClick={() => onSelect(cat.slug)}
         />
       ))}
     </div>
