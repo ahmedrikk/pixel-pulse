@@ -43,7 +43,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/Avatar";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { useMyReviews } from "@/hooks/useGameReviews";
+import { useMyReviews, useDeleteReview } from "@/hooks/useGameReviews";
 import {
   getCurrentUserProfile,
   updateProfile,
@@ -96,6 +96,7 @@ export default function Profile() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const { data: myReviews = [] } = useMyReviews(user?.id);
+  const deleteReview = useDeleteReview();
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [games, setGames] = useState<UserGame[]>([]);
   const [preferences, setPreferences] = useState<UserNewsPreference[]>([]);
@@ -977,13 +978,27 @@ export default function Profile() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="font-semibold text-sm truncate">{rev.gameName}</h3>
-                      <div className="flex items-center gap-0.5 flex-shrink-0">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star
-                            key={s}
-                            className={`h-3.5 w-3.5 ${s <= Number(rev.starRating) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`}
-                          />
-                        ))}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`h-3.5 w-3.5 ${s <= Number(rev.starRating) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`}
+                            />
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => deleteReview.mutate(rev.id, {
+                            onSuccess: () => toast({ title: "Review deleted" }),
+                            onError: () => toast({ title: "Couldn't delete review", variant: "destructive" }),
+                          })}
+                          disabled={deleteReview.isPending}
+                          className="text-muted-foreground hover:text-destructive transition-colors p-1 -mr-1"
+                          title="Delete review"
+                          aria-label="Delete review"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
                     {rev.reviewText && (
