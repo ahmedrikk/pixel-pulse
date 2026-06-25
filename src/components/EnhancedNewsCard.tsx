@@ -128,16 +128,16 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       setShowReviewPrompt(true);
     };
 
-    // Game tags are curated real titles — trust RAWG relevance + popularity.
-    // Pick the most-added result so abbreviations resolve correctly
-    // ("GTA 6" -> "Grand Theft Auto VI") and obscure name-twins never win.
+    // Respect RAWG's relevance order (the right game is almost always first),
+    // and just skip obscure name-twins by requiring a popularity floor. Do NOT
+    // re-sort by popularity — that surfaces globally-huge but irrelevant games
+    // (e.g. "Resident Evil 6" outranking "Grand Theft Auto VI" for "GTA 6").
     const tryGameTag = async (candidate: string): Promise<boolean> => {
       try {
         const { results } = await fetchGameList({ search: candidate, page_size: 8 });
-        if (results.length === 0) return false;
-        const best = [...results].sort((a, b) => (b.added ?? 0) - (a.added ?? 0))[0];
-        if (!best || (best.added ?? 0) < 30) return false;
-        accept(best);
+        const match = results.find((r) => (r.added ?? 0) >= 50);
+        if (!match) return false;
+        accept(match);
         return true;
       } catch { return false; }
     };
