@@ -15,6 +15,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { trackComment, trackReaction } from "@/lib/xpService";
 import { useGameDetails } from "@/hooks/useGameDetails";
 import { useUserReviews, useSubmitReview } from "@/hooks/useGameReviews";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 
@@ -66,10 +67,14 @@ export default function GameReview() {
   const { data: userReviews = [] } = useUserReviews(gameId);
   const submitReview = useSubmitReview(gameId ?? "");
 
+  const { user } = useAuthGate();
+
   // Community rating = average of USER star reviews (Letterboxd-style)
   const userAvg = userReviews.length
     ? userReviews.reduce((s, r) => s + r.starRating, 0) / userReviews.length
     : 0;
+  // The logged-in user's own rating for this game, if any.
+  const myRating = userReviews.find((r) => r.userId === user?.id)?.starRating ?? null;
 
   if (gameLoading) {
     return (
@@ -161,15 +166,26 @@ export default function GameReview() {
             )}
 
             <div className="flex flex-wrap items-center gap-4">
-              {/* Community rating — average of user reviews */}
+              {/* Your rating */}
+              {myRating != null && (
+                <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-xl px-4 py-2.5">
+                  <span className="text-2xl font-black text-primary">{myRating.toFixed(1)}</span>
+                  <div>
+                    <StarRating rating={myRating} size="sm" />
+                    <p className="text-xs text-muted-foreground">Your rating</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Community rating — average of all user reviews */}
               <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border rounded-xl px-4 py-2.5">
                 {userReviews.length > 0 ? (
                   <>
-                    <span className="text-2xl font-black text-primary">{userAvg.toFixed(1)}</span>
+                    <span className="text-2xl font-black text-foreground">{userAvg.toFixed(1)}</span>
                     <div>
                       <StarRating rating={Math.round(userAvg)} size="sm" />
                       <p className="text-xs text-muted-foreground">
-                        {userReviews.length} user rating{userReviews.length > 1 ? "s" : ""}
+                        Community · {userReviews.length} rating{userReviews.length > 1 ? "s" : ""}
                       </p>
                     </div>
                   </>
@@ -180,6 +196,17 @@ export default function GameReview() {
                   </div>
                 )}
               </div>
+
+              {/* RAWG rating — external reference */}
+              {game.rawgRating > 0 && (
+                <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border rounded-xl px-4 py-2.5">
+                  <span className="text-2xl font-black text-muted-foreground">{game.rawgRating.toFixed(1)}</span>
+                  <div>
+                    <StarRating rating={Math.round(game.rawgRating)} size="sm" />
+                    <p className="text-xs text-muted-foreground">RAWG</p>
+                  </div>
+                </div>
+              )}
 
               {/* OpenCritic Score */}
               {game.openCritic?.score && (

@@ -7,8 +7,9 @@ export interface CatalogGame {
   id: string;           // RAWG slug
   name: string;
   coverImage: string;
-  rating: number;       // average USER star rating (0–5), Letterboxd-style
+  rating: number;       // community average USER star rating (0–5)
   ratingCount: number;  // how many users have reviewed it
+  userRating?: number;  // the logged-in user's own star rating, if any
   metacriticScore: number | null;
   genres: string[];
   platforms: string[];
@@ -160,5 +161,52 @@ export function useGameCatalog(params: {
     queryKey: ["games", "catalog", params.search, params.genre],
     queryFn: () => getCatalogGames(params),
     staleTime: 10 * 60 * 1000,  // 10 min in-memory
+  });
+}
+
+/**
+ * The games the logged-in user has rated (Letterboxd "Your Films" model).
+ * Each carries the COMMUNITY average rating plus the user's OWN rating.
+ */
+async function getMyRatedGames(userId: string): Promise<CatalogGame[]> {
+  const { data, error } = await supabase
+    .from("user_game_reviews")
+    .select(`
+      game_id, star_rating, created_at,
+      games ( name, cover_image, genres, platforms, release_date, metacritic_score )
+    `)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  const community = await getUserRatingMap();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((r) => {
+    const c = community.get(r.game_id);
+    return {
+      id: r.game_id,
+      name: r.games?.name ?? r.game_id,
+      coverImage: r.games?.cover_image ?? "",
+      rating: c?.avg ?? r.star_rating,
+      ratingCount: c?.count ?? 1,
+      userRating: r.star_rating,
+      metacriticScore: r.games?.metacritic_score ?? null,
+      genres: r.games?.genres ?? [],
+      platforms: r.games?.platforms ?? [],
+      releaseDate: r.games?.release_date ?? "TBA",
+      trending: false,
+      description: "",
+    } as CatalogGame;
+  });
+}
+
+export function useMyRatedGames(userId: string | undefined) {
+  return useQuery({
+    queryKey: ["games", "mine", userId],
+    queryFn: () => getMyRatedGames(userId!),
+    enabled: !!userId,
+    staleTime: 60 * 1000,
   });
 }
