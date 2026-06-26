@@ -420,6 +420,8 @@ export default function GameReview() {
                           gameName={game.name}
                           starRating={r.starRating}
                           reviewText={r.reviewText}
+                          coverUrl={game.coverImage}
+                          userName={r.author.name}
                         />
                       </div>
                     )}

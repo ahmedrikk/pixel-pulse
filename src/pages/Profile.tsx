@@ -993,6 +993,8 @@ export default function Profile() {
                           gameName={rev.gameName}
                           starRating={rev.starRating}
                           reviewText={rev.reviewText}
+                          coverUrl={rev.gameCover}
+                          userName={profile?.username ?? undefined}
                         />
                         <button
                           onClick={() => deleteReview.mutate(rev.id, {
