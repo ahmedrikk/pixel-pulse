@@ -14,7 +14,7 @@ interface GameReviewPromptProps {
   gameCoverUrl: string;
   isVisible: boolean;
   onDismiss: () => void;
-  onSubmit: (review: Omit<GameReview, "id" | "userId" | "createdAt">) => void;
+  onSubmit: (review: Omit<GameReview, "id" | "userId" | "createdAt">) => void | Promise<void>;
 }
 
 const REVIEW_TAGS = [
@@ -61,29 +61,39 @@ export function GameReviewPrompt({
     );
   }, []);
 
-  const handleSubmit = useCallback(() => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSubmit = useCallback(async () => {
     if (rating === 0) {
       toast.error("Please select a star rating");
       return;
     }
 
-    onSubmit({
-      gameId,
-      starRating: rating,
-      reviewText: reviewText.trim() || null,
-      tags: selectedTags,
-      helpfulVotes: 0,
-      source: "feed_prompt",
-    });
+    // Only show success if the review actually persisted.
+    setIsSaving(true);
+    try {
+      await onSubmit({
+        gameId,
+        starRating: rating,
+        reviewText: reviewText.trim() || null,
+        tags: selectedTags,
+        helpfulVotes: 0,
+        source: "feed_prompt",
+      });
+    } catch {
+      setIsSaving(false);
+      return; // onSubmit already surfaced the error
+    }
+    setIsSaving(false);
 
     // Award XP
-    const xpAmount = reviewText.trim().length > 0 
-      ? XP_VALUES.REVIEW_WITH_TEXT 
+    const xpAmount = reviewText.trim().length > 0
+      ? XP_VALUES.REVIEW_WITH_TEXT
       : XP_VALUES.REVIEW_RATING_ONLY;
-    
+
     addXP(xpAmount);
     setIsSubmitted(true);
-    
+
     toast.success(`+${xpAmount} XP! Review posted`, {
       description: "Thanks for sharing your thoughts!",
     });
@@ -217,9 +227,9 @@ export function GameReviewPrompt({
         >
           Maybe later
         </button>
-        <Button 
+        <Button
           onClick={handleSubmit}
-          disabled={rating === 0}
+          disabled={rating === 0 || isSaving}
           className="gap-2"
         >
           <Sparkles className="h-4 w-4" />
