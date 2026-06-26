@@ -224,17 +224,49 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
   const handleReviewSubmit = useCallback(async (review: Omit<GameReview, "id" | "userId" | "createdAt">) => {
     if (!reviewGame || !user) return;
-    await supabase.from("games").upsert(
-      { id: reviewGame.id, name: reviewGame.name, slug: reviewGame.id, cover_image: reviewGame.coverUrl || null, expires_at: new Date(Date.now() + 86400000).toISOString() },
-      { onConflict: "id", ignoreDuplicates: true }
+
+    // Ensure the game row exists FIRST (user_game_reviews.game_id has a FK to
+    // games.id) — no ignoreDuplicates, so a re-rate refreshes the row and the
+    // FK below is always satisfied. Surface errors instead of failing silently.
+    const { error: gameErr } = await supabase.from("games").upsert(
+      {
+        id: reviewGame.id,
+        name: reviewGame.name,
+        slug: reviewGame.id,
+        cover_image: reviewGame.coverUrl || null,
+        expires_at: new Date(Date.now() + 86400000).toISOString(),
+      },
+      { onConflict: "id" }
     );
-    await supabase.from("user_game_reviews").insert({
-      user_id: user.id,
-      game_id: reviewGame.id,
+    if (gameErr) {
+      console.error("game upsert failed:", gameErr);
+      toast.error("Couldn't save the review — try again");
+      throw gameErr;
+    }
+
+    // One rating per user per game (Letterboxd model): update if they've
+    // already rated it, otherwise insert.
+    const { data: existing } = await supabase
+      .from("user_game_reviews")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("game_id", reviewGame.id)
+      .maybeSingle();
+
+    const payload = {
       star_rating: review.starRating,
       review_text: review.reviewText || null,
       tags: review.tags,
-    });
+    };
+    const { error: revErr } = existing
+      ? await supabase.from("user_game_reviews").update(payload).eq("id", existing.id)
+      : await supabase.from("user_game_reviews").insert({ user_id: user.id, game_id: reviewGame.id, ...payload });
+
+    if (revErr) {
+      console.error("review save failed:", revErr);
+      toast.error("Couldn't save your review — try again");
+      throw revErr;
+    }
   }, [reviewGame, user]);
 
   const handleShare = useCallback(async (type: "copy" | "twitter" | "whatsapp") => {
@@ -389,27 +421,6 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           ))}
         </div>
 
-        {/* Reaction Row */}
-        <div className="flex items-center gap-1 mb-3">
-          {QUICK_REACTIONS.map(({ emoji, key, label }) => (
-            <button
-              key={key}
-              onClick={() => handleReaction(emoji)}
-              className={cn(
-                "flex items-center gap-1 px-2 py-1 rounded-full transition-colors text-sm",
-                myReactions.has(emoji)
-                  ? "bg-primary/15 ring-1 ring-primary/40"
-                  : "bg-secondary/50 hover:bg-secondary"
-              )}
-              title={label}
-            >
-              <span>{emoji}</span>
-              {userReactions[emoji] > 0 && (
-                <span className="text-xs text-muted-foreground">{userReactions[emoji]}</span>
-              )}
-            </button>
-          ))}
-        </div>
 
         {/* Action Bar */}
         <div className="flex items-center justify-between pt-3 border-t">

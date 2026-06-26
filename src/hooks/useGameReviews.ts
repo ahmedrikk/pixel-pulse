@@ -19,21 +19,34 @@ export interface UserReview {
 }
 
 async function fetchUserReviews(gameId: string): Promise<UserReview[]> {
+  // NOTE: no `profiles(...)` embed — user_game_reviews references auth.users,
+  // not profiles, so PostgREST can't resolve that relationship (PGRST200).
+  // Fetch the authors in a second query keyed by user_id.
   const { data, error } = await supabase
     .from("user_game_reviews")
-    .select(`
-      id, user_id, game_id, star_rating, review_text,
-      tags, helpful_votes, created_at,
-      profiles ( username, avatar_url )
-    `)
+    .select("id, user_id, game_id, star_rating, review_text, tags, helpful_votes, created_at")
     .eq("game_id", gameId)
     .order("helpful_votes", { ascending: false })
-    .limit(20);
+    .limit(50);
 
   if (error) throw error;
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((r: any) => ({
+  const rows = (data ?? []) as any[];
+
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
+  const authors = new Map<string, { name: string; avatar: string | null }>();
+  if (userIds.length > 0) {
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, username, avatar_url")
+      .in("id", userIds);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const p of (profs ?? []) as any[]) {
+      authors.set(p.id, { name: p.username ?? "Gamer", avatar: p.avatar_url ?? null });
+    }
+  }
+
+  return rows.map((r) => ({
     id: r.id,
     userId: r.user_id,
     gameId: r.game_id,
@@ -42,10 +55,7 @@ async function fetchUserReviews(gameId: string): Promise<UserReview[]> {
     tags: r.tags ?? [],
     helpfulVotes: r.helpful_votes,
     createdAt: r.created_at,
-    author: {
-      name: r.profiles?.username ?? "Anonymous",
-      avatar: r.profiles?.avatar_url ?? null,
-    },
+    author: authors.get(r.user_id) ?? { name: "Gamer", avatar: null },
   }));
 }
 
