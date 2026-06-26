@@ -16,6 +16,7 @@ import { trackComment, trackReaction } from "@/lib/xpService";
 import { useGameDetails } from "@/hooks/useGameDetails";
 import { useUserReviews, useSubmitReview } from "@/hooks/useGameReviews";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { ShareReviewButton } from "@/components/ShareReviewButton";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 
@@ -411,6 +412,17 @@ export default function GameReview() {
                       <ThumbsUp className="h-3.5 w-3.5" />
                       <span className="font-medium">{r.helpfulVotes}</span>
                     </button>
+                    {r.userId === user?.id && game && (
+                      <div className="ml-auto flex items-center gap-1.5 text-muted-foreground">
+                        <span className="text-xs">Share your review</span>
+                        <ShareReviewButton
+                          gameId={r.gameId}
+                          gameName={game.name}
+                          starRating={r.starRating}
+                          reviewText={r.reviewText}
+                        />
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               ))}

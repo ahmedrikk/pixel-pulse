@@ -44,6 +44,7 @@ import { Avatar } from "@/components/Avatar";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useMyReviews, useDeleteReview } from "@/hooks/useGameReviews";
+import { ShareReviewButton } from "@/components/ShareReviewButton";
 import {
   getCurrentUserProfile,
   updateProfile,
@@ -987,6 +988,12 @@ export default function Profile() {
                             />
                           ))}
                         </div>
+                        <ShareReviewButton
+                          gameId={rev.gameId}
+                          gameName={rev.gameName}
+                          starRating={rev.starRating}
+                          reviewText={rev.reviewText}
+                        />
                         <button
                           onClick={() => deleteReview.mutate(rev.id, {
                             onSuccess: () => toast({ title: "Review deleted" }),
