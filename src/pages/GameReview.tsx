@@ -66,6 +66,11 @@ export default function GameReview() {
   const { data: userReviews = [] } = useUserReviews(gameId);
   const submitReview = useSubmitReview(gameId ?? "");
 
+  // Community rating = average of USER star reviews (Letterboxd-style)
+  const userAvg = userReviews.length
+    ? userReviews.reduce((s, r) => s + r.starRating, 0) / userReviews.length
+    : 0;
+
   if (gameLoading) {
     return (
       <SiteLayout>
@@ -156,13 +161,24 @@ export default function GameReview() {
             )}
 
             <div className="flex flex-wrap items-center gap-4">
-              {/* RAWG Rating */}
+              {/* Community rating — average of user reviews */}
               <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border rounded-xl px-4 py-2.5">
-                <span className="text-2xl font-black text-primary">{game.rawgRating.toFixed(1)}</span>
-                <div>
-                  <StarRating rating={Math.round(game.rawgRating)} size="sm" />
-                  <p className="text-xs text-muted-foreground">RAWG rating</p>
-                </div>
+                {userReviews.length > 0 ? (
+                  <>
+                    <span className="text-2xl font-black text-primary">{userAvg.toFixed(1)}</span>
+                    <div>
+                      <StarRating rating={Math.round(userAvg)} size="sm" />
+                      <p className="text-xs text-muted-foreground">
+                        {userReviews.length} user rating{userReviews.length > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <StarRating rating={0} size="sm" />
+                    <p className="text-xs text-muted-foreground">Not rated yet</p>
+                  </div>
+                )}
               </div>
 
               {/* OpenCritic Score */}
