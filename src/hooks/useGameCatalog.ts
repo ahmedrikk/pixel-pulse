@@ -10,6 +10,7 @@ export interface CatalogGame {
   rating: number;       // community average USER star rating (0–5)
   ratingCount: number;  // how many users have reviewed it
   userRating?: number;  // the logged-in user's own star rating, if any
+  rawgRating: number;   // RAWG average rating (0–5)
   metacriticScore: number | null;
   genres: string[];
   platforms: string[];
@@ -60,6 +61,7 @@ function mapRawgToCatalog(g: RawgGame): CatalogGame {
     coverImage: g.background_image ?? "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80",
     rating: 0,          // replaced with the user-review average below
     ratingCount: 0,
+    rawgRating: Math.round(g.rating * 10) / 10,
     metacriticScore: g.metacritic ?? null,
     genres: g.genres?.map((gen) => gen.slug) ?? [],
     platforms: normalisePlatforms(g.platforms),
@@ -94,6 +96,7 @@ async function getCatalogGames(params: {
         coverImage: g.cover_image ?? "",
         rating: 0,        // overlaid with user-review average below
         ratingCount: 0,
+        rawgRating: g.rawg_rating ?? 0,
         metacriticScore: g.metacritic_score ?? null,
         genres: g.genres ?? [],
         platforms: g.platforms ?? [],
@@ -173,7 +176,7 @@ async function getMyRatedGames(userId: string): Promise<CatalogGame[]> {
     .from("user_game_reviews")
     .select(`
       game_id, star_rating, created_at,
-      games ( name, cover_image, genres, platforms, release_date, metacritic_score )
+      games ( name, cover_image, genres, platforms, release_date, metacritic_score, rawg_rating )
     `)
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -192,6 +195,7 @@ async function getMyRatedGames(userId: string): Promise<CatalogGame[]> {
       rating: c?.avg ?? r.star_rating,
       ratingCount: c?.count ?? 1,
       userRating: r.star_rating,
+      rawgRating: r.games?.rawg_rating ?? 0,
       metacriticScore: r.games?.metacritic_score ?? null,
       genres: r.games?.genres ?? [],
       platforms: r.games?.platforms ?? [],
@@ -208,5 +212,85 @@ export function useMyRatedGames(userId: string | undefined) {
     queryFn: () => getMyRatedGames(userId!),
     enabled: !!userId,
     staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * All games that have at least one community review.
+ * Sorted by most reviewed, then highest community average.
+ */
+async function getCommunityReviewedGames(): Promise<CatalogGame[]> {
+  const ratings = await getUserRatingMap();
+  if (ratings.size === 0) return [];
+
+  const gameIds = Array.from(ratings.keys());
+  const { data: gamesData, error } = await supabase
+    .from("games")
+    .select("*")
+    .in("id", gameIds);
+
+  if (error || !gamesData) return [];
+
+  const gameMap = new Map(gamesData.map((g) => [g.id, g]));
+
+  const reviewed: CatalogGame[] = [];
+  for (const [gameId, { avg, count }] of ratings) {
+    if (count === 0) continue;
+    const g = gameMap.get(gameId);
+    if (!g) continue;
+
+    reviewed.push({
+      id: g.id,
+      name: g.name,
+      coverImage: g.cover_image ?? "",
+      rating: avg,
+      ratingCount: count,
+      rawgRating: g.rawg_rating ?? 0,
+      metacriticScore: g.metacritic_score ?? null,
+      genres: g.genres ?? [],
+      platforms: g.platforms ?? [],
+      releaseDate: g.release_date ?? "TBA",
+      trending: g.trending ?? false,
+      description: g.description ?? "",
+    });
+  }
+
+  return reviewed.sort((a, b) => {
+    if (b.ratingCount !== a.ratingCount) return b.ratingCount - a.ratingCount;
+    return b.rating - a.rating;
+  });
+}
+
+export function useCommunityReviewedGames() {
+  return useQuery({
+    queryKey: ["games", "community-reviewed"],
+    queryFn: getCommunityReviewedGames,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Trending games based on a blend of community activity on our site and
+ * RAWG popularity / ratings.
+ */
+async function getTrendingGames(): Promise<CatalogGame[]> {
+  const catalog = await getCatalogGames({ ordering: "-added" });
+
+  return catalog
+    .map((g) => {
+      const communityScore = g.ratingCount * g.rating; // activity * quality
+      const rawgScore = g.rawgRating * 10 + (g.metacriticScore ?? 0) / 10;
+      const trendingScore = communityScore + rawgScore;
+      return { ...g, trendingScore };
+    })
+    .sort((a, b) => b.trendingScore - a.trendingScore)
+    .slice(0, 8);
+}
+
+export function useTrendingGames() {
+  return useQuery({
+    queryKey: ["games", "trending"],
+    queryFn: getTrendingGames,
+    staleTime: 10 * 60 * 1000,
   });
 }
