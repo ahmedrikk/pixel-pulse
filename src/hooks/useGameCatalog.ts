@@ -2,14 +2,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchGameList, normalisePlatforms, type RawgGame } from "@/lib/rawg";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getSteamPlayerCountForGame,
+  getNewsSignals,
+  getReleaseProximitySignal,
+  computeTrendingScores,
+  withTrendingSignals,
+  type TrendingSignals,
+} from "@/lib/trending";
 
-export interface CatalogGame {
+export interface CatalogGame extends Partial<TrendingSignals> {
   id: string;           // RAWG slug
   name: string;
   coverImage: string;
   rating: number;       // community average USER star rating (0–5)
   ratingCount: number;  // how many users have reviewed it
-  userRating?: number;  // the logged-in user's own star rating, if any
+  userRating?: number;    // the logged-in user's own star rating, if any
   rawgRating: number;   // RAWG average rating (0–5)
   metacriticScore: number | null;
   genres: string[];
@@ -277,21 +285,72 @@ export function useCommunityReviewedGames() {
 }
 
 /**
- * Trending games based on a blend of community activity on our site and
- * RAWG popularity / ratings.
+ * Trending games — prefer the server-computed `trending_scores` table
+ * (populated hourly by the compute-trending edge function). It blends
+ * news mentions, Steam player counts, Twitch top-games rank, upcoming
+ * esports matches, community reviews, and RAWG ratings.
+ *
+ * Falls back to a client-side compute if the table hasn't been populated yet.
  */
 async function getTrendingGames(): Promise<CatalogGame[]> {
-  const catalog = await getCatalogGames({ ordering: "-added" });
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 
-  return catalog
-    .map((g) => {
-      const communityScore = g.ratingCount * g.rating; // activity * quality
-      const rawgScore = g.rawgRating * 10 + (g.metacriticScore ?? 0) / 10;
-      const trendingScore = communityScore + rawgScore;
-      return { ...g, trendingScore };
+  // 1. Try server-side pre-computed trending scores first.
+  const { data: scoreRows, error: scoreError } = await supabase
+    .from("trending_scores")
+    .select(`
+      game_id, name, composite_score, news_score, steam_score, twitch_score,
+      esports_score, community_score, rawg_score,
+      games ( name, cover_image, genres, platforms, release_date, metacritic_score, rawg_rating, description )
+    `)
+    .gte("computed_at", twoHoursAgo)
+    .order("composite_score", { ascending: false })
+    .limit(12);
+
+  if (!scoreError && scoreRows && scoreRows.length >= 5) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (scoreRows as any[]).map((r) => {
+      const g = r.games;
+      const releaseDateStr = g?.release_date ?? "TBA";
+      const release = getReleaseProximitySignal(releaseDateStr);
+      return {
+        id: r.game_id,
+        name: g?.name ?? r.name ?? r.game_id,
+        coverImage: g?.cover_image ?? "",
+        rating: 0,
+        ratingCount: 0,
+        rawgRating: g?.rawg_rating ?? 0,
+        metacriticScore: g?.metacritic_score ?? null,
+        genres: g?.genres ?? [],
+        platforms: g?.platforms ?? [],
+        releaseDate: releaseDateStr,
+        trending: true,
+        description: g?.description ?? "",
+        compositeScore: r.composite_score,
+        newsMentions: Math.round(r.news_score),
+        newsRecentMentions: Math.round(r.news_score),
+        steamPlayers: r.steam_score > 0 ? Math.round(10 ** r.steam_score) : null,
+        releaseProximityScore: release.proximityScore,
+        daysUntilRelease: release.daysUntil,
+      } as CatalogGame;
+    });
+  }
+
+  // 2. Fallback: compute client-side from RAWG catalog + Steam + news.
+  const catalog = await getCatalogGames({ ordering: "-added" });
+  const steamCandidates = catalog.slice(0, 20);
+  const steamEntries = await Promise.all(
+    steamCandidates.map(async (g) => {
+      const count = await getSteamPlayerCountForGame(g.id, g.name);
+      return [g.id, count] as [string, number | null];
     })
-    .sort((a, b) => b.trendingScore - a.trendingScore)
-    .slice(0, 8);
+  );
+  const steamPlayers = new Map<string, number | null>(steamEntries);
+  const gameNames = catalog.map((g) => g.name.toLowerCase());
+  const newsSignals = await getNewsSignals(gameNames);
+  const signals = computeTrendingScores(catalog, steamPlayers, newsSignals);
+  const enriched = withTrendingSignals(catalog, signals);
+  return enriched.slice(0, 8);
 }
 
 export function useTrendingGames() {

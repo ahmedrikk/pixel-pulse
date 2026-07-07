@@ -21,5 +21,9 @@
         { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=60, stale-while-revalidate=300" }
       ]
     }
+  ],
+  "crons": [
+    { "path": "/api/cron/fetch-news", "schedule": "0 */2 * * *" },
+    { "path": "/api/cron/compute-trending", "schedule": "0 * * * *" }
   ]
 }
