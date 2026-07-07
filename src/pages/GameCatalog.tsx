@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, Monitor, Gamepad2, Search, Flame } from "lucide-react";
+import { Star, Monitor, Gamepad2, Search, Flame, Users, Newspaper, Rocket } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   useGameCatalog,
@@ -8,6 +8,7 @@ import {
   useTrendingGames,
   type CatalogGame,
 } from "@/hooks/useGameCatalog";
+import { getTrendingReason, formatPlayerCount } from "@/lib/trending";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
@@ -124,6 +125,9 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
 }
 
 function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
+  const reason = getTrendingReason(game);
+  const isTop3 = index < 3;
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -143,11 +147,33 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
             loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
+
+          {/* Top 3 fire badge */}
+          {isTop3 && (
+            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/90 text-primary-foreground text-[10px] font-bold">
+              <Flame className="h-3 w-3" />
+              #{index + 1}
+            </div>
+          )}
+
+          {/* Steam player count badge */}
+          {game.steamPlayers && game.steamPlayers > 0 && (
+            <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium">
+              <Users className="h-3 w-3" />
+              {formatPlayerCount(game.steamPlayers)}
+            </div>
+          )}
         </div>
         <div className="p-3 space-y-1">
           <h3 className="font-semibold text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">
             {game.name}
           </h3>
+
+          {/* Trending reason subtitle */}
+          <p className="text-[10px] text-muted-foreground leading-tight line-clamp-2">
+            {reason}
+          </p>
+
           <RatingBadge
             rating={game.rating}
             count={game.ratingCount}
