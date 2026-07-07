@@ -3,11 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchGameList, normalisePlatforms, type RawgGame } from "@/lib/rawg";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  getSteamPlayerCountForGame,
-  getNewsSignals,
-  getReleaseProximitySignal,
-  computeTrendingScores,
-  withTrendingSignals,
   type TrendingSignals,
 } from "@/lib/trending";
 
@@ -288,69 +283,55 @@ export function useCommunityReviewedGames() {
  * Trending games — prefer the server-computed `trending_scores` table
  * (populated hourly by the compute-trending edge function). It blends
  * news mentions, Steam player counts, Twitch top-games rank, upcoming
- * esports matches, community reviews, and RAWG ratings.
+ * esports matches, release proximity, community reviews, and RAWG ratings.
  *
- * Falls back to a client-side compute if the table hasn't been populated yet.
+ * Falls back to community-reviewed games if the table hasn't been populated yet.
  */
 async function getTrendingGames(): Promise<CatalogGame[]> {
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-
   // 1. Try server-side pre-computed trending scores first.
   const { data: scoreRows, error: scoreError } = await supabase
     .from("trending_scores")
     .select(`
       game_id, name, composite_score, news_score, steam_score, twitch_score,
-      esports_score, community_score, rawg_score,
+      esports_score, community_score, rawg_score, release_proximity_score,
       games ( name, cover_image, genres, platforms, release_date, metacritic_score, rawg_rating, description )
     `)
-    .gte("computed_at", twoHoursAgo)
     .order("composite_score", { ascending: false })
     .limit(12);
 
   if (!scoreError && scoreRows && scoreRows.length >= 5) {
+    const ratings = await getUserRatingMap();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (scoreRows as any[]).map((r) => {
       const g = r.games;
-      const releaseDateStr = g?.release_date ?? "TBA";
-      const release = getReleaseProximitySignal(releaseDateStr);
+      const rating = ratings.get(r.game_id);
       return {
         id: r.game_id,
         name: g?.name ?? r.name ?? r.game_id,
         coverImage: g?.cover_image ?? "",
-        rating: 0,
-        ratingCount: 0,
+        rating: rating?.avg ?? 0,
+        ratingCount: rating?.count ?? 0,
         rawgRating: g?.rawg_rating ?? 0,
         metacriticScore: g?.metacritic_score ?? null,
         genres: g?.genres ?? [],
         platforms: g?.platforms ?? [],
-        releaseDate: releaseDateStr,
+        releaseDate: g?.release_date ?? "TBA",
         trending: true,
         description: g?.description ?? "",
         compositeScore: r.composite_score,
-        newsMentions: Math.round(r.news_score),
-        newsRecentMentions: Math.round(r.news_score),
-        steamPlayers: r.steam_score > 0 ? Math.round(10 ** r.steam_score) : null,
-        releaseProximityScore: release.proximityScore,
-        daysUntilRelease: release.daysUntil,
+        newsScore: r.news_score,
+        steamScore: r.steam_score,
+        twitchScore: r.twitch_score,
+        esportsScore: r.esports_score,
+        communityScore: r.community_score,
+        rawgScore: r.rawg_score,
+        releaseProximityScore: r.release_proximity_score,
       } as CatalogGame;
     });
   }
 
-  // 2. Fallback: compute client-side from RAWG catalog + Steam + news.
-  const catalog = await getCatalogGames({ ordering: "-added" });
-  const steamCandidates = catalog.slice(0, 20);
-  const steamEntries = await Promise.all(
-    steamCandidates.map(async (g) => {
-      const count = await getSteamPlayerCountForGame(g.id, g.name);
-      return [g.id, count] as [string, number | null];
-    })
-  );
-  const steamPlayers = new Map<string, number | null>(steamEntries);
-  const gameNames = catalog.map((g) => g.name.toLowerCase());
-  const newsSignals = await getNewsSignals(gameNames);
-  const signals = computeTrendingScores(catalog, steamPlayers, newsSignals);
-  const enriched = withTrendingSignals(catalog, signals);
-  return enriched.slice(0, 8);
+  // 2. Fallback: community-reviewed games (no complex client-side compute)
+  return getCommunityReviewedGames();
 }
 
 export function useTrendingGames() {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, Monitor, Gamepad2, Search, Flame, Users, Newspaper, Rocket } from "lucide-react";
+import { Star, Monitor, Gamepad2, Search, Flame, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   useGameCatalog,
@@ -8,7 +8,7 @@ import {
   useTrendingGames,
   type CatalogGame,
 } from "@/hooks/useGameCatalog";
-import { getTrendingReason, formatPlayerCount } from "@/lib/trending";
+import { getTrendingReason, formatPlayerCount, steamScoreToPlayers } from "@/lib/trending";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
@@ -127,6 +127,7 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
 function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
   const reason = getTrendingReason(game);
   const isTop3 = index < 3;
+  const hasCommunityRating = game.rating > 0 && game.ratingCount > 0;
 
   return (
     <motion.div
@@ -140,12 +141,18 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
         className="group block bg-card border rounded-xl overflow-hidden card-shadow hover:card-shadow-hover transition-all duration-300 hover:-translate-y-1"
       >
         <div className="relative aspect-[16/10] overflow-hidden">
-          <img
-            src={game.coverImage}
-            alt={game.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
+          {game.coverImage ? (
+            <img
+              src={game.coverImage}
+              alt={game.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-secondary">
+              <Gamepad2 className="h-8 w-8 text-muted-foreground/50" />
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
 
           {/* Top 3 fire badge */}
@@ -157,10 +164,10 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
           )}
 
           {/* Steam player count badge */}
-          {game.steamPlayers && game.steamPlayers > 0 && (
+          {game.steamScore && game.steamScore > 0 && (
             <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium">
               <Users className="h-3 w-3" />
-              {formatPlayerCount(game.steamPlayers)}
+              {formatPlayerCount(steamScoreToPlayers(game.steamScore))}
             </div>
           )}
         </div>
@@ -174,11 +181,19 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
             {reason}
           </p>
 
-          <RatingBadge
-            rating={game.rating}
-            count={game.ratingCount}
-            label="Community"
-          />
+          {hasCommunityRating ? (
+            <RatingBadge
+              rating={game.rating}
+              count={game.ratingCount}
+              label="Community"
+            />
+          ) : game.rawgRating > 0 ? (
+            <RatingBadge rating={game.rawgRating} label="RAWG" />
+          ) : (
+            <span className="text-muted-foreground text-[10px]">
+              Not rated yet
+            </span>
+          )}
         </div>
       </Link>
     </motion.div>

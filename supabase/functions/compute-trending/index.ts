@@ -71,6 +71,49 @@ async function withConcurrency<T, R>(
 // ---------------------------------------------------------------------------
 // Steam player counts
 // ---------------------------------------------------------------------------
+/** Search the Steam store for a game's app id. Returns 0 if not on Steam. */
+async function searchSteamAppId(name: string): Promise<number> {
+  try {
+    const res = await fetch(
+      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(name)}&l=english&cc=US`
+    );
+    if (!res.ok) return 0;
+    const data = await res.json();
+    const items = (data.items ?? []) as { id: number; name: string }[];
+    const best = items[0];
+    if (!best) return 0;
+    // Only trust the match when the names actually overlap, otherwise the
+    // store search happily returns unrelated games/DLC.
+    const normQuery = normalizeGameName(name);
+    const normHit = normalizeGameName(best.name);
+    if (!normHit.includes(normQuery) && !normQuery.includes(normHit)) return 0;
+    return best.id;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Resolve steam_appid for cached games that have never been looked up
+ * (steam_appid null). Persists the result — 0 means "known not on Steam" —
+ * so each game is only searched once.
+ */
+async function resolveMissingSteamAppIds(
+  supabase: ReturnType<typeof createClient>,
+  games: { id: string; name: string; steam_appid: number | null }[]
+): Promise<void> {
+  const unresolved = games.filter((g) => g.steam_appid === null).slice(0, 30);
+  await withConcurrency(unresolved, async (g) => {
+    const appid = await searchSteamAppId(g.name);
+    g.steam_appid = appid;
+    try {
+      await supabase.from("games").update({ steam_appid: appid }).eq("id", g.id);
+    } catch {
+      // ignore write failures; we'll retry next run
+    }
+  }, 5);
+}
+
 async function fetchSteamPlayerCount(appid: number): Promise<number> {
   try {
     const res = await fetch(
@@ -161,7 +204,16 @@ interface RawgGame {
   rating: number;
   metacritic: number | null;
   released: string | null;
+  added: number;
 }
+
+// News game_tags that are platforms/companies/generic terms, not games.
+// Never create games for these and never let them appear as trending rows.
+const NON_GAME_TAGS = new Set([
+  "xbox", "playstation", "ps5", "ps4", "nintendo", "nintendoswitch", "switch",
+  "steam", "steamdeck", "pc", "sony", "microsoft", "epicgames", "gamepass",
+  "xboxgamepass", "esports", "gaming", "videogames", "twitch", "ea", "ubisoft",
+]);
 
 async function searchRawgGame(name: string): Promise<RawgGame | null> {
   if (!RAWG_API_KEY) return null;
@@ -189,17 +241,25 @@ async function ensureGamesForNewsTags(
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const uniqueTags = [...new Set(tags.map(normalizeGameName))].filter(
-    (t) => t && ![...existingIds].some((id) => normalizeGameName(id).includes(t) || t.includes(normalizeGameName(id)))
+    (t) =>
+      t &&
+      !NON_GAME_TAGS.has(t) &&
+      ![...existingIds].some((id) => normalizeGameName(id).includes(t) || t.includes(normalizeGameName(id)))
   );
 
   for (const tag of uniqueTags.slice(0, 10)) {
     const rawg = await searchRawgGame(tag);
     if (!rawg) continue;
     const normRawg = normalizeGameName(rawg.name);
-    if (!normRawg) continue;
+    if (!normRawg || NON_GAME_TAGS.has(normRawg)) continue;
 
     // Only insert if it looks related to the tag
     if (!normRawg.includes(tag) && !tag.includes(normRawg)) continue;
+
+    // Require some RAWG popularity so obscure shovelware that happens to
+    // match a news tag doesn't enter the catalog. Big unreleased titles
+    // (GTA VI) have huge "added" counts, so this doesn't exclude them.
+    if ((rawg.added ?? 0) < 50) continue;
 
     try {
       await supabase.from("games").upsert(
@@ -354,62 +414,85 @@ serve(async (req) => {
       community.set(r.game_id, e);
     }
 
-    // 4. External signals (run in parallel)
+    // 4. External signals. Resolve missing Steam app ids first (persisted,
+    // so each game is only searched once), then fetch everything in parallel.
+    await resolveMissingSteamAppIds(supabase, games);
     const [steamScores, twitchRanks, esportsCounts] = await Promise.all([
       fetchSteamScores(games),
       fetchTwitchTopGames(),
       fetchPandaScoreMatches(),
     ]);
 
-    // 5. Build composite scores
-    const rows = [];
+    // 5. Compute raw signals per game.
+    const runStartedAt = new Date().toISOString();
+    const raw = [];
     for (const g of games) {
       const normName = normalizeGameName(g.name);
+      // Platforms/companies that slipped into the games cache are not games.
+      if (NON_GAME_TAGS.has(normName)) continue;
 
-      const newsScore = newsByGameId.get(g.id) ?? 0;
       const comm = community.get(g.id);
-      const communityScore = comm
-        ? (comm.sum / comm.count) * Math.log(comm.count + 1)
-        : 0;
-      const steamScore = steamScores.get(g.id) ?? 0;
       const twitchRank = twitchRanks.get(normName);
-      const twitchScore = twitchRank ? 100 / twitchRank : 0;
-      const esportsCount = esportsCounts.get(g.name) ?? 0;
-      const esportsScore = esportsCount * 5;
-      const rawgScore = (g.rawg_rating ?? 0) * 10 + (g.metacritic_score ?? 0) / 10;
-      const releaseScore = getReleaseProximityScore(g.release_date ?? "TBA");
-
-      const composite =
-        newsScore * 0.22 +
-        steamScore * 0.18 +
-        twitchScore * 0.15 +
-        esportsScore * 0.10 +
-        releaseScore * 0.15 +
-        communityScore * 0.12 +
-        rawgScore * 0.08;
-
-      rows.push({
-        game_id: g.id,
-        name: g.name,
-        news_score: newsScore,
-        steam_score: steamScore,
-        twitch_score: twitchScore,
-        esports_score: esportsScore,
-        community_score: communityScore,
-        rawg_score: rawgScore,
-        release_proximity_score: releaseScore,
-        composite_score: composite,
-        computed_at: new Date().toISOString(),
+      raw.push({
+        g,
+        newsScore: newsByGameId.get(g.id) ?? 0,
+        communityScore: comm
+          ? (comm.sum / comm.count) * Math.log(comm.count + 1)
+          : 0,
+        steamScore: steamScores.get(g.id) ?? 0,
+        twitchScore: twitchRank ? 100 / twitchRank : 0,
+        esportsScore: (esportsCounts.get(g.name) ?? 0) * 5,
+        rawgScore: (g.rawg_rating ?? 0) * 10 + (g.metacritic_score ?? 0) / 10,
+        releaseScore: getReleaseProximityScore(g.release_date ?? "TBA"),
       });
     }
 
-    // 6. Persist
+    // 6. Composite: raw signal values are stored per-column (the frontend
+    // formats them), but each signal is normalized to 0–100 before weighting
+    // so the weights reflect real influence — otherwise the static RAWG score
+    // (0–60) drowns out live signals like time-decayed news buzz (0–5).
+    const norm = (v: number, max: number) =>
+      max > 0 ? Math.min((v / max) * 100, 100) : 0;
+    const maxNews = Math.max(...raw.map((r) => r.newsScore), 0);
+    const maxSteam = Math.max(...raw.map((r) => r.steamScore), 0);
+    const maxCommunity = Math.max(...raw.map((r) => r.communityScore), 0);
+
+    const rows = raw.map((r) => ({
+      game_id: r.g.id,
+      name: r.g.name,
+      news_score: r.newsScore,
+      steam_score: r.steamScore,
+      twitch_score: r.twitchScore,
+      esports_score: r.esportsScore,
+      community_score: r.communityScore,
+      rawg_score: r.rawgScore,
+      release_proximity_score: r.releaseScore,
+      composite_score:
+        norm(r.newsScore, maxNews) * 0.22 +
+        norm(r.steamScore, maxSteam) * 0.18 +
+        r.twitchScore * 0.15 + // 100/rank is already 0–100
+        Math.min(r.esportsScore, 100) * 0.10 +
+        r.releaseScore * 0.15 + // already 0–100
+        norm(r.communityScore, maxCommunity) * 0.12 +
+        norm(r.rawgScore, 60) * 0.08,
+      computed_at: runStartedAt,
+    }));
+
+    // 7. Persist, then drop rows this run no longer produced (expired cache
+    // entries, junk tags) so stale games can't linger in the trending list.
     const { error: upsertError } = await supabase
       .from("trending_scores")
       .upsert(rows, { onConflict: "game_id" });
     if (upsertError) {
       console.error("upsert error:", upsertError);
       throw upsertError;
+    }
+    const { error: cleanupError } = await supabase
+      .from("trending_scores")
+      .delete()
+      .lt("computed_at", runStartedAt);
+    if (cleanupError) {
+      console.error("stale-row cleanup error:", cleanupError);
     }
 
     return new Response(
