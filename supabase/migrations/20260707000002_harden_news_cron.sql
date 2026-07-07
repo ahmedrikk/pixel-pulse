@@ -33,20 +33,15 @@ select cron.schedule(
   'guard-news-cache-floor',
   '*/5 * * * *',
   $$
-  DO $$
-  DECLARE
-    article_count bigint;
-  BEGIN
-    SELECT count(*) INTO article_count FROM public.cached_articles;
-    IF article_count < 10 THEN
-      PERFORM net.http_post(
-        url     := 'https://zxcqqsviwtwxukizibef.supabase.co/functions/v1/fetch-news',
-        headers := '{"Content-Type": "application/json"}'::jsonb,
-        body    := '{}'::jsonb
-      );
-    END IF;
-  END;
-  $$;
+  select case
+    when (select count(*) from public.cached_articles) < 10
+    then net.http_post(
+      url     := 'https://zxcqqsviwtwxukizibef.supabase.co/functions/v1/fetch-news',
+      headers := '{"Content-Type": "application/json"}'::jsonb,
+      body    := '{}'::jsonb
+    )
+    else null
+  end as request_id;
   $$
 );
 
