@@ -603,13 +603,29 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Lightweight keep-alive / health-check endpoint for the warm-up cron.
+  if (req.method === "GET") {
+    const { count, error } = await supabase
+      .from("cached_articles")
+      .select("*", { count: "exact", head: true });
+    if (error) {
+      return new Response(JSON.stringify({ ok: false, error: error.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify({ ok: true, cachedArticles: count ?? 0 }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   console.log("=== fetch-news pipeline starting ===");
 
   // Step 0: Delete cached articles with bad summaries so they get re-fetched
   const { data: badArticles } = await supabase
     .from("cached_articles")
     .select("source_url, ai_summary")
-    .gt("expires_at", new Date().toISOString())
     .eq("category", "Gaming");
 
   const urlsToDelete: string[] = [];
@@ -671,13 +687,12 @@ serve(async (req) => {
     }
   }
 
-  // Step 2: Filter out already-cached articles
+  // Step 2: Filter out already-cached articles (news is permanent)
   const urls = allItems.map(i => i.link);
   const { data: existing } = await supabase
     .from("cached_articles")
     .select("source_url")
-    .in("source_url", urls)
-    .gt("expires_at", new Date().toISOString());
+    .in("source_url", urls);
 
   const existingUrls = new Set((existing ?? []).map(e => e.source_url));
   const newItems = allItems.filter(item => !existingUrls.has(item.link));
@@ -731,8 +746,8 @@ serve(async (req) => {
   console.log(`Scraped ${enrichedItems.length}/${newItems.length} articles successfully`);
 
   // Step 4: Groq summarization sequentially (rate limit respect)
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 24);
+  // News is permanent — no artificial expiry.
+  const expiresAt = new Date('2099-12-31T23:59:59.000Z');
   let processed = 0;
   const skipReasons: Record<string, number> = {};
   const skip = (reason: string) => { skipReasons[reason] = (skipReasons[reason] || 0) + 1; };

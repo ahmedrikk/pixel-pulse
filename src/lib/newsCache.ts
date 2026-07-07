@@ -3,7 +3,7 @@
  * Handles caching of processed articles in Supabase
  * - Fetches from cache first (instant loading)
  * - Only processes new/expired articles with AI
- * - Keeps content consistent until cache expires (24 hours)
+ * - Articles are permanent and never expire.
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -30,12 +30,13 @@ export interface CachedArticle {
   expires_at: string;
 }
 
-const CACHE_DURATION_HOURS = 24;
+// News is permanent; expiry is set to a far-future date.
+const PERMANENT_EXPIRES_AT = '2099-12-31T23:59:59.000Z';
 
 /**
  * Convert NewsItem to database format
  */
-function toDbFormat(article: NewsItem, expiresAt: Date): Omit<CachedArticle, 'id' | 'fetched_at'> {
+function toDbFormat(article: NewsItem): Omit<CachedArticle, 'id' | 'fetched_at'> {
   return {
     original_id: article.id,
     title: article.title,
@@ -50,7 +51,7 @@ function toDbFormat(article: NewsItem, expiresAt: Date): Omit<CachedArticle, 'id
     tags: article.tags,
     likes: article.likes || 0,
     article_date: article.timestamp,
-    expires_at: expiresAt.toISOString(),
+    expires_at: PERMANENT_EXPIRES_AT,
   };
 }
 
@@ -99,8 +100,7 @@ export async function getCachedArticles(urls: string[]): Promise<{
     const { data, error } = await supabase
       .from('cached_articles')
       .select('*')
-      .in('source_url', urls)
-      .gt('expires_at', new Date().toISOString());
+      .in('source_url', urls);
 
     if (error) {
       console.error('Error fetching cached articles:', error);
@@ -126,10 +126,7 @@ export async function getCachedArticles(urls: string[]): Promise<{
 export async function saveArticlesToCache(articles: NewsItem[]): Promise<void> {
   if (articles.length === 0) return;
 
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + CACHE_DURATION_HOURS);
-
-  const dbArticles = articles.map(article => toDbFormat(article, expiresAt));
+  const dbArticles = articles.map(article => toDbFormat(article));
 
   try {
     // Use upsert to handle conflicts (update if exists, insert if not)
@@ -289,7 +286,7 @@ export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
 }
 
 /**
- * Tag frequency across all live (non-expired) cached articles.
+ * Tag frequency across all cached articles.
  * Powers the real "Browse by category" counts — each count is the number
  * of articles actually tagged with that entity. An article counts once per
  * distinct tag (tags + game_tags merged & de-duped).
@@ -305,8 +302,7 @@ export async function getTrendingTags(limit = 12): Promise<TrendingTag[]> {
   try {
     const { data, error } = await supabase
       .from('cached_articles')
-      .select('tags, game_tags')
-      .gt('expires_at', new Date().toISOString());
+      .select('tags, game_tags');
 
     if (error || !data) return [];
 
@@ -339,7 +335,6 @@ export async function getAllCachedArticles(offset = 0, limit = 50, category?: st
       let query = supabase
         .from('cached_articles')
         .select('*')
-        .gt('expires_at', new Date().toISOString())
         .order('article_date', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -375,37 +370,48 @@ export async function getAllCachedArticles(offset = 0, limit = 50, category?: st
 
 /**
  * Clean up expired articles
+ * News is permanent; this is now a no-op for cached_articles.
  */
 export async function cleanupExpiredArticles(): Promise<void> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any).rpc('cleanup_expired_articles');
-    
-    if (error) {
-      // If RPC doesn't exist, fallback to delete
-      await supabase
-        .from('cached_articles')
-        .delete()
-        .lt('expires_at', new Date().toISOString());
-    }
-  } catch (err) {
-    console.error('Cleanup error:', err);
-  }
+  // Articles no longer expire. Keeping this function preserves backwards
+  // compatibility for any callers.
 }
 
 /**
- * Check if cache needs refresh (articles are expiring soon)
+ * Check if cache needs refresh.
+ * Returns true when the cache is below the minimum floor (e.g. after a
+ * clean slate or failed ingestion runs).
  */
+const MINIMUM_ARTICLE_FLOOR = 10;
+
 export async function shouldRefreshCache(): Promise<boolean> {
   try {
     const { count, error } = await supabase
       .from('cached_articles')
-      .select('*', { count: 'exact', head: true })
-      .gt('expires_at', new Date(Date.now() + 60 * 60 * 1000).toISOString()); // Expires within 1 hour
+      .select('*', { count: 'exact', head: true });
 
     if (error) return true;
-    return count === 0; // Refresh if no valid cached articles
+    return (count ?? 0) < MINIMUM_ARTICLE_FLOOR;
   } catch {
     return true;
+  }
+}
+
+/**
+ * Get the current number of cached articles (for cache-floor guard).
+ */
+export async function getCachedArticleCount(): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from('cached_articles')
+      .select('*', { count: 'exact', head: true });
+    if (error) {
+      console.error('Error counting cached articles:', error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (err) {
+    console.error('Count cached articles error:', err);
+    return 0;
   }
 }
