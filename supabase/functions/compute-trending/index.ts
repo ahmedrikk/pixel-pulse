@@ -89,8 +89,7 @@ async function fetchSteamScores(
   games: { id: string; steam_appid: number | null; name: string }[]
 ): Promise<Map<string, number>> {
   const out = new Map<string, number>();
-  if (!STEAM_API_KEY) return out;
-
+  // Steam concurrent player counts are FREE — no API key required.
   const withAppid = games.filter((g) => g.steam_appid);
   await withConcurrency(withAppid, async (g) => {
     const count = await fetchSteamPlayerCount(g.steam_appid!);
@@ -381,11 +380,11 @@ serve(async (req) => {
       const releaseScore = getReleaseProximityScore(g.release_date ?? "TBA");
 
       const composite =
-        newsScore * 0.25 +
-        steamScore * 0.20 +
+        newsScore * 0.22 +
+        steamScore * 0.18 +
         twitchScore * 0.15 +
         esportsScore * 0.10 +
-        releaseScore * 0.10 +
+        releaseScore * 0.15 +
         communityScore * 0.12 +
         rawgScore * 0.08;
 
@@ -398,6 +397,7 @@ serve(async (req) => {
         esports_score: esportsScore,
         community_score: communityScore,
         rawg_score: rawgScore,
+        release_proximity_score: releaseScore,
         composite_score: composite,
         computed_at: new Date().toISOString(),
       });
@@ -407,16 +407,22 @@ serve(async (req) => {
     const { error: upsertError } = await supabase
       .from("trending_scores")
       .upsert(rows, { onConflict: "game_id" });
-    if (upsertError) throw upsertError;
+    if (upsertError) {
+      console.error("upsert error:", upsertError);
+      throw upsertError;
+    }
 
     return new Response(
       JSON.stringify({ ok: true, count: rows.length }),
       { headers: JSON_HEADERS }
     );
   } catch (err) {
-    console.error("compute-trending failed:", err);
+    const errorBody = err instanceof Error
+      ? { message: err.message, stack: err.stack, cause: err.cause }
+      : err;
+    console.error("compute-trending failed:", errorBody);
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: errorBody }),
       { status: 500, headers: JSON_HEADERS }
     );
   }
