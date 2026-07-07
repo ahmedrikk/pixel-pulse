@@ -163,26 +163,29 @@ export default function GameCatalog() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Debounce search to avoid hammering the API
+  // Debounce search and require at least 2 characters before hitting RAWG.
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    const trimmed = searchQuery.trim();
+    const t = setTimeout(() => setDebouncedSearch(trimmed), 600);
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  const searching = debouncedSearch.trim().length > 0;
+  const hasSearch = debouncedSearch.length > 0;
+  const searchActive = debouncedSearch.length >= 2;
+  const searchTooShort = hasSearch && !searchActive;
 
   // Default view = community-reviewed games.
   const { data: communityGames = [], isLoading: communityLoading } =
     useCommunityReviewedGames();
   // While searching, look across the whole catalog so you can find a game to rate.
   const { data: searchResults = [], isLoading: searchLoading } = useGameCatalog({
-    search: searching ? debouncedSearch : undefined,
+    search: searchActive ? debouncedSearch : undefined,
   });
   const { data: trendingGames = [], isLoading: trendingLoading } =
     useTrendingGames();
 
-  const games = searching ? searchResults : communityGames;
-  const isLoading = searching ? searchLoading : communityLoading;
+  const games = searchActive ? searchResults : communityGames;
+  const isLoading = searchActive ? searchLoading : communityLoading;
 
   return (
     <>
@@ -214,7 +217,7 @@ export default function GameCatalog() {
           </motion.div>
 
           {/* Trending Games */}
-          {!searching && (
+          {!hasSearch && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -252,7 +255,7 @@ export default function GameCatalog() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-foreground">
-                {searching ? "Search results" : "Community reviewed games"}
+                {searchActive ? "Search results" : searchTooShort ? "Search" : "Community reviewed games"}
               </h2>
               {!isLoading && (
                 <span className="text-sm text-muted-foreground">{games.length} games</span>
@@ -265,6 +268,12 @@ export default function GameCatalog() {
                   <div key={i} className="h-64 rounded-2xl bg-secondary animate-pulse" />
                 ))}
               </div>
+            ) : searchTooShort ? (
+              <div className="text-center py-16">
+                <p className="text-muted-foreground text-lg">
+                  Keep typing to search games…
+                </p>
+              </div>
             ) : games.length > 0 ? (
               <AnimatePresence mode="popLayout">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -273,7 +282,7 @@ export default function GameCatalog() {
                   ))}
                 </div>
               </AnimatePresence>
-            ) : searching ? (
+            ) : searchActive ? (
               <div className="text-center py-16">
                 <p className="text-muted-foreground text-lg">No games found for “{debouncedSearch}”.</p>
               </div>
