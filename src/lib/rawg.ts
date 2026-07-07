@@ -32,13 +32,16 @@ function rawgUrl(path: string, params: Record<string, string | number> = {}): st
   return url.toString();
 }
 
-export async function fetchGameList(params: {
-  page?: number;
-  page_size?: number;
-  search?: string;
-  genres?: string;       // comma-separated RAWG genre slugs
-  ordering?: string;     // e.g. "-rating", "-metacritic", "-added"
-} = {}): Promise<RawgListResponse> {
+export async function fetchGameList(
+  params: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    genres?: string;       // comma-separated RAWG genre slugs
+    ordering?: string;     // e.g. "-rating", "-metacritic", "-added"
+  } = {},
+  signal?: AbortSignal
+): Promise<RawgListResponse> {
   const res = await fetch(
     rawgUrl("/games", {
       page: params.page ?? 1,
@@ -50,14 +53,18 @@ export async function fetchGameList(params: {
       ...(params.search
         ? (params.ordering ? { ordering: params.ordering } : {})
         : { ordering: params.ordering ?? "-rating" }),
-    })
+    }),
+    { signal }
   );
   if (!res.ok) throw new Error(`RAWG list failed: ${res.status}`);
   return res.json();
 }
 
-export async function fetchGameDetail(slug: string): Promise<RawgGame> {
-  const res = await fetch(rawgUrl(`/games/${slug}`));
+export async function fetchGameDetail(
+  slug: string,
+  signal?: AbortSignal
+): Promise<RawgGame> {
+  const res = await fetch(rawgUrl(`/games/${slug}`), { signal });
   if (!res.ok) throw new Error(`RAWG detail failed: ${res.status}`);
   return res.json();
 }

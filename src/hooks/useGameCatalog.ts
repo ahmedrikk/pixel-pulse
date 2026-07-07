@@ -73,11 +73,14 @@ function mapRawgToCatalog(g: RawgGame): CatalogGame {
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-async function getCatalogGames(params: {
-  search?: string;
-  genre?: string;
-  ordering?: string;
-}): Promise<CatalogGame[]> {
+async function getCatalogGames(
+  params: {
+    search?: string;
+    genre?: string;
+    ordering?: string;
+  },
+  signal?: AbortSignal
+): Promise<CatalogGame[]> {
   let games: CatalogGame[] = [];
 
   // 1. Try Supabase cache (only for unfiltered requests)
@@ -119,12 +122,15 @@ async function getCatalogGames(params: {
       sports: "sports",
     };
 
-    const result = await fetchGameList({
-      page_size: 40,
-      search: params.search,
-      genres: params.genre ? rawgGenreMap[params.genre] : undefined,
-      ordering: params.ordering ?? "-rating",
-    });
+    const result = await fetchGameList(
+      {
+        page_size: 40,
+        search: params.search,
+        genres: params.genre ? rawgGenreMap[params.genre] : undefined,
+        ordering: params.ordering ?? "-rating",
+      },
+      signal
+    );
 
     games = result.results.map(mapRawgToCatalog);
 
@@ -162,8 +168,9 @@ export function useGameCatalog(params: {
 } = {}) {
   return useQuery({
     queryKey: ["games", "catalog", params.search, params.genre],
-    queryFn: () => getCatalogGames(params),
-    staleTime: 10 * 60 * 1000,  // 10 min in-memory
+    queryFn: ({ signal }) => getCatalogGames(params, signal),
+    staleTime: params.search ? 5 * 60 * 1000 : 10 * 60 * 1000,
+    gcTime: params.search ? 10 * 60 * 1000 : 30 * 60 * 1000,
   });
 }
 
@@ -292,5 +299,6 @@ export function useTrendingGames() {
     queryKey: ["games", "trending"],
     queryFn: getTrendingGames,
     staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
