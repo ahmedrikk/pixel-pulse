@@ -5,20 +5,21 @@
  * happens server-side in the `fetch-news` Supabase Edge Function.
  *
  * This hook's only job is:
- *   1. Read processed articles from Supabase (instant)
- *   2. Trigger `fetch-news` when the cache is stale or empty
- *   3. Expose a manual refresh
+ *   1. Read processed articles from Supabase instantly (cache-first)
+ *   2. Trigger `fetch-news` only when the cache floor is too low
+ *   3. Refresh in the background without blocking the UI
+ *   4. Expose a manual refresh
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { NewsItem } from "@/data/mockNews";
 import { supabase } from "@/integrations/supabase/client";
-import { getAllCachedArticles, shouldRefreshCache, spotifyShuffle } from "@/lib/newsCache";
-import { useAuthGate } from "@/contexts/AuthGateContext";
+import { getAllCachedArticles, getCachedArticleCount, spotifyShuffle } from "@/lib/newsCache";
+
+const MINIMUM_ARTICLE_FLOOR = 10;
 
 export function useGamingNews(options?: { category?: string }) {
   const category = options?.category;
-  const { isLoading: isAuthLoading } = useAuthGate();
   const [news, setNews]               = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -86,7 +87,7 @@ export function useGamingNews(options?: { category?: string }) {
   }, [isLoadingMore, hasMore, loadFromDB]);
 
   // ── Trigger server-side pipeline then reload ──────────────────────────────
-  const triggerFetch = useCallback(async (timeoutMs = 60000) => {
+  const triggerFetch = useCallback(async (timeoutMs = 120000) => {
     console.log("Invoking fetch-news edge function…");
     try {
       const result = await Promise.race([
@@ -106,12 +107,19 @@ export function useGamingNews(options?: { category?: string }) {
     await loadFromDB(true);
   }, [loadFromDB]);
 
-  // ── Initial load ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    // Wait until Supabase auth finishes initializing before fetching.
-    // During auth init, token refresh aborts all in-flight DB requests.
-    if (isAuthLoading) return;
+  // ── Cache-floor guard: if we ever drop below the floor, fetch immediately ──
+  const enforceCacheFloor = useCallback(async () => {
+    const count = await getCachedArticleCount();
+    if (count < MINIMUM_ARTICLE_FLOOR) {
+      console.warn(`Cache floor breached (${count} articles) — fetching immediately…`);
+      await triggerFetch(120000);
+    }
+  }, [triggerFetch]);
 
+  // ── Initial load ──────────────────────────────────────────────────────────
+  // Do NOT wait for auth initialization. The public feed can be read
+  // anonymously, and Supabase aborts during auth init can delay first paint.
+  useEffect(() => {
     let cancelled = false;
 
     async function init() {
@@ -119,28 +127,25 @@ export function useGamingNews(options?: { category?: string }) {
       setError(null);
 
       // Always show whatever is cached immediately
-      const count = await loadFromDB();
+      await loadFromDB();
+      if (!cancelled) setIsLoading(false);
 
-      if (cancelled) return;
-
-      if (count === 0) {
-        // Empty — try to fetch fresh articles instead of showing stale mock data.
-        console.warn("Cache empty — fetching fresh articles…");
-        await triggerFetch(60000);
-        if (!cancelled) setIsLoading(false);
-      } else {
-        setIsLoading(false);
-        // Cache exists — check if stale and refresh in background
-        const stale = await shouldRefreshCache();
-        if (!cancelled && stale) {
-          triggerFetch(); // fire and forget
+      // Cache-floor guard: if the cache is critically low, fetch in background
+      // without re-entering the loading state.
+      const count = await getCachedArticleCount();
+      if (!cancelled && count < MINIMUM_ARTICLE_FLOOR) {
+        setIsRefreshing(true);
+        try {
+          await triggerFetch(120000);
+        } finally {
+          if (!cancelled) setIsRefreshing(false);
         }
       }
     }
 
     init();
     return () => { cancelled = true; };
-  }, [isAuthLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadFromDB, triggerFetch, category]);
 
   // ── Instant reshuffle (no DB hit) ─────────────────────────────────────────
   const reshuffle = useCallback(() => {
