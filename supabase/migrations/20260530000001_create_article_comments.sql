@@ -14,18 +14,30 @@ create table if not exists public.article_comments (
 alter table public.article_comments enable row level security;
 
 -- Anyone can read comments (so other users see them)
-create policy "comments are publicly readable"
-  on public.article_comments for select using (true);
+do $$ begin
+  create policy "comments are publicly readable"
+    on public.article_comments for select using (true);
+exception when duplicate_object then
+  null;
+end $$;
 
 -- Only the author can create their own comment
-create policy "users insert own comments"
-  on public.article_comments for insert
-  with check (auth.uid() = user_id);
+do $$ begin
+  create policy "users insert own comments"
+    on public.article_comments for insert
+    with check (auth.uid() = user_id);
+exception when duplicate_object then
+  null;
+end $$;
 
 -- Only the author can edit / soft-delete their comment
-create policy "users update own comments"
-  on public.article_comments for update
-  using (auth.uid() = user_id);
+do $$ begin
+  create policy "users update own comments"
+    on public.article_comments for update
+    using (auth.uid() = user_id);
+exception when duplicate_object then
+  null;
+end $$;
 
 create index if not exists idx_article_comments_article
   on public.article_comments(article_id, created_at);
