@@ -11,7 +11,7 @@ create extension if not exists pg_net schema extensions;
 -- ============================================================================
 -- Main ingestion job: refresh news every 30 minutes.
 -- ============================================================================
-select cron.unschedule('fetch-gaming-news');
+select cron.unschedule(j.jobid) from cron.job j where j.jobname = 'fetch-gaming-news';
 select cron.schedule(
   'fetch-gaming-news',
   '*/30 * * * *',
@@ -28,7 +28,7 @@ select cron.schedule(
 -- Cache-floor guard: if cached_articles ever drops below 10, trigger fetch-news
 -- immediately (runs every 5 minutes). This guarantees users always see news.
 -- ============================================================================
-select cron.unschedule('guard-news-cache-floor');
+select cron.unschedule(j.jobid) from cron.job j where j.jobname = 'guard-news-cache-floor';
 select cron.schedule(
   'guard-news-cache-floor',
   '*/5 * * * *',
@@ -49,7 +49,7 @@ select cron.schedule(
 -- Keep-alive ping: hit the edge function every 5 minutes with a tiny request
 -- so the function container stays warm and cold starts disappear.
 -- ============================================================================
-select cron.unschedule('warm-fetch-news-function');
+select cron.unschedule(j.jobid) from cron.job j where j.jobname = 'warm-fetch-news-function';
 select cron.schedule(
   'warm-fetch-news-function',
   '*/5 * * * *',
