@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,7 +15,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { toast } from "sonner";
 import { trackComment, trackReaction } from "@/lib/xpService";
 import { useGameDetails } from "@/hooks/useGameDetails";
-import { useUserReviews, useSubmitReview } from "@/hooks/useGameReviews";
+import { useUserReviews, useSubmitReview, useVoteHelpful } from "@/hooks/useGameReviews";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { ShareReviewButton } from "@/components/ShareReviewButton";
 import { BottomNavBar } from "@/components/BottomNavBar";
@@ -68,8 +68,22 @@ export default function GameReview() {
   const { data: game, isLoading: gameLoading, error: gameError } = useGameDetails(gameId);
   const { data: userReviews = [] } = useUserReviews(gameId);
   const submitReview = useSubmitReview(gameId ?? "", game?.name);
+  const voteHelpful = useVoteHelpful(gameId ?? "");
 
-  const { user, openAuthModal } = useAuthGate();
+  const { user, openAuthModal, pendingAction, executePendingAction } = useAuthGate();
+
+  // Replay a review draft that was interrupted by the auth gate (F15.1).
+  // The draft rides along in the pending action; once the user is signed in
+  // and back on this game's page, restore it into the form.
+  useEffect(() => {
+    if (!user || !pendingAction || pendingAction.type !== "review") return;
+    if (pendingAction.gameId !== gameId) return;
+    const draft = pendingAction.data as { starRating?: number; reviewText?: string } | undefined;
+    if (draft?.starRating) setNewRating(draft.starRating);
+    if (draft?.reviewText) setNewReviewText(draft.reviewText);
+    executePendingAction();
+    toast.success("Welcome back! Your review draft is restored — hit Submit to post it.");
+  }, [user, pendingAction, gameId, executePendingAction]);
 
   // Community rating = average of USER star reviews (Letterboxd-style)
   const userAvg = userReviews.length
@@ -96,14 +110,24 @@ export default function GameReview() {
   }
 
   const handleVote = (reviewId: string) => {
+    if (!user) {
+      openAuthModal("react");
+      return;
+    }
+    voteHelpful.mutate(reviewId, {
+      onError: () => toast.error("Couldn't register your vote."),
+    });
     trackReaction(game.id, "helpful");
-    // Optimistic UI — actual vote goes through useVoteHelpful mutation
   };
 
   const handleSubmitReview = async () => {
     if (!newReviewText.trim() || newRating === 0) return;
     if (!user) {
-      openAuthModal("review");
+      // Carry the draft into the pending action so it survives login (F15.1).
+      openAuthModal("review", {
+        gameId: game.id,
+        data: { starRating: newRating, reviewText: newReviewText.trim() },
+      });
       return;
     }
     try {

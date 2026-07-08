@@ -86,8 +86,20 @@ The widget did call `openAuthModal("trivia_answer" as never)`, but `trivia_answe
 **F14 — Intermittent renderer freezes** ⚠️ MITIGATED, still open
 Static analysis found no infinite animations or heavy intervals on the affected pages. Most plausible contributor: staggered framer-motion delays scaling with item count (40 search results × 0.05s = 2s+ of rolling transform animations after every search change). Capped stagger at 0.4s on GameCard/TrendingCard. **Still worth profiling** with React DevTools Profiler / Chrome Performance tab on `/reviews` and `/reviews/:id` during search + submit interactions — the freeze was never reproducible on demand.
 
-**F15 — Authenticated flows untested**
-Review posting, predictions, trivia scoring/XP, profile editing, onboarding, article comments, Google OAuth — all need a pass with a real account. The tester could not create accounts or enter credentials by policy.
+**F15 — Authenticated flows untested → code-reviewed, bugs fixed (2026-07-08)**
+A code review of the authenticated flows (by Kimi) surfaced four issues; all fixed:
+
+- **F15.1 — Pending actions lost after login** ✅ FIXED. `executePendingAction` only cleared state; a guest's review draft vanished after sign-in. The draft (stars + text) now rides in the pending action's `data` payload; `GameReview` restores it into the form after auth and toasts "draft restored". Combined with the F15.4 fix, OAuth users land back on the same game page with their draft intact. *Caveat:* the pending action only replays for users whose onboarding is complete (existing AuthGateContext behavior) — brand-new signups go through onboarding first and keep the draft in sessionStorage until their next sign-in event.
+- **F15.2 — Prediction duplicates** ✅ FIXED (diagnosis corrected). Duplicates were never possible: `predictions_user_id_match_id_key` already enforces one per match. The REAL bug found while verifying: **predictions has RLS enabled with only a SELECT policy — every insert was silently rejected; no prediction has ever saved.** Migration `20260707150000` adds the missing INSERT policy; `submitPrediction` now also checks for an existing pick (no double XP) and handles unique-violation races.
+- **F15.3 — `ignoreDuplicates` on games upsert** ✅ FIXED. Removed, so placeholder names get corrected on later submissions (the games table has an authenticated UPDATE policy, verified live).
+- **F15.4 — OAuth dumps users on homepage** ✅ FIXED. `redirectTo` now uses the current path + query (the Supabase redirect allow-list already includes `<origin>/**`, verified via Management API).
+
+Minor items from the same review:
+- **Helpful vote never persisted** ✅ FIXED — `handleVote` only fired XP tracking; it now calls the `increment_helpful_votes` mutation (RPC verified present) and gates guests behind the auth modal.
+- **`insertComment` relies on RLS only** ✅ FIXED — added an explicit userId/body guard.
+- **7-day popup suppression** — not a bug: the `auth_popup_dismissed_at` suppression only applies to the passive `scroll` trigger; explicit actions (like, review, predict) always show the modal. Left as designed.
+
+Still genuinely untested end-to-end: live posting/prediction/trivia with a real account. The insert-policy fix means predictions should START working — worth one manual pass.
 
 ## Verification of today's trending work (context for Kimi)
 

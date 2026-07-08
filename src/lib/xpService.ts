@@ -156,6 +156,16 @@ export async function submitPrediction(matchId: number, team: string): Promise<X
     return null;
   }
   
+  // One prediction per match: skip (and don't re-award XP) if one exists.
+  // The predictions_user_id_match_id_key unique constraint backstops races.
+  const { data: existing } = await supabase
+    .from("predictions")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("match_id", matchId)
+    .maybeSingle();
+  if (existing) return null;
+
   const { error } = await supabase.from("predictions").insert({
     user_id: user.id,
     match_id: matchId,
@@ -163,6 +173,7 @@ export async function submitPrediction(matchId: number, team: string): Promise<X
     xp_participation: 20,
   });
   if (error) {
+    if ((error as { code?: string }).code === "23505") return null; // raced a duplicate
     console.error("Prediction insert failed:", error);
     return null;
   }
