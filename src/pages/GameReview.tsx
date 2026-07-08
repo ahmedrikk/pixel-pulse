@@ -12,6 +12,7 @@ import {
   Crown,
 } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
+import { toast } from "sonner";
 import { trackComment, trackReaction } from "@/lib/xpService";
 import { useGameDetails } from "@/hooks/useGameDetails";
 import { useUserReviews, useSubmitReview } from "@/hooks/useGameReviews";
@@ -66,9 +67,9 @@ export default function GameReview() {
 
   const { data: game, isLoading: gameLoading, error: gameError } = useGameDetails(gameId);
   const { data: userReviews = [] } = useUserReviews(gameId);
-  const submitReview = useSubmitReview(gameId ?? "");
+  const submitReview = useSubmitReview(gameId ?? "", game?.name);
 
-  const { user } = useAuthGate();
+  const { user, openAuthModal } = useAuthGate();
 
   // Community rating = average of USER star reviews (Letterboxd-style)
   const userAvg = userReviews.length
@@ -101,6 +102,10 @@ export default function GameReview() {
 
   const handleSubmitReview = async () => {
     if (!newReviewText.trim() || newRating === 0) return;
+    if (!user) {
+      openAuthModal("review");
+      return;
+    }
     try {
       await submitReview.mutateAsync({
         starRating: newRating,
@@ -110,8 +115,10 @@ export default function GameReview() {
       setNewReviewText("");
       setNewRating(0);
       trackComment(game.id);
-    } catch {
-      // Auth gate will handle unauthenticated state
+      toast.success("Review posted!");
+    } catch (err) {
+      toast.error("Couldn't post your review. Please try again.");
+      console.error("Review submit failed:", err);
     }
   };
 

@@ -150,6 +150,38 @@ export default function DailyTrivia() {
     );
   }
 
+  // No questions available (guest session or trivia not seeded for today) —
+  // without this guard the page renders "Question 1 of 0" and an empty
+  // results card with undefined score/XP.
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen">
+        <header className="sticky top-0 z-50 border-b bg-nav backdrop-blur-sm">
+          <div className="container flex h-14 items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="font-bold text-xl">Daily Trivia</h1>
+          </div>
+        </header>
+
+        <main className="container py-12 max-w-md">
+          <Card className="text-center p-8">
+            <Brain className="h-16 w-16 text-primary mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2">No trivia right now</h2>
+            <p className="text-muted-foreground mb-6">
+              Sign in to play today's trivia and earn up to 155 XP — or check
+              back later if you're already signed in.
+            </p>
+            <Button onClick={() => navigate("/")} className="w-full">
+              Back to the feed
+            </Button>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   const currentQuestion = questions[currentIndex];
   const progress = ((currentIndex) / Math.min(questions.length, TOTAL_QUESTIONS)) * 100;
 

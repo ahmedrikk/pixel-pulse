@@ -128,7 +128,7 @@ export function useDeleteReview() {
   });
 }
 
-export function useSubmitReview(gameId: string) {
+export function useSubmitReview(gameId: string, gameName?: string) {
   const queryClient = useQueryClient();
   const { user } = useAuthGate();
 
@@ -142,7 +142,7 @@ export function useSubmitReview(gameId: string) {
 
       // Ensure game exists in cache before inserting review
       await supabase.from("games").upsert(
-        { id: gameId, name: gameId, slug: gameId, expires_at: new Date(Date.now() + 86400000).toISOString() },
+        { id: gameId, name: gameName ?? gameId, slug: gameId, expires_at: new Date(Date.now() + 86400000).toISOString() },
         { onConflict: "id", ignoreDuplicates: true }
       );
 
