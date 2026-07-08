@@ -1,4 +1,4 @@
-// Feed Types for Game Pulse News System
+// Feed Types for PixelPulse News System
 
 export interface Article {
   id: string;
@@ -128,7 +128,7 @@ export interface Bookmark {
 }
 
 // Auth Gate Types
-export type GatedAction = "like" | "comment" | "bookmark" | "share_profile" | "share_feed" | "review" | "react" | "signup_prompt" | "battlepass" | "predict" | "scroll" | "esports_reminder" | "esports_details" | "esports_predict";
+export type GatedAction = "like" | "comment" | "bookmark" | "share_profile" | "share_feed" | "review" | "react" | "signup_prompt" | "battlepass" | "predict" | "scroll" | "esports_reminder" | "esports_details" | "esports_predict" | "trivia_answer" | "hub_hype";
 
 export interface PendingAction {
   type: GatedAction;

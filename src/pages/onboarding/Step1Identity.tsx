@@ -94,7 +94,7 @@ export default function Step1Identity() {
     <OnboardingLayout
       step={1}
       title="Let's set up your profile"
-      subtitle="This is how other players will see you on Game Pulse."
+      subtitle="This is how other players will see you on PixelPulse."
       continueDisabled={!canContinue}
       continueLoading={loading}
       onContinue={handleContinue}

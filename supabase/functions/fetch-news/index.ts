@@ -26,6 +26,16 @@ const RSS_FEEDS = [
   { url: "https://gameinformer.com/rss.xml",                source: "Game Informer" },
   { url: "https://wccftech.com/topic/games/feed/",          source: "WCCFtech" },
   { url: "https://www.gamesradar.com/feeds/articles/rss/",  source: "GamesRadar" },
+  // Added 2026-07-07 (QA F10.5). Additive only: same parser, same gaming
+  // filter, same PROCESS_LIMIT — excess items drain on later cron runs.
+  { url: "https://www.eurogamer.net/feed",                  source: "Eurogamer" },
+  { url: "https://www.rockpapershotgun.com/feed",           source: "Rock Paper Shotgun" },
+  { url: "https://www.destructoid.com/feed/",               source: "Destructoid" },
+  { url: "https://www.siliconera.com/feed/",                source: "Siliconera" },
+  { url: "https://www.nintendolife.com/feeds/latest",       source: "Nintendo Life" },
+  { url: "https://www.pushsquare.com/feeds/latest",         source: "Push Square" },
+  { url: "https://dotesports.com/feed",                     source: "Dot Esports" },
+  { url: "https://www.gamesindustry.biz/feed",              source: "GamesIndustry.biz" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -662,30 +672,40 @@ serve(async (req) => {
     if (delErr) console.warn(`  Delete error: ${delErr.message}`);
   }
 
-  // Step 1: Fetch all RSS feeds sequentially
-  const allItems: RssItem[] = [];
-  for (const feed of RSS_FEEDS) {
-    try {
+  // Step 1: Fetch all RSS feeds in parallel (each with its own 10s timeout)
+  // so wall-clock time stays ~10s regardless of how many feeds we add.
+  const feedResults = await Promise.allSettled(
+    RSS_FEEDS.map(async (feed) => {
       const controller = new AbortController();
       const tid = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch(feed.url, {
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; PixelPulseBot/1.0)",
-          "Accept": "application/rss+xml, application/xml, text/xml, */*",
-        },
-        redirect: "follow",
-      });
-      clearTimeout(tid);
-      if (!res.ok) { console.warn(`  RSS ${feed.source}: HTTP ${res.status}`); continue; }
-      const xml = await res.text();
-      const items = parseRSSItems(xml, feed.source);
-      console.log(`  ${feed.source}: ${items.length} items`);
-      allItems.push(...items);
-    } catch (e) {
-      console.warn(`  RSS ${feed.source}: ${e}`);
-    }
-  }
+      try {
+        const res = await fetch(feed.url, {
+          signal: controller.signal,
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; PixelPulseBot/1.0)",
+            "Accept": "application/rss+xml, application/xml, text/xml, */*",
+          },
+          redirect: "follow",
+        });
+        if (!res.ok) {
+          console.warn(`  RSS ${feed.source}: HTTP ${res.status}`);
+          return [] as RssItem[];
+        }
+        const xml = await res.text();
+        const items = parseRSSItems(xml, feed.source);
+        console.log(`  ${feed.source}: ${items.length} items`);
+        return items;
+      } catch (e) {
+        console.warn(`  RSS ${feed.source}: ${e}`);
+        return [] as RssItem[];
+      } finally {
+        clearTimeout(tid);
+      }
+    })
+  );
+  const allItems: RssItem[] = feedResults.flatMap((r) =>
+    r.status === "fulfilled" ? r.value : []
+  );
 
   // Step 2: Filter out already-cached articles (news is permanent)
   const urls = allItems.map(i => i.link);

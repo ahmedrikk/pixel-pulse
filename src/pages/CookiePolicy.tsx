@@ -18,7 +18,7 @@ export default function CookiePolicy() {
                 <section>
                   <h2 className="text-xl font-semibold mb-2">1. What Are Cookies</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    Cookies are small text files stored on your device when you visit Pixel Pulse.
+                    Cookies are small text files stored on your device when you visit PixelPulse.
                     They help us recognize your browser, remember preferences, and understand how
                     you interact with our platform to deliver a better gaming experience.
                   </p>
@@ -76,7 +76,7 @@ export default function CookiePolicy() {
                   <p className="text-muted-foreground leading-relaxed">
                     If you have questions about our use of cookies, please reach out through our
                     support channels. We are committed to transparency in how we use tracking
-                    technologies to enhance your Pixel Pulse experience.
+                    technologies to enhance your PixelPulse experience.
                   </p>
                 </section>
               </div>

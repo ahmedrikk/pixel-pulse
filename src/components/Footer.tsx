@@ -7,7 +7,7 @@ export function Footer() {
     <footer className="border-t bg-card py-6 mt-auto">
       <div className="container flex flex-col md:flex-row items-center justify-between gap-4">
         <p className="text-sm text-muted-foreground">
-          &copy; {currentYear} Pixel Pulse. All rights reserved.
+          &copy; {currentYear} PixelPulse. All rights reserved.
         </p>
         <nav className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           <Link to="/terms" className="hover:text-foreground transition-colors">

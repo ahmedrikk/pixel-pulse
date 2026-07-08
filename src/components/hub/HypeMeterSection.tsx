@@ -24,7 +24,7 @@ function HypeCard({ game }: { game: HypeGame }) {
   const handleHype = async () => {
     if (isVoting) return;
     if (!isAuthenticated) {
-      openAuthModal("hub_hype" as never);
+      openAuthModal("hub_hype");
       return;
     }
     
