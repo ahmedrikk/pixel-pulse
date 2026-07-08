@@ -75,6 +75,8 @@ export async function insertComment(
   body: string,
   parentCommentId: string | null = null
 ): Promise<boolean> {
+  // Explicit guard on top of RLS — don't rely solely on the policy layer.
+  if (!userId || !body.trim()) return false;
   const { error } = await supabase.from("article_comments").insert({
     article_id: articleId,
     user_id: userId,

@@ -114,7 +114,10 @@ export function AuthGatePopup() {
 
   // Auth Submit Handlers
   const getRedirectUrl = () => {
-    return window.location.origin + '/';
+    // Return to the page the user was on (the Supabase redirect allow-list
+    // includes <origin>/**), so OAuth doesn't dump them on the homepage and
+    // any pending gated action can replay in place (F15.4).
+    return window.location.origin + window.location.pathname + window.location.search;
   };
 
   const handleOAuth = async (provider: "google") => {

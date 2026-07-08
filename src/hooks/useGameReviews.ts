@@ -140,10 +140,12 @@ export function useSubmitReview(gameId: string, gameName?: string) {
     }) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Ensure game exists in cache before inserting review
+      // Ensure game exists in cache before inserting review. No
+      // ignoreDuplicates: existing rows must get the real name/expiry too,
+      // otherwise a game first cached with a placeholder name keeps it forever.
       await supabase.from("games").upsert(
         { id: gameId, name: gameName ?? gameId, slug: gameId, expires_at: new Date(Date.now() + 86400000).toISOString() },
-        { onConflict: "id", ignoreDuplicates: true }
+        { onConflict: "id" }
       );
 
       const { error } = await supabase.from("user_game_reviews").insert({
