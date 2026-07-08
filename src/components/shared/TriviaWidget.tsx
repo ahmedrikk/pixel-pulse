@@ -39,7 +39,7 @@ export function TriviaWidget() {
   const handleAnswer = async (letter: string) => {
     if (revealed || isSubmitting) return;
     if (!isAuthenticated) {
-      openAuthModal("trivia_answer" as never);
+      openAuthModal("trivia_answer");
       return;
     }
     

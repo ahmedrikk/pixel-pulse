@@ -39,7 +39,7 @@ export function Navbar({}: NavbarProps) {
         <Link to="/" className="flex items-center gap-2 font-bold text-lg flex-shrink-0">
           <TrendingUp className="h-6 w-6 text-primary" />
           <span>
-            Level<span className="text-primary">Up</span><span className="text-accent">XP</span>
+            Pixel<span className="text-primary">Pulse</span>
           </span>
         </Link>
 

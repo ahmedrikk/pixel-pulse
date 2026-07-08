@@ -1,5 +1,5 @@
 // src/lib/xpConstants.ts
-// XP System Constants - Aligned with GamePulse Battle Pass Algorithm v2.0
+// XP System Constants - Aligned with PixelPulse Battle Pass Algorithm v2.0
 
 const XP_TABLE_DATA = {
   // Priority 1: Core Reading Actions

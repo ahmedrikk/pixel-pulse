@@ -19,6 +19,8 @@ const HEADLINES: Record<string, string> = {
   predict: "Predict. Win XP. Be right before anyone else.",
   review: "Your review matters. Sign up to be heard.",
   signup_prompt: "Your XP is waiting. Season 1 started without you.",
+  trivia_answer: "Know the answer? Sign up and turn it into XP.",
+  hub_hype: "Hype your most-wanted game. Every vote counts.",
 };
 
 const SUBHEADLINE =

@@ -1,5 +1,5 @@
 // Generates a 9:16 "Instagram story" image for a game review (Letterboxd-style):
-// the game cover, the star rating, the review text and LevelUpXP branding.
+// the game cover, the star rating, the review text and PixelPulse branding.
 // Pure canvas — no extra deps. Falls back to a brand gradient if the cover
 // image can't be drawn (cross-origin taint).
 
@@ -112,9 +112,9 @@ export async function generateReviewStoryCard(opts: StoryCardOpts): Promise<Blob
     // Wordmark
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.font = "700 46px Arial, sans-serif";
-    ctx.fillText("LEVELUP", W / 2 - 52, 160);
+    ctx.fillText("PIXEL", W / 2 - 78, 160);
     ctx.fillStyle = "#a78bfa";
-    ctx.fillText("XP", W / 2 + 92, 160);
+    ctx.fillText("PULSE", W / 2 + 72, 160);
 
     let y = 300;
 

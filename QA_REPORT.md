@@ -70,17 +70,21 @@ New `hype_votes` table (one vote per user per game, RLS: own rows only; public a
 **F10 — `/api/seasons/current` doesn't exist** `src/lib/api.ts`
 `getCurrentSeason()` fetches `/api/seasons/current`; the SPA rewrite returns index.html, `res.json()` throws, and the mock (`public/mock/season.json`) is silently used every time. Either build the endpoint (seasons table) or drop the fetch and import the config directly — current code fires a doomed network request + console warning on every battle-pass visit.
 
-**F11 — Brand identity is three different names**
-Header/logo: **LevelUpXP** · Footer/legal: **Pixel Pulse** · Onboarding + feed types: **Game Pulse**. Pick one and sweep (`grep -ri "levelupxp\|game pulse\|pixel pulse" src/`).
+**F10.5 — More news sources** ✅ DONE (2026-07-07, third pass)
+Added 8 RSS feeds to `fetch-news` (Eurogamer, Rock Paper Shotgun, Destructoid, Siliconera, Nintendo Life, Push Square, Dot Esports, GamesIndustry.biz) — 12 → 20 sources. Purely additive: same parser, same gaming filter, same article template; `PROCESS_LIMIT = 20` per run means the backlog drains over the 30-min cron cycles. Feed fetching switched from sequential to parallel (per-feed 10s timeout unchanged) so wall-clock time stays ~10s regardless of feed count.
+**Scrapling:** stealth mode drives a real headless Firefox (Camoufox) — it cannot run inside Supabase Edge Functions (Deno) or Vercel serverless. For no-RSS/anti-bot sites, use `tools/scrapling_news_worker.py`: a standalone Python worker (run on a PC/VPS/GitHub Actions cron with `SUPABASE_SERVICE_KEY`) that writes the exact same `cached_articles` shape, so the frontend template is untouched. Sources list is empty by design — add selectors per site and keep it polite.
 
-**F12 — 404 page is unstyled** `src/pages/NotFound.tsx`
-Plain white page, no nav/layout — jarring vs the rest of the app. Wrap in `SiteLayout` with a styled CTA.
+**F11 — Brand identity** ✅ FIXED (2026-07-07, third pass)
+Standardized on **PixelPulse** (matches repo, domain, legal pages, bot UA). Swept LevelUpXP + Game Pulse from the navbar logo, index.html meta/OG/Twitter tags, 404.html, share text, story-card canvas wordmark, onboarding panels, and loading states; "Pixel Pulse" prose unified to "PixelPulse". All-caps wordmarks render as "PIXEL PULSE". **Deliberately NOT renamed:** the `gamepulse_bookmarks` localStorage key (renaming would wipe existing users' bookmarks) and "LEVEL UP!" strings (game mechanic, not brand).
 
-**F13 — Guest trivia widget (home right rail) gives no feedback on click**
-Clicking an answer option as guest does nothing visible (no selection state, no auth modal). Expected: gate like Like/Predict do. `src/components/shared/TriviaWidget.tsx`.
+**F12 — 404 page** ✅ FIXED (2026-07-07, third pass)
+`NotFound.tsx` now uses `SiteLayout` with the brand gradient, gamepad icon, and two styled CTAs (feed + trending games).
 
-**F14 — Intermittent renderer freezes (~30s) after interactions**
-During testing, the page froze repeatedly right after clicks (screenshot capture timed out; "renderer unresponsive"), mostly on `/reviews/:id`. Suspect a heavy re-render or framer-motion animation loop. Worth profiling with React DevTools / Performance tab. Not reproducible on demand, but it happened 4+ times in one session.
+**F13 — Guest trivia widget** ✅ FIXED (2026-07-07, third pass)
+The widget did call `openAuthModal("trivia_answer" as never)`, but `trivia_answer` wasn't a real `GatedAction` and had no headline copy. Now first-class: added `trivia_answer` and `hub_hype` to the `GatedAction` union with dedicated popup headlines, removed both `as never` casts. (Original QA repro may have been a missed click — retest gating with a fresh guest session.)
+
+**F14 — Intermittent renderer freezes** ⚠️ MITIGATED, still open
+Static analysis found no infinite animations or heavy intervals on the affected pages. Most plausible contributor: staggered framer-motion delays scaling with item count (40 search results × 0.05s = 2s+ of rolling transform animations after every search change). Capped stagger at 0.4s on GameCard/TrendingCard. **Still worth profiling** with React DevTools Profiler / Chrome Performance tab on `/reviews` and `/reviews/:id` during search + submit interactions — the freeze was never reproducible on demand.
 
 **F15 — Authenticated flows untested**
 Review posting, predictions, trivia scoring/XP, profile editing, onboarding, article comments, Google OAuth — all need a pass with a real account. The tester could not create accounts or enter credentials by policy.

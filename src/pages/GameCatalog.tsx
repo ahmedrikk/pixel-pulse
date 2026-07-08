@@ -55,7 +55,9 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
+      // Cap the stagger so large result sets (40+ cards) don't animate for
+      // multiple seconds — long transform storms can hang the main thread.
+      transition={{ delay: Math.min(index * 0.05, 0.4), duration: 0.3 }}
     >
       <Link
         to={`/reviews/${game.id}`}
@@ -133,7 +135,7 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.08, duration: 0.3 }}
+      transition={{ delay: Math.min(index * 0.08, 0.4), duration: 0.3 }}
       className="snap-start shrink-0 w-[160px] sm:w-[180px]"
     >
       <Link
