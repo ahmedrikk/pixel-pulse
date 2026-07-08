@@ -2,9 +2,9 @@
   "id": "season1",
   "number": 1,
   "name": "Season of the Ember",
-  "shortName": "The Ember",
+  "shortName": "Ember",
   "tagline": "From spark to inferno — your legend begins here.",
-  "lore": "Every season, Game Pulse builds a new world for its community. Season 1 — the Ember — is about origin stories. Every tier you unlock this season tells your story as a gamer who was here from the beginning.",
+  "lore": "Every season, Pixel Pulse builds a new world for its community. Season 1 — the Ember — is about origin stories. Every tier you unlock this season tells your story as a gamer who was here from the beginning.",
   "themeColor": "#FB923C",
   "themeColorSecondary": "#7C3AED",
   "accentTextColor": "#FCD34D",
@@ -16,8 +16,8 @@
     { "number": 5, "name": "Endgame", "isCurrent": false }
   ],
   "totalTiers": 25,
-  "startDate": "2026-04-01T00:00:00Z",
-  "endDate": "2026-06-30T23:59:59Z",
+  "startDate": "2026-07-01T00:00:00Z",
+  "endDate": "2026-09-30T23:59:59Z",
   "isActive": true,
   "promoRewards": [
     { "name": "Newcomer Badge", "type": "badge", "tier": 1, "icon": "🏅", "iconBg": "#EEEDFE", "badgeBg": "#EEEDFE", "badgeColor": "#3C3489", "isFounderReward": false, "isFeatured": true },

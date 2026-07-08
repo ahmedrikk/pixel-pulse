@@ -29,8 +29,44 @@ function normalizeGameName(name: string): string {
     .replace(/\s+/g, "");
 }
 
-function twitchNormalize(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+// Convert a trailing roman numeral to arabic ("granttheftautovi" → "...6") so
+// news tags like "Diablo 4" can match a game named "Diablo IV" without
+// resorting to substring matching (which let "Diablo" (1996) absorb all of
+// Diablo IV's news and Steam signals).
+const ROMAN_MAP: Record<string, string> = {
+  i: "1", ii: "2", iii: "3", iv: "4", v: "5",
+  vi: "6", vii: "7", viii: "8", ix: "9", x: "10",
+};
+
+function arabicizeTrailingRoman(original: string): string {
+  // Require a separator before the numeral so "Xbox" / "Muv-Luv" don't get
+  // their trailing letters misread as roman numerals.
+  const m = original.trim().match(/^(.*?)[\s:\-–—]+(i{1,3}|iv|v|vi{1,3}|ix|x)$/i);
+  if (m) {
+    const roman = m[2].toLowerCase();
+    if (ROMAN_MAP[roman]) return normalizeGameName(m[1]) + ROMAN_MAP[roman];
+  }
+  return normalizeGameName(original);
+}
+
+// Common community abbreviations → canonical normalized names.
+const NAME_ALIASES: Record<string, string> = {
+  gta6: "grandtheftauto6",
+  gtavi: "grandtheftauto6",
+  gta5: "grandtheftauto5",
+  gtav: "grandtheftauto5",
+  cs2: "counterstrike2",
+  tes6: "theelderscrolls6",
+  elderscrolls6: "theelderscrolls6",
+  elderscrollsvi: "theelderscrolls6",
+  cod: "callofduty",
+  poe2: "pathofexile2",
+};
+
+/** Canonical form used for all game-name comparisons. */
+function canonicalGameName(name: string): string {
+  const norm = arabicizeTrailingRoman(name);
+  return NAME_ALIASES[norm] ?? norm;
 }
 
 function daysAgo(date: string): number {
@@ -84,9 +120,9 @@ async function searchSteamAppId(name: string): Promise<number> {
     if (!best) return 0;
     // Only trust the match when the names actually overlap, otherwise the
     // store search happily returns unrelated games/DLC.
-    const normQuery = normalizeGameName(name);
-    const normHit = normalizeGameName(best.name);
-    if (!normHit.includes(normQuery) && !normQuery.includes(normHit)) return 0;
+    // Exact canonical match only — substring matching gave the 1996 "Diablo"
+    // Diablo IV's app id (and player counts).
+    if (canonicalGameName(best.name) !== canonicalGameName(name)) return 0;
     return best.id;
   } catch {
     return 0;
@@ -186,7 +222,7 @@ async function fetchTwitchTopGames(): Promise<Map<string, number>> {
     const data = await res.json();
     const games = (data.data ?? []) as { name: string }[];
     games.forEach((g, idx) => {
-      out.set(twitchNormalize(g.name), idx + 1); // rank 1..100
+      out.set(canonicalGameName(g.name), idx + 1); // rank 1..100
     });
   } catch {
     // ignore
@@ -240,21 +276,20 @@ async function ensureGamesForNewsTags(
   if (!RAWG_API_KEY) return;
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const uniqueTags = [...new Set(tags.map(normalizeGameName))].filter(
-    (t) =>
-      t &&
-      !NON_GAME_TAGS.has(t) &&
-      ![...existingIds].some((id) => normalizeGameName(id).includes(t) || t.includes(normalizeGameName(id)))
+  const existingCanon = new Set([...existingIds].map(canonicalGameName));
+  const uniqueTags = [...new Set(tags.map(canonicalGameName))].filter(
+    (t) => t && !NON_GAME_TAGS.has(t) && !existingCanon.has(t)
   );
 
   for (const tag of uniqueTags.slice(0, 10)) {
     const rawg = await searchRawgGame(tag);
     if (!rawg) continue;
-    const normRawg = normalizeGameName(rawg.name);
+    const normRawg = canonicalGameName(rawg.name);
     if (!normRawg || NON_GAME_TAGS.has(normRawg)) continue;
 
-    // Only insert if it looks related to the tag
-    if (!normRawg.includes(tag) && !tag.includes(normRawg)) continue;
+    // Only insert when RAWG's top hit is the same game as the tag
+    // (canonical match handles "gta6" → "Grand Theft Auto VI").
+    if (normRawg !== tag) continue;
 
     // Require some RAWG popularity so obscure shovelware that happens to
     // match a news tag doesn't enter the catalog. Big unreleased titles
@@ -349,22 +384,20 @@ serve(async (req) => {
       .gte("article_date", since);
     if (articlesError) throw articlesError;
 
-    // Build a lookup from normalized game name → game id
+    // Build a lookup from canonical game name → game id
     let gameByNorm = new Map<string, string>();
     for (const g of games) {
-      gameByNorm.set(normalizeGameName(g.name), g.id);
+      gameByNorm.set(canonicalGameName(g.name), g.id);
     }
 
+    // Exact canonical match only. Substring matching let short names absorb
+    // signals from their sequels ("Diablo" ← "Diablo 4" news). Unmatched
+    // sequels get added to the games cache by ensureGamesForNewsTags instead.
     function findGameIdsForTag(tag: string): string[] {
-      const normTag = normalizeGameName(tag);
-      if (!normTag) return [];
-      const ids: string[] = [];
-      for (const [normName, id] of gameByNorm) {
-        if (normName === normTag || normName.includes(normTag) || normTag.includes(normName)) {
-          ids.push(id);
-        }
-      }
-      return ids;
+      const canon = canonicalGameName(tag);
+      if (!canon) return [];
+      const id = gameByNorm.get(canon);
+      return id ? [id] : [];
     }
 
     // Enrich games cache for hot news tags that aren't cached yet (e.g. GTA VI).
@@ -380,7 +413,7 @@ serve(async (req) => {
         games = refreshedGames;
         gameByNorm = new Map<string, string>();
         for (const g of games) {
-          gameByNorm.set(normalizeGameName(g.name), g.id);
+          gameByNorm.set(canonicalGameName(g.name), g.id);
         }
       }
     }
@@ -427,7 +460,7 @@ serve(async (req) => {
     const runStartedAt = new Date().toISOString();
     const raw = [];
     for (const g of games) {
-      const normName = normalizeGameName(g.name);
+      const normName = canonicalGameName(g.name);
       // Platforms/companies that slipped into the games cache are not games.
       if (NON_GAME_TAGS.has(normName)) continue;
 

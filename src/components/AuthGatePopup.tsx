@@ -88,6 +88,16 @@ export function AuthGatePopup() {
   const [isSwitching, setIsSwitching] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
+  // Close on Escape
+  useEffect(() => {
+    if (!isAuthModalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeAuthModal("x_button");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isAuthModalOpen, closeAuthModal]);
+
   // Sync animation state
   const handleTabSwitch = (newTab: "signup" | "login") => {
     if (newTab === tab) return;

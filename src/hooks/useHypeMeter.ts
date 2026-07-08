@@ -28,7 +28,7 @@ export interface SearchResult {
 }
 
 const INITIAL_MOCK_GAMES: HypeGame[] = [
-  { id: "gta6", igdbId: "1", rank: 1, name: "GTA 6", coverEmoji: "🌴", coverColor: "#1a0a0a", coverUrl: null, releaseDate: "Fall 2025", hypePercent: 94, weeklyTrend: 12, voteCount: 487291, userHyped: false },
+  { id: "gta6", igdbId: "1", rank: 1, name: "GTA 6", coverEmoji: "🌴", coverColor: "#1a0a0a", coverUrl: null, releaseDate: "Nov 2026", hypePercent: 94, weeklyTrend: 12, voteCount: 487291, userHyped: false },
   { id: "es6", igdbId: "2", rank: 2, name: "Elder Scrolls VI", coverEmoji: "⚔️", coverColor: "#0a1015", coverUrl: null, releaseDate: "TBA", hypePercent: 71, weeklyTrend: 3, voteCount: 312048, userHyped: false },
   { id: "silksong", igdbId: "3", rank: 3, name: "Hollow Knight: Silksong", coverEmoji: "🐝", coverColor: "#050a0f", coverUrl: null, releaseDate: "2025", hypePercent: 58, weeklyTrend: -2, voteCount: 241807, userHyped: false },
   { id: "cod25", igdbId: "4", rank: 4, name: "Call of Duty 2025", coverEmoji: "🎯", coverColor: "#0f0800", coverUrl: null, releaseDate: "Holiday 2025", hypePercent: 42, weeklyTrend: 0, voteCount: 178334, userHyped: true },
