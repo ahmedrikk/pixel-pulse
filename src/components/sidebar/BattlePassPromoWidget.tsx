@@ -134,10 +134,10 @@ export function BattlePassPromoWidget({
           Season {seasonNumber} · Free Battle Pass
         </span>
 
-        {/* Live dot */}
+        {/* Status dot — Battle Pass hasn't launched yet */}
         <div className="flex items-center gap-1">
-          <div className="w-[5px] h-[5px] rounded-full bg-emerald-300" />
-          <span className="text-[9px] text-white/55">Live</span>
+          <div className="w-[5px] h-[5px] rounded-full bg-amber-300" />
+          <span className="text-[9px] text-white/55">Coming soon</span>
         </div>
       </div>
 
@@ -184,12 +184,12 @@ export function BattlePassPromoWidget({
           transition-colors duration-150
         "
       >
-        Join free and start earning →
+        Join free — be ready for Season 1 →
       </button>
 
       {/* ── Footer Note ── */}
       <p className={`text-center mt-[7px] text-[10px] mb-0 ${isUrgent ? "text-red-200" : "text-white/50"}`}>
-        {totalTiers} tiers · Season ends in {daysRemaining} days
+        {totalTiers} tiers · Season 1 launching soon
       </p>
     </div>
   );

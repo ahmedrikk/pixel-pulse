@@ -42,118 +42,69 @@ interface LeaderboardEntry {
   weeklyXP?: number;
 }
 
-const MOCK_LEADERBOARD: LeaderboardEntry[] = [
-  {
-    rank: 1,
-    userId: "1",
-    username: "PixelProwler",
-    xpSeason: 24500,
-    tier: 24,
-    dailyStreak: 45,
-    correctPredictions: 28,
-    totalPredictions: 35,
-    weeklyXP: 3200,
-  },
-  {
-    rank: 2,
-    userId: "2",
-    username: "GameGladiator",
-    xpSeason: 23800,
-    tier: 23,
-    dailyStreak: 32,
-    correctPredictions: 25,
-    totalPredictions: 32,
-    weeklyXP: 2850,
-  },
-  {
-    rank: 3,
-    userId: "3",
-    username: "EsportsOracle",
-    xpSeason: 22100,
-    tier: 22,
-    dailyStreak: 28,
-    correctPredictions: 31,
-    totalPredictions: 38,
-    weeklyXP: 2400,
-  },
-  {
-    rank: 4,
-    userId: "4",
-    username: "NewsNinja",
-    xpSeason: 19500,
-    tier: 19,
-    dailyStreak: 21,
-    correctPredictions: 18,
-    totalPredictions: 25,
-    weeklyXP: 1950,
-  },
-  {
-    rank: 5,
-    userId: "5",
-    username: "ComboKing",
-    xpSeason: 18200,
-    tier: 18,
-    dailyStreak: 19,
-    correctPredictions: 15,
-    totalPredictions: 22,
-    weeklyXP: 1600,
-  },
-  {
-    rank: 6,
-    userId: "6",
-    username: "SpeedRunner",
-    xpSeason: 16800,
-    tier: 16,
-    dailyStreak: 15,
-    correctPredictions: 12,
-    totalPredictions: 18,
-    weeklyXP: 1400,
-  },
-  {
-    rank: 7,
-    userId: "7",
-    username: "TriviaMaster",
-    xpSeason: 15400,
-    tier: 15,
-    dailyStreak: 12,
-    correctPredictions: 20,
-    totalPredictions: 28,
-    weeklyXP: 1200,
-  },
-  {
-    rank: 8,
-    userId: "8",
-    username: "HeadlineHero",
-    xpSeason: 14200,
-    tier: 14,
-    dailyStreak: 10,
-    correctPredictions: 10,
-    totalPredictions: 15,
-    weeklyXP: 950,
-  },
-  {
-    rank: 9,
-    userId: "9",
-    username: "ButtonMasher",
-    xpSeason: 12800,
-    tier: 12,
-    dailyStreak: 8,
-    correctPredictions: 8,
-    totalPredictions: 12,
-    weeklyXP: 750,
-  },
-  {
-    rank: 10,
-    userId: "10",
-    username: "Newcomer",
-    xpSeason: 10500,
-    tier: 10,
-    dailyStreak: 5,
-    correctPredictions: 5,
-    totalPredictions: 8,
-    weeklyXP: 500,
-  },
-];
+// Rows come from SECURITY DEFINER RPCs (see migration
+// 20260707130000_leaderboard_and_hype.sql) — profiles + xp_events +
+// predictions aggregated server-side so RLS-protected tables stay private.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = supabase as any;
+
+async function fetchSeasonBoard(): Promise<LeaderboardEntry[]> {
+  const { data } = await sb.rpc("get_season_leaderboard");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((r, i) => ({
+    rank: i + 1,
+    userId: r.user_id,
+    username: r.username,
+    avatar: r.avatar_url ?? undefined,
+    xpSeason: r.xp_season,
+    tier: r.tier,
+    dailyStreak: r.daily_streak,
+    correctPredictions: 0,
+    totalPredictions: 0,
+  }));
+}
+
+async function fetchWeeklyBoard(): Promise<LeaderboardEntry[]> {
+  const { data } = await sb.rpc("get_weekly_leaderboard");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((r, i) => ({
+    rank: i + 1,
+    userId: r.user_id,
+    username: r.username,
+    avatar: r.avatar_url ?? undefined,
+    xpSeason: Number(r.weekly_xp),
+    tier: r.tier,
+    dailyStreak: r.daily_streak,
+    correctPredictions: 0,
+    totalPredictions: 0,
+    weeklyXP: Number(r.weekly_xp),
+  }));
+}
+
+async function fetchPredictionBoard(): Promise<LeaderboardEntry[]> {
+  const { data } = await sb.rpc("get_prediction_leaderboard");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((r, i) => ({
+    rank: i + 1,
+    userId: r.user_id,
+    username: r.username,
+    avatar: r.avatar_url ?? undefined,
+    xpSeason: 0,
+    tier: r.tier,
+    dailyStreak: 0,
+    correctPredictions: Number(r.correct_predictions),
+    totalPredictions: Number(r.total_predictions),
+  }));
+}
+
+function EmptyBoard({ message }: { message: string }) {
+  return (
+    <div className="text-center py-12">
+      <Users className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+      <p className="text-sm text-muted-foreground">{message}</p>
+    </div>
+  );
+}
 
 function RankBadge({ rank, tier }: { rank: number; tier: number }) {
   const rankTier = getRankTier(rank <= 1 ? 0 : rank <= 2 ? 1 : rank <= 5 ? 5 : rank <= 10 ? 10 : 50);
@@ -275,37 +226,36 @@ function LeaderboardRow({
 
 export default function Leaderboard() {
   const [activeTab, setActiveTab] = useState("season");
-  const [userRank, setUserRank] = useState<LeaderboardEntry | null>(null);
+  const [seasonBoard, setSeasonBoard] = useState<LeaderboardEntry[]>([]);
+  const [weeklyBoard, setWeeklyBoard] = useState<LeaderboardEntry[]>([]);
+  const [predictionBoard, setPredictionBoard] = useState<LeaderboardEntry[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchUserStats() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("id, xp_season, tier, daily_streak")
-          .eq("id", user.id)
-          .single();
-
-        if (data) {
-          setUserRank({
-            rank: 42,
-            userId: user.id,
-            username: user.user_metadata?.username || "You",
-            xpSeason: data.xp_season || 0,
-            tier: data.tier || 0,
-            dailyStreak: data.daily_streak || 0,
-            correctPredictions: 12,
-            totalPredictions: 20,
-            weeklyXP: 850,
-          });
-        }
-      }
+    async function fetchBoards() {
+      const [season, weekly, predictions, { data: auth }] = await Promise.all([
+        fetchSeasonBoard(),
+        fetchWeeklyBoard(),
+        fetchPredictionBoard(),
+        supabase.auth.getUser(),
+      ]);
+      setSeasonBoard(season);
+      setWeeklyBoard(weekly);
+      setPredictionBoard(predictions);
+      setCurrentUserId(auth?.user?.id ?? null);
       setLoading(false);
     }
-    fetchUserStats();
+    fetchBoards();
   }, []);
+
+  const activeBoard =
+    activeTab === "weekly" ? weeklyBoard
+    : activeTab === "predictions" ? predictionBoard
+    : seasonBoard;
+  const userRank = currentUserId
+    ? activeBoard.find((e) => e.userId === currentUserId) ?? null
+    : null;
 
   return (
     <div className="min-h-screen">
@@ -396,13 +346,21 @@ export default function Leaderboard() {
           <TabsContent value="season" className="space-y-4">
             <ScrollArea className="h-[600px]">
               <div className="space-y-2">
-                {MOCK_LEADERBOARD.map((entry) => (
-                  <LeaderboardRow
-                    key={entry.userId}
-                    entry={entry}
-                    isCurrentUser={entry.userId === userRank?.userId}
-                  />
-                ))}
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-16 rounded-xl bg-secondary animate-pulse" />
+                  ))
+                ) : seasonBoard.length === 0 ? (
+                  <EmptyBoard message="No players on the board yet — earn XP to claim the top spot!" />
+                ) : (
+                  seasonBoard.map((entry) => (
+                    <LeaderboardRow
+                      key={entry.userId}
+                      entry={entry}
+                      isCurrentUser={entry.userId === currentUserId}
+                    />
+                  ))
+                )}
               </div>
             </ScrollArea>
           </TabsContent>
@@ -433,15 +391,21 @@ export default function Leaderboard() {
 
             <ScrollArea className="h-[500px]">
               <div className="space-y-2">
-                {[...MOCK_LEADERBOARD]
-                  .sort((a, b) => (b.weeklyXP || 0) - (a.weeklyXP || 0))
-                  .map((entry, idx) => (
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-16 rounded-xl bg-secondary animate-pulse" />
+                  ))
+                ) : weeklyBoard.length === 0 ? (
+                  <EmptyBoard message="Nobody has earned XP this week yet. Read, predict, and review to get on the board!" />
+                ) : (
+                  weeklyBoard.map((entry) => (
                     <LeaderboardRow
                       key={entry.userId}
-                      entry={{ ...entry, rank: idx + 1 }}
-                      isCurrentUser={entry.userId === userRank?.userId}
+                      entry={entry}
+                      isCurrentUser={entry.userId === currentUserId}
                     />
-                  ))}
+                  ))
+                )}
               </div>
             </ScrollArea>
           </TabsContent>
@@ -465,20 +429,22 @@ export default function Leaderboard() {
 
             <ScrollArea className="h-[500px]">
               <div className="space-y-2">
-                {[...MOCK_LEADERBOARD]
-                  .sort(
-                    (a, b) =>
-                      b.correctPredictions / (b.totalPredictions || 1) -
-                      a.correctPredictions / (a.totalPredictions || 1)
-                  )
-                  .map((entry, idx) => (
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-16 rounded-xl bg-secondary animate-pulse" />
+                  ))
+                ) : predictionBoard.length === 0 ? (
+                  <EmptyBoard message="No resolved predictions yet. Call some esports matches to start your accuracy record!" />
+                ) : (
+                  predictionBoard.map((entry) => (
                     <LeaderboardRow
                       key={entry.userId}
-                      entry={{ ...entry, rank: idx + 1 }}
-                      isCurrentUser={entry.userId === userRank?.userId}
+                      entry={entry}
+                      isCurrentUser={entry.userId === currentUserId}
                       showPredictionAccuracy
                     />
-                  ))}
+                  ))
+                )}
               </div>
             </ScrollArea>
           </TabsContent>

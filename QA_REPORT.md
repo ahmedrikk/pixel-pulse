@@ -56,13 +56,16 @@ The 1996 "Diablo" was #2 trending with Diablo IV's news buzz AND Diablo IV's Ste
 *Fix:* all name comparisons now use a canonical form (normalize + trailing roman→arabic numerals + alias map for gta6/cs2/etc.) and require **exact** matches; unmatched sequels get their own games-cache entry via RAWG discovery instead of feeding the base game. Review upsert now stores the real display name.
 *Deployed:* edge function v7. Stale wrong `steam_appid`s in the games table were reset so they re-resolve correctly.
 
+**F8 — Leaderboard is hardcoded mock users** ✅ FIXED (2026-07-07, second pass)
+Season / Weekly / Predictions tabs now read real data via SECURITY DEFINER RPCs (`get_season_leaderboard`, `get_weekly_leaderboard` from `xp_events`, `get_prediction_leaderboard` from `predictions`) — see migration `20260707130000_leaderboard_and_hype.sql`. Mock users removed; proper empty states + loading skeletons added. "Your Rank" card now shows the user's real position instead of hardcoded rank 42.
+
+**F9 — Hub Hype Meter is hardcoded mock** ✅ FIXED (2026-07-07, second pass)
+New `hype_votes` table (one vote per user per game, RLS: own rows only; public aggregate via `get_hype_leaderboard` RPC). `useHypeMeter` now persists votes to Supabase, search uses the real RAWG API, and vote counts / percentages / weekly trends are computed from real votes. A curated seed list of upcoming titles (GTA 6, Elder Scrolls VI, Witcher 4…) keeps the meter populated at zero votes — no fake counts anymore.
+
+**Battle Pass disabled → Coming Soon** (requested 2026-07-07, second pass)
+`/battle-pass` now renders the ComingSoon page (swords icon, "Battle Pass Coming Soon"). The `BattlePass` page component is orphaned but left in the repo for when the season system ships. Sidebar promo widget relabelled from "Live" to "Coming soon" with launch-teaser copy. This also moots F4/F5 on the public page (season.json copy fixes remain for the promo widget + future relaunch).
+
 ### Open — needs product decisions or bigger work (for Kimi)
-
-**F8 — Leaderboard is hardcoded mock users** `src/pages/Leaderboard.tsx` (lines ~40–90)
-PixelProwler / GameGladiator / NewsNinja etc. are static. Real users will never appear. Needs a real query over `profiles` ordered by `xp_season` / weekly XP, with the mock kept only as an empty-state fallback (or removed).
-
-**F9 — Hub Hype Meter is hardcoded mock** `src/hooks/useHypeMeter.ts`
-`INITIAL_MOCK_GAMES` with fake vote counts (487K) and mostly-stale release dates ("2025", "Holiday 2025"; GTA 6's was updated to Nov 2026 in this pass). Voting only mutates an in-memory array — resets on reload. Needs a `hype_votes` table (or reuse `trending_scores`) if this feature is meant to be real.
 
 **F10 — `/api/seasons/current` doesn't exist** `src/lib/api.ts`
 `getCurrentSeason()` fetches `/api/seasons/current`; the SPA rewrite returns index.html, `res.json()` throws, and the mock (`public/mock/season.json`) is silently used every time. Either build the endpoint (seasons table) or drop the fetch and import the config directly — current code fires a doomed network request + console warning on every battle-pass visit.
