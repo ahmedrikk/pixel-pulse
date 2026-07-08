@@ -1,6 +1,6 @@
 import { useParams, useLocation } from "react-router-dom";
 import { SiteLayout } from "@/components/SiteLayout";
-import { Cpu, BookOpen, Clock } from "lucide-react";
+import { Cpu, BookOpen, Clock, Swords } from "lucide-react";
 
 const PAGE_CONFIG: Record<string, { icon: React.ReactNode; title: string; description: string; color: string }> = {
   hardware: {
@@ -14,6 +14,12 @@ const PAGE_CONFIG: Record<string, { icon: React.ReactNode; title: string; descri
     title: "Guides",
     description: "Pro tips, walkthroughs, tier lists, and strategy guides for your favourite games.",
     color: "text-purple-500",
+  },
+  "battle-pass": {
+    icon: <Swords className="h-16 w-16" />,
+    title: "Battle Pass",
+    description: "Seasonal tiers, badges, titles, and real rewards for reading, predicting, and reviewing. Worth the wait.",
+    color: "text-orange-500",
   },
 };
 
