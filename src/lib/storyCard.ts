@@ -1,5 +1,5 @@
 // Generates a 9:16 "Instagram story" image for a game review (Letterboxd-style):
-// the game cover, the star rating, the review text and PixelPulse branding.
+// the game cover, the star rating, the review text and Talus branding.
 // Pure canvas — no extra deps. Falls back to a brand gradient if the cover
 // image can't be drawn (cross-origin taint).
 

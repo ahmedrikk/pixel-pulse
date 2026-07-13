@@ -103,75 +103,48 @@ export function PredictionCard({
     return (
       <Card className="overflow-hidden">
         <CardContent className="p-3">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-2">
+          {/* Header: tournament name */}
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span>{GAME_ICONS[match.gameTitle] || "🎮"}</span>
-              <span className="truncate max-w-[100px]">{match.leagueName}</span>
+              <span className="truncate max-w-[140px]">{match.leagueName}</span>
             </div>
-            {isLocked && match.status === "upcoming" && (
-              <span className="text-[10px] text-destructive flex items-center gap-0.5">
-                <Clock className="h-3 w-3" />
-                Locked
+            {match.status === "live" && (
+              <span className="flex items-center gap-1 text-[10px] font-medium text-red-500">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                </span>
+                LIVE
               </span>
             )}
           </div>
 
-          {/* Teams */}
-          <div className="space-y-1.5">
-            {/* Team A */}
-            <button
-              onClick={() => handlePredict("teamA")}
-              disabled={isLocked || isSubmitting || !!predicted}
-              className={cn(
-                "w-full flex items-center gap-2 p-2 rounded-lg text-left transition-all",
-                predicted === "teamA"
-                  ? "bg-blue-500/20 border border-blue-500"
-                  : "bg-secondary/50 hover:bg-secondary",
-                (isLocked || !!predicted) && !predicted && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <span className="text-base">{match.teamA.logo}</span>
-              <span className="flex-1 text-xs font-medium truncate">
-                {match.teamA.shortName}
+          {/* Teams + score */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base">{match.teamA.logo}</span>
+                <span className="text-xs font-medium truncate">
+                  {match.teamA.name}
+                </span>
+              </div>
+              <span className="text-sm font-bold tabular-nums">
+                {match.scoreA ?? "-"}
               </span>
-              <span className="text-[10px] text-muted-foreground">
-                {match.teamA.probability}%
-              </span>
-            </button>
+            </div>
 
-            {/* Team B */}
-            <button
-              onClick={() => handlePredict("teamB")}
-              disabled={isLocked || isSubmitting || !!predicted}
-              className={cn(
-                "w-full flex items-center gap-2 p-2 rounded-lg text-left transition-all",
-                predicted === "teamB"
-                  ? "bg-red-500/20 border border-red-500"
-                  : "bg-secondary/50 hover:bg-secondary",
-                (isLocked || !!predicted) && !predicted && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <span className="text-base">{match.teamB.logo}</span>
-              <span className="flex-1 text-xs font-medium truncate">
-                {match.teamB.shortName}
+            <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base">{match.teamB.logo}</span>
+                <span className="text-xs font-medium truncate">
+                  {match.teamB.name}
+                </span>
+              </div>
+              <span className="text-sm font-bold tabular-nums">
+                {match.scoreB ?? "-"}
               </span>
-              <span className="text-[10px] text-muted-foreground">
-                {match.teamB.probability}%
-              </span>
-            </button>
-          </div>
-
-          {/* XP Reward Info */}
-          <div className="flex items-center justify-center gap-3 mt-2 pt-2 border-t text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-0.5">
-              <TrendingUp className="h-3 w-3" />
-              20 XP to predict
-            </span>
-            <span className="flex items-center gap-0.5">
-              <CheckCircle className="h-3 w-3" />
-              65 XP if correct
-            </span>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -1,94 +1,41 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, Star, Loader2, X, Lock } from "lucide-react";
+import { Mail, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-// ─── Constants & Copy ─────────────────────────────────────────────────────────
-
-const HEADLINES: Record<string, string> = {
-  scroll: "You've read [N] articles. None of it counted.",
-  like: "Like articles, earn XP. It takes 10 seconds to join.",
-  comment: "Join 12,000 gamers already in the conversation.",
-  bookmark: "Save it for later — your reading list is one sign-up away.",
-  battlepass: "Your XP is waiting. Season 1 started without you.",
-  predict: "Predict. Win XP. Be right before anyone else.",
-  review: "Your review matters. Sign up to be heard.",
-  signup_prompt: "Your XP is waiting. Season 1 started without you.",
-  trivia_answer: "Know the answer? Sign up and turn it into XP.",
-  hub_hype: "Hype your most-wanted game. Every vote counts.",
-};
-
-const SUBHEADLINE =
-  "Join free and start earning XP for every article you read, every prediction you make, and every review you leave.";
-
-const PERKS = [
-  {
-    title: "Earn XP while you read",
-    desc: "Every article adds to your Battle Pass",
-    bg: "#EEEDFE",
-    color: "#534AB7",
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-        <path d="M7.5 1L9.2 5.5H14L10.4 8.2L11.8 13L7.5 10.5L3.2 13L4.6 8.2L1 5.5H5.8L7.5 1Z" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    title: "Your games, front and centre",
-    desc: "Feed personalised to what you actually play",
-    bg: "#E6F1FB",
-    color: "#185FA5",
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-        <rect x="2" y="5" width="11" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M4.5 5V3.5a3 3 0 016 0V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="7.5" cy="9" r="1.5" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
-    title: "Predict matches, win XP",
-    desc: "Call esports results before they happen",
-    bg: "#FAEEDA",
-    color: "#D97706",
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-        <path d="M7.5 1v3 M7.5 14v-3 M1 7.5h3 M14 7.5h-3 M3 3l2 2 M12 12l-2-2 M3 12l2-2 M12 3l-2 2" />
-      </svg>
-    ),
-  },
-  {
-    title: "Build your gamer profile",
-    desc: "Badges, reviews and season history",
-    bg: "#E1F5EE",
-    color: "#0D9488",
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M7.5 1.5L12.5 4v3.5c0 3-2.5 4.5-5 5.5C5 12 2.5 10.5 2.5 7.5V4L7.5 1.5z" />
-        <path d="M5 7l2 2 3-3" />
-      </svg>
-    ),
-  },
-];
+import { TalusLogo } from "@/components/TalusLogo";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AuthGatePopup() {
-  const { isAuthModalOpen, authModalContext, closeAuthModal, articleScrollCount } = useAuthGate();
+  const { isAuthModalOpen, closeAuthModal } = useAuthGate();
   const isMobile = useIsMobile();
+  const [mode, setMode] = useState<"main" | "email">("main");
   const [tab, setTab] = useState<"signup" | "login">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isSwitching, setIsSwitching] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const dragControls = useDragControls();
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isAuthModalOpen) {
+      setMode("main");
+      setTab("signup");
+      setEmail("");
+      setPassword("");
+      setAuthError(null);
+      setEmailSent(false);
+      setIsLoading(null);
+    }
+  }, [isAuthModalOpen]);
 
   // Close on Escape
   useEffect(() => {
@@ -100,39 +47,21 @@ export function AuthGatePopup() {
     return () => window.removeEventListener("keydown", onKey);
   }, [isAuthModalOpen, closeAuthModal]);
 
-  // Sync animation state
-  const handleTabSwitch = (newTab: "signup" | "login") => {
-    if (newTab === tab) return;
-    setIsSwitching(true);
-    setAuthError(null);
-    setEmailSent(false);
-    setTimeout(() => {
-      setTab(newTab);
-      setIsSwitching(false);
-    }, 120);
-  };
-
-  // Auth Submit Handlers
   const getRedirectUrl = () => {
-    // Return to the page the user was on (the Supabase redirect allow-list
-    // includes <origin>/**), so OAuth doesn't dump them on the homepage and
-    // any pending gated action can replay in place (F15.4).
     return window.location.origin + window.location.pathname + window.location.search;
   };
 
-  const handleOAuth = async (provider: "google") => {
+  const handleOAuth = async (provider: "google" | "facebook" | "apple") => {
     setIsLoading(provider);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: {
-          redirectTo: getRedirectUrl(),
-        },
+        options: { redirectTo: getRedirectUrl() },
       });
       if (error) {
-        toast.error(`Failed to connect with Google`);
+        toast.error(`Failed to connect with ${provider}`);
       }
-    } catch (e) {
+    } catch {
       toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(null);
@@ -160,7 +89,6 @@ export function AuthGatePopup() {
         });
         if (error) throw error;
         if (data.session) {
-          // Auto-confirmed (email confirmation disabled in Supabase)
           closeAuthModal("signup_success");
           window.location.reload();
         } else {
@@ -170,7 +98,6 @@ export function AuthGatePopup() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         closeAuthModal("login_success");
-        // Hard reload so Navbar + all consumers re-read auth state from session
         window.location.reload();
       }
     } catch (e: any) {
@@ -179,20 +106,6 @@ export function AuthGatePopup() {
       setIsLoading(null);
     }
   };
-
-  // Dynamic Headline parsing
-  const rawHeadline = HEADLINES[authModalContext || "signup_prompt"] || HEADLINES.signup_prompt;
-  let renderHeadline = <span className="text-white">{rawHeadline}</span>;
-  
-  if (authModalContext === "scroll") {
-    const count = Math.min(Math.max(articleScrollCount, 3), 99);
-    renderHeadline = (
-      <>
-        <span className="text-white">You've read {count} articles. </span>
-        <span className="text-amber-200">None of it counted.</span>
-      </>
-    );
-  }
 
   // Framer motion variants
   const overlayVariants = {
@@ -223,14 +136,14 @@ export function AuthGatePopup() {
             animate="visible"
             exit="hidden"
             onClick={() => closeAuthModal("overlay")}
-            className="fixed inset-0 z-[9998] bg-black/60"
-            style={{ backdropFilter: "none" }} // No blur as requested
+            className="fixed inset-0 z-[9998] bg-black/50"
           />
 
           {/* Modal Container */}
           <motion.div
             ref={sheetRef}
             drag={isMobile ? "y" : false}
+            dragControls={dragControls}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={0.2}
             onDragEnd={(e, info) => {
@@ -240,204 +153,211 @@ export function AuthGatePopup() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="
-              fixed z-[9999] overflow-hidden bg-card
-              md:top-1/2 md:left-1/2 md:w-full md:max-w-[440px] md:rounded-[20px] md:shadow-2xl md:border md:border-border
-              max-md:bottom-0 max-md:left-0 max-md:w-full max-md:rounded-t-[20px] max-md:rounded-b-none
-            "
+            className={`
+              fixed z-[9999] overflow-hidden
+              md:top-1/2 md:left-1/2 md:w-full md:max-w-[420px] md:rounded-[24px] md:shadow-2xl
+              max-md:bottom-0 max-md:left-0 max-md:w-full max-md:rounded-t-[24px] max-md:rounded-b-none
+            `}
           >
-            {/* ── Dark Header Panel ── */}
-            <div className="bg-brand-gradient pt-[26px] max-md:pt-5 pb-[22px] px-[26px] relative rounded-t-[20px]">
+            {/* Pastel pixelated gradient background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200 dark:from-pink-900/40 dark:via-purple-900/40 dark:to-blue-900/40" />
+            <div
+              className="absolute inset-0 opacity-30 dark:opacity-20"
+              style={{
+                backgroundImage: `
+                  repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(255,255,255,0.4) 20px),
+                  repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(255,255,255,0.4) 20px)
+                `,
+                backgroundSize: "20px 20px",
+              }}
+            />
+
+            {/* Content */}
+            <div className="relative bg-card/80 backdrop-blur-xl border border-white/40 dark:border-white/10 p-6 md:p-8">
               {/* Mobile Drag Handle */}
               {isMobile && (
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-9 h-1 rounded-full bg-white/20" />
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-9 h-1 rounded-full bg-foreground/20" />
               )}
-              
+
               {/* Close Button */}
               <button
                 onClick={() => closeAuthModal("x_button")}
-                className="absolute top-[26px] right-[26px] flex items-center justify-center w-[26px] h-[26px] rounded-full bg-white/10 text-white/70 hover:bg-white/20 transition-colors"
+                className="absolute top-4 right-4 flex items-center justify-center w-8 h-8 rounded-full bg-foreground/5 text-muted-foreground hover:bg-foreground/10 transition-colors"
                 aria-label="Close"
               >
-                <X size={14} strokeWidth={2.5} />
+                <X size={16} strokeWidth={2.5} />
               </button>
 
-              {/* Badge Row */}
-              <div className="flex items-center gap-[7px] mb-3">
-                <span className="flex items-center gap-1.5 px-[8px] py-[3px] bg-emerald-500/12 border border-emerald-500/30 rounded-full text-[#6EE7B7] text-[10px] font-medium tracking-wide">
-                  <div className="w-[5px] h-[5px] rounded-full bg-emerald-400" />
-                  Season 1 live
-                </span>
-                
-                {authModalContext === "scroll" && (
-                  <span className="flex items-center gap-1 px-[8px] py-[3px] bg-amber-500/12 border border-amber-500/30 rounded-full text-[#FCD34D] text-[10px] font-medium tracking-wide">
-                    <Star size={10} className="fill-[#FCD34D]" />
-                    {Math.min(articleScrollCount, 99)} articles untracked
-                  </span>
-                )}
-              </div>
+              {mode === "main" ? (
+                <div className="flex flex-col items-center text-center pt-4">
+                  {/* Logo */}
+                  <TalusLogo size={52} />
 
-              {/* Headline */}
-              <h2 className="text-[21px] font-medium leading-[1.25] mb-2 pr-6">
-                {renderHeadline}
-              </h2>
+                  {/* Tagline */}
+                  <h2 className="mt-4 text-2xl font-bold text-foreground">
+                    The home for people who live games.
+                  </h2>
 
-              {/* Subheadline */}
-              <p className="text-[12px] text-white/50 leading-[1.5] m-0">
-                {SUBHEADLINE}
-              </p>
-            </div>
+                  {/* Consent text */}
+                  <p className="mt-3 text-xs text-muted-foreground leading-relaxed max-w-[320px]">
+                    By continuing, you agree to our{" "}
+                    <a href="/terms" className="underline hover:text-foreground">Terms of Service</a>{" "}
+                    and acknowledge that you have read our{" "}
+                    <a href="/privacy" className="underline hover:text-foreground">Privacy Policy</a>.
+                  </p>
 
-            {/* ── White Body Panel ── */}
-            <div
-              className={`px-6 pt-5 pb-[22px] bg-card text-foreground transition-all duration-150 ${
-                isSwitching ? "opacity-0 translate-y-1" : "opacity-100 translate-y-0"
-              }`}
-            >
-              {emailSent ? (
-                <div className="text-center py-8">
-                  <Mail className="w-12 h-12 text-primary mx-auto mb-4" />
-                  <h3 className="text-[16px] font-medium text-foreground mb-2">Check your inbox</h3>
-                  <p className="text-muted-foreground text-[13px]">We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then log in.</p>
+                  {/* Auth buttons */}
+                  <div className="w-full flex flex-col gap-3 mt-6">
+                    {/* Facebook */}
+                    <button
+                      onClick={() => handleOAuth("facebook")}
+                      disabled={isLoading !== null}
+                      className="w-full flex items-center justify-center h-11 rounded-xl bg-[#1877F2] text-white hover:bg-[#166fe5] transition-colors disabled:opacity-60"
+                    >
+                      {isLoading === "facebook" ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                          </svg>
+                          <span className="text-sm font-medium">Continue with Facebook</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Google */}
+                    <button
+                      onClick={() => handleOAuth("google")}
+                      disabled={isLoading !== null}
+                      className="w-full flex items-center justify-center h-11 rounded-xl bg-card border border-border hover:bg-secondary transition-colors disabled:opacity-60"
+                    >
+                      {isLoading === "google" ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-foreground" />
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                          </svg>
+                          <span className="text-sm font-medium text-foreground">Continue with Google</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Apple */}
+                    <button
+                      onClick={() => handleOAuth("apple")}
+                      disabled={isLoading !== null}
+                      className="w-full flex items-center justify-center h-11 rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-colors disabled:opacity-60"
+                    >
+                      {isLoading === "apple" ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+                          </svg>
+                          <span className="text-sm font-medium">Continue with Apple</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Email */}
+                    <button
+                      onClick={() => setMode("email")}
+                      disabled={isLoading !== null}
+                      className="w-full flex items-center justify-center h-11 rounded-xl bg-card border border-border hover:bg-secondary transition-colors disabled:opacity-60"
+                    >
+                      <Mail className="w-5 h-5 mr-3 text-foreground" />
+                      <span className="text-sm font-medium text-foreground">Use email</span>
+                    </button>
+                  </div>
+
+                  {/* Toggle Link */}
+                  <div className="mt-6 text-center">
+                    <span className="text-sm text-muted-foreground">
+                      Already a member?{" "}
+                      <button
+                        onClick={() => { setTab("login"); setMode("email"); }}
+                        className="text-primary font-medium hover:underline"
+                      >
+                        Log in
+                      </button>
+                    </span>
+                  </div>
                 </div>
               ) : (
-                <>
-                  {/* Perks Grid or Welcome Back */}
-                  {tab === "signup" ? (
-                    <div className="grid grid-cols-2 gap-2 mb-[18px]">
-                      {PERKS.map((perk, i) => (
-                        <div key={i} className="flex items-start gap-[9px] p-[10px] pb-[11px] rounded-[10px] border border-border bg-secondary">
-                          <div
-                            className="w-[30px] h-[30px] rounded-lg shrink-0 flex items-center justify-center"
-                            style={{ backgroundColor: `${perk.color}22`, color: perk.color }}
-                          >
-                            {perk.icon}
-                          </div>
-                          <div>
-                            <h4 className="text-[11px] font-medium text-foreground mb-[2px] leading-[1.2]">{perk.title}</h4>
-                            <p className="text-[10px] text-muted-foreground leading-[1.3] m-0">{perk.desc}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <h3 className="text-[14px] font-medium text-foreground mb-4 text-center">
-                      Welcome back. Your XP is waiting.
-                    </h3>
-                  )}
+                <div className="pt-4">
+                  {/* Back to main */}
+                  <button
+                    onClick={() => setMode("main")}
+                    className="text-sm text-muted-foreground hover:text-foreground mb-4"
+                  >
+                    ← Back
+                  </button>
 
                   {/* Tabs */}
-                  <div className="flex h-[34px] rounded-lg border border-border overflow-hidden mb-4 p-0.5 bg-secondary">
+                  <div className="flex h-10 rounded-xl border border-border overflow-hidden mb-5 p-0.5 bg-secondary">
                     <button
-                      onClick={() => handleTabSwitch("signup")}
-                      className={`flex-1 rounded-md text-[13px] transition-all duration-150 ${
-                        tab === "signup" ? "bg-primary text-white font-medium shadow-sm" : "text-muted-foreground font-normal hover:bg-black/5"
+                      onClick={() => setTab("signup")}
+                      className={`flex-1 rounded-lg text-sm transition-all duration-150 ${
+                        tab === "signup" ? "bg-primary text-primary-foreground font-medium shadow-sm" : "text-muted-foreground hover:bg-foreground/5"
                       }`}
                     >
-                      Sign up free
+                      Sign up
                     </button>
                     <button
-                      onClick={() => handleTabSwitch("login")}
-                      className={`flex-1 rounded-md text-[13px] transition-all duration-150 ${
-                        tab === "login" ? "bg-primary text-white font-medium shadow-sm" : "text-muted-foreground font-normal hover:bg-black/5"
+                      onClick={() => setTab("login")}
+                      className={`flex-1 rounded-lg text-sm transition-all duration-150 ${
+                        tab === "login" ? "bg-primary text-primary-foreground font-medium shadow-sm" : "text-muted-foreground hover:bg-foreground/5"
                       }`}
                     >
                       Log in
                     </button>
                   </div>
 
-                  {/* Auth Buttons */}
-                  <div className="flex flex-col gap-[9px] mb-3">
-                    {/* Google */}
-                    <button
-                      onClick={() => handleOAuth("google")}
-                      disabled={isLoading !== null}
-                      className="w-full flex items-center justify-center h-[42px] max-md:h-[48px] rounded-[9px] border border-border bg-card hover:bg-secondary transition-colors"
-                    >
-                      {isLoading === "google" ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-foreground" />
-                      ) : (
-                        <>
-                          <svg className="w-[18px] h-[18px] mr-[10px]" viewBox="0 0 24 24">
-                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                          </svg>
-                          <span className="text-[13px] font-medium text-foreground">Continue with Google</span>
-                        </>
-                      )}
-                    </button>
-
-                  </div>
-
-                  {/* Divider Row */}
-                  <div className="flex items-center gap-[10px] mb-[14px]">
-                    <div className="flex-1 h-[0.5px] bg-[#E2E8F0]" />
-                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">or continue with email</span>
-                    <div className="flex-1 h-[0.5px] bg-[#E2E8F0]" />
-                  </div>
-
-                  {/* Email Form */}
-                  <form onSubmit={handleEmail} className="flex flex-col gap-[8px] mb-4">
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); setAuthError(null); }}
-                      placeholder="you@example.com"
-                      disabled={isLoading !== null}
-                      className="h-[38px] rounded-lg border-input px-3 text-[12px] shadow-sm bg-background text-foreground placeholder:text-muted-foreground"
-                    />
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                  {emailSent ? (
+                    <div className="text-center py-6">
+                      <Mail className="w-10 h-10 text-primary mx-auto mb-3" />
+                      <h3 className="text-base font-medium text-foreground mb-1">Check your inbox</h3>
+                      <p className="text-muted-foreground text-sm">We sent a confirmation link to <strong>{email}</strong>.</p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleEmail} className="flex flex-col gap-3">
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(e) => { setEmail(e.target.value); setAuthError(null); }}
+                        placeholder="you@example.com"
+                        disabled={isLoading !== null}
+                        className="h-11 rounded-xl"
+                      />
                       <Input
                         type="password"
                         value={password}
                         onChange={(e) => { setPassword(e.target.value); setAuthError(null); }}
                         placeholder="Password (min 6 chars)"
                         disabled={isLoading !== null}
-                        className="h-[38px] rounded-lg border-input pl-9 pr-3 text-[12px] shadow-sm bg-background text-foreground placeholder:text-muted-foreground"
+                        className="h-11 rounded-xl"
                       />
-                    </div>
-                    {authError && (
-                      <p className="text-[11px] text-red-500 leading-tight">{authError}</p>
-                    )}
-                    <Button
-                      type="submit"
-                      disabled={isLoading !== null || !email || !password}
-                      className="h-[38px] rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] font-medium"
-                    >
-                      {isLoading === "email" ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : null}
-                      {tab === "signup" ? "Join free →" : "Log in →"}
-                    </Button>
-                  </form>
-
-                  {/* Toggle Link */}
-                  <div className="text-center mb-5">
-                    {tab === "signup" ? (
-                      <span className="text-[12px] text-foreground">
-                        Already have an account?{" "}
-                        <button onClick={() => handleTabSwitch("login")} className="text-primary font-medium hover:underline">
-                          Log in
-                        </button>
-                      </span>
-                    ) : (
-                      <span className="text-[12px] text-foreground">
-                        New here?{" "}
-                        <button onClick={() => handleTabSwitch("signup")} className="text-primary font-medium hover:underline">
-                          Create a free account
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                </>
+                      {authError && (
+                        <p className="text-xs text-red-500 leading-tight">{authError}</p>
+                      )}
+                      <Button
+                        type="submit"
+                        disabled={isLoading !== null || !email || !password}
+                        className="h-11 rounded-xl"
+                      >
+                        {isLoading === "email" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                        {tab === "signup" ? "Create account" : "Log in"}
+                      </Button>
+                    </form>
+                  )}
+                </div>
               )}
-
-              {/* Legal Line */}
-              <p className="text-center text-[10px] text-muted-foreground leading-[1.4] m-0 pb-1">
-                By joining you agree to our <a href="#" className="underline hover:text-foreground">Terms of Service</a> and <a href="#" className="underline hover:text-foreground">Privacy Policy</a>.<br/>
-                <span className="font-medium">Free forever — no credit card required.</span>
-              </p>
             </div>
           </motion.div>
         </>

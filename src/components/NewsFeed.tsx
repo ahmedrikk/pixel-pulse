@@ -4,12 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { useSmartFeedReal } from "@/hooks/useSmartFeedReal";
 import { EnhancedNewsCard } from "./EnhancedNewsCard";
 import { NewsCardSkeleton } from "./NewsCardSkeleton";
+import { InFeedSignupPrompt } from "./InFeedSignupPrompt";
 import { Button } from "@/components/ui/button";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { MobileCategoryScroll } from "@/components/sidebar/CategoryPillsWidget";
-import { BattlePassPromoWidget } from "@/components/sidebar/BattlePassPromoWidget";
 
 interface NewsFeedProps {
   onCardView?: (cardId: string) => void;
@@ -113,13 +113,6 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
 
   return (
     <main className="flex-1 space-y-4">
-      {/* ── Mobile: Guest Battle Pass strip (hidden on lg+) ── */}
-      {!isAuthenticated && (
-        <div className="block lg:hidden">
-          <BattlePassPromoWidget />
-        </div>
-      )}
-
       {/* ── Mobile: Category pill horizontal scroll (hidden on lg+) ── */}
       <div className="block lg:hidden">
         <MobileCategoryScroll />
@@ -242,36 +235,46 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
               <NewsCardSkeleton key={`skeleton-${i}`} />
             ))
           ) : displayedNews.length > 0 ? (
-            displayedNews.map((item, index) => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="relative"
-              >
-                {/* New badge */}
-                {item.isNew && (
-                  <div className="absolute -top-2 -right-2 z-10">
-                    <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse">
-                      NEW
-                    </span>
+            displayedNews.map((item, index) => {
+              const showSignupPrompt = !isAuthenticated && index > 0 && index % 3 === 0;
+              return (
+                <motion.div
+                  key={item.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  className="relative"
+                >
+                  {/* In-feed signup prompt before every 3rd article (for guests) */}
+                  {showSignupPrompt && (
+                    <div className="mb-4">
+                      <InFeedSignupPrompt />
+                    </div>
+                  )}
+
+                  {/* New badge */}
+                  {item.isNew && (
+                    <div className="absolute -top-2 -right-2 z-10">
+                      <span className="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full animate-pulse">
+                        NEW
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Priority badge */}
+                  <div className="absolute top-3 right-3 z-10">
+                    {getPriorityBadge(item.priority)}
                   </div>
-                )}
-                
-                {/* Priority badge */}
-                <div className="absolute top-3 right-3 z-10">
-                  {getPriorityBadge(item.priority)}
-                </div>
-                
-                <EnhancedNewsCard 
-                  article={item} 
-                  onCardView={onCardView}
-                />
-              </motion.div>
-            ))
+                  
+                  <EnhancedNewsCard 
+                    article={item} 
+                    onCardView={onCardView}
+                  />
+                </motion.div>
+              );
+            })
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <p>{activeTag ? `No articles found matching #${activeTag}` : "No articles available yet."}</p>

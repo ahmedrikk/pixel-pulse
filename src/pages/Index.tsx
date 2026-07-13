@@ -48,20 +48,20 @@ function IndexContent() {
     <div className="min-h-screen pb-16 md:pb-0">
       <Navbar />
 
-      <div className="container py-6">
-        <div className="flex gap-6">
+      <div className="container px-4 md:px-8 lg:px-12 py-8 md:py-10">
+        <div className="flex gap-6 md:gap-8 lg:gap-10 justify-center">
           <div className="hidden lg:block flex-shrink-0">
-            <div className="sticky top-20 w-64 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <div className="sticky top-24 w-64 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
               <LeftSidebar />
             </div>
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div className="w-full max-w-2xl min-w-0">
             <NewsFeed onCardView={trackCardView} />
           </div>
 
           <div className="hidden xl:block flex-shrink-0">
-            <div className="sticky top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <div className="sticky top-24 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
               <RightSidebar />
             </div>
           </div>

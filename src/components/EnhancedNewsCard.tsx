@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ExternalLink,
   Share2,
-  Bookmark,
   MessageCircle,
-  Heart,
+  ArrowBigUp,
+  ArrowBigDown,
   Link2,
   Twitter,
   MessageSquare
@@ -15,7 +15,6 @@ import { useTagFilter } from "@/contexts/TagFilterContext";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useXP } from "@/contexts/XPContext";
 import { awardXP } from "@/lib/xp";
-import { useBookmarks } from "@/hooks/useBookmarks";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EnhancedCommentSection } from "./EnhancedCommentSection";
@@ -72,10 +71,10 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const { setActiveTag } = useTagFilter();
   const { isAuthenticated, openAuthModal, user } = useAuthGate();
   const { addXP, refreshFromServer } = useXP();
-  const { isBookmarked, toggleBookmark } = useBookmarks();
+  // useBookmarks removed for Talus redesign
 
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(article.likes || 0);
+  const [vote, setVote] = useState<"up" | "down" | null>(null);
+  const [voteScore, setVoteScore] = useState(article.likes || 0);
   const [showComments, setShowComments] = useState(false);
   const [userReactions, setUserReactions] = useState<Record<string, number>>(article.reactions || {});
   const [myReactions, setMyReactions] = useState<Set<string>>(new Set());
@@ -90,7 +89,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const hasTriggeredViewRef = useRef(false);
   const hasCheckedGameRef = useRef(false);
 
-  const isCurrentlyBookmarked = isBookmarked(article.id);
+  // Bookmarks removed for Talus redesign
   const primaryTag = article.topicTags.find(isSpecificTag) ?? null;
 
   const handleTagClick = (tag: string) => setActiveTag(tag);
@@ -177,21 +176,24 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     }
   }, [isAuthenticated, reviewGame, article.gameTags, article.title]);
 
-  const handleLike = useCallback(async () => {
+  const handleUpvote = useCallback(async () => {
     if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
-    setLiked(!liked);
-    setLikeCount(liked ? likeCount - 1 : likeCount + 1);
-    if (!liked) {
-      const result = await awardXP("react", article.sourceUrl);
-      if (result && result.awarded > 0) {
-        toast.success(`+${result.awarded} XP! Tier ${result.tier}`, { duration: 1500 });
-        await refreshFromServer();
-      } else if (result?.capped) {
-        toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
-      }
-      checkGameAndShowReview();
+    if (vote === "up") {
+      setVote(null);
+      setVoteScore((s) => s - 1);
+    } else {
+      setVote("up");
+      setVoteScore((s) => s + 1 + (vote === "down" ? 1 : 0));
     }
-  }, [isAuthenticated, liked, likeCount, article.id, article.sourceUrl, openAuthModal, addXP, refreshFromServer, checkGameAndShowReview]);
+    const result = await awardXP("react", article.sourceUrl);
+    if (result && result.awarded > 0) {
+      toast.success(`+${result.awarded} XP! Tier ${result.tier}`, { duration: 1500 });
+      await refreshFromServer();
+    } else if (result?.capped) {
+      toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
+    }
+    checkGameAndShowReview();
+  }, [isAuthenticated, vote, article.id, article.sourceUrl, openAuthModal, refreshFromServer, checkGameAndShowReview]);
 
   const handleReaction = useCallback(async (emoji: string) => {
     if (!isAuthenticated) { openAuthModal("react", { articleId: article.id }); return; }
@@ -215,12 +217,16 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     checkGameAndShowReview();
   }, [isAuthenticated, myReactions, article.id, article.sourceUrl, openAuthModal, refreshFromServer, checkGameAndShowReview]);
 
-  const handleBookmark = useCallback(() => {
-    if (!isAuthenticated) { openAuthModal("bookmark", { articleId: article.id }); return; }
-    const newState = toggleBookmark(article);
-    toast.success(newState ? "Saved to bookmarks" : "Removed from bookmarks");
-    if (newState) checkGameAndShowReview();
-  }, [isAuthenticated, article, openAuthModal, toggleBookmark, checkGameAndShowReview]);
+  const handleDownvote = useCallback(async () => {
+    if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
+    if (vote === "down") {
+      setVote(null);
+      setVoteScore((s) => s + 1);
+    } else {
+      setVote("down");
+      setVoteScore((s) => s - 1 - (vote === "up" ? 1 : 0));
+    }
+  }, [isAuthenticated, vote, article.id, openAuthModal]);
 
   const handleReviewSubmit = useCallback(async (review: Omit<GameReview, "id" | "userId" | "createdAt">) => {
     if (!reviewGame || !user) return;
@@ -369,7 +375,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       )}
 
       {/* Content */}
-      <div className="p-5">
+      <div className="p-6">
         {/* Tag pill when no image */}
         {!showImage && primaryTag && (
           <div className="mb-2">
@@ -380,7 +386,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         )}
 
         {/* Source Bar */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
           <span className="font-medium text-foreground">{article.sourceName}</span>
           <span>•</span>
           <span>{formatDate(article.publishedAt)}</span>
@@ -389,7 +395,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         </div>
 
         {/* Headline — clickable, opens the full article */}
-        <h2 className="text-xl font-bold mb-3 leading-tight line-clamp-3">
+        <h2 className="text-[22px] font-bold mb-4 leading-tight line-clamp-3">
           <a
             href={article.sourceUrl}
             target="_blank"
@@ -402,14 +408,14 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         </h2>
 
         {/* Summary */}
-        <div className="mb-4">
-          <p className="text-muted-foreground leading-relaxed">
+        <div className="mb-5">
+          <p className="text-muted-foreground leading-relaxed text-[15px]">
             {summaryText}
           </p>
         </div>
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-5">
           {displayTags.map((tag) => (
             <button
               key={tag}
@@ -423,40 +429,57 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
 
         {/* Action Bar */}
-        <div className="flex items-center justify-between pt-3 border-t">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex items-center gap-0.5">
+            {/* Upvote */}
             <Button
               variant="ghost"
               size="sm"
-              className={cn("gap-1", liked ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-500")}
-              onClick={handleLike}
+              className={cn(
+                "h-8 px-1.5",
+                vote === "up" ? "text-primary" : "text-muted-foreground hover:text-primary"
+              )}
+              onClick={handleUpvote}
             >
-              <Heart className={cn("h-4 w-4", liked && "fill-current")} />
-              <span className="text-xs">{likeCount}</span>
+              <ArrowBigUp className={cn("h-5 w-5", vote === "up" && "fill-current")} />
             </Button>
 
+            {/* Score */}
+            <span className={cn(
+              "text-xs font-semibold min-w-[1.5ch] text-center",
+              vote === "up" ? "text-primary" : vote === "down" ? "text-destructive" : "text-muted-foreground"
+            )}>
+              {voteScore}
+            </span>
+
+            {/* Downvote */}
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1 text-muted-foreground hover:text-primary"
+              className={cn(
+                "h-8 px-1.5",
+                vote === "down" ? "text-destructive" : "text-muted-foreground hover:text-destructive"
+              )}
+              onClick={handleDownvote}
+            >
+              <ArrowBigDown className={cn("h-5 w-5", vote === "down" && "fill-current")} />
+            </Button>
+
+            {/* Comment */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1 text-muted-foreground hover:text-primary h-8 px-2"
               onClick={() => setShowComments(!showComments)}
             >
               <MessageCircle className="h-4 w-4" />
               <span className="text-xs">{article.comments}</span>
             </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn("text-muted-foreground hover:text-primary", isCurrentlyBookmarked && "text-primary")}
-              onClick={handleBookmark}
-            >
-              <Bookmark className={cn("h-4 w-4", isCurrentlyBookmarked && "fill-current")} />
-            </Button>
-
+            {/* Share */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary h-8 px-2">
                   <Share2 className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
