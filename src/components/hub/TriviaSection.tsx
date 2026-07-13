@@ -151,7 +151,7 @@ function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void
           paddingTop: 9, borderTop: "0.5px solid hsl(var(--border))", marginTop: 10,
         }}>
           <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))" }}>
-            AI-generated · 24h rotation
+            Refreshes every 24 hours
           </span>
           <button style={{ fontSize: 9, color: "#534AB7", background: "#EEEDFE", border: "none", padding: "3px 7px", borderRadius: 5, cursor: "pointer" }}>
             Share
@@ -192,7 +192,7 @@ export function TriviaSection() {
         </div>
       ) : error || triviaItems.length === 0 ? (
         <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-          Today's AI trivia is being prepared. Check back shortly.
+          Today&apos;s trivia has not been generated yet. Check back shortly.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">

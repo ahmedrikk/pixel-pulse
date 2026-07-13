@@ -37,7 +37,7 @@ export function TriviaWidget() {
       <Card className="border-border/40">
         <CardContent className="flex min-h-36 flex-col items-center justify-center gap-2 p-4 text-center">
           <HelpCircle className="h-5 w-5 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground">Today’s AI trivia is being prepared.</p>
+          <p className="text-xs text-muted-foreground">Today’s trivia has not been generated yet.</p>
         </CardContent>
       </Card>
     );
