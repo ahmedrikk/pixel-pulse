@@ -18,6 +18,8 @@ export interface TriviaQuestion {
   question: string;
   options: string[];
   topic: string;
+  difficulty?: "Easy" | "Medium" | "Hard" | "Expert";
+  expires_at: string;
 }
 
 // Demo mode XP tracking (stored in localStorage)
@@ -180,35 +182,10 @@ export async function submitPrediction(matchId: number, team: string): Promise<X
   return awardXp("predict_submit", String(matchId), "Prediction Made");
 }
 
-// Demo trivia questions
-const DEMO_TRIVIA: TriviaQuestion[] = [
-  {
-    id: "demo-1",
-    question: "Which game is known for the phrase 'The cake is a lie'?",
-    options: ["Half-Life 2", "Portal", "Team Fortress 2", "Left 4 Dead"],
-    topic: "gaming_history",
-  },
-  {
-    id: "demo-2",
-    question: "What year was the original PlayStation released in North America?",
-    options: ["1993", "1994", "1995", "1996"],
-    topic: "gaming_history",
-  },
-  {
-    id: "demo-3",
-    question: "Which company developed the game 'Elden Ring'?",
-    options: ["Capcom", "FromSoftware", "Naughty Dog", "CD Projekt Red"],
-    topic: "developers",
-  },
-];
-
 export async function getTodayTrivia(): Promise<{ questions: TriviaQuestion[]; already_completed: boolean } | null> {
   if (isDemoMode()) {
-    const completed = localStorage.getItem('demo_trivia_completed') === new Date().toDateString();
-    return {
-      questions: DEMO_TRIVIA,
-      already_completed: completed,
-    };
+    // Do not substitute hard-coded questions for the production AI feed.
+    return null;
   }
   
   const { data, error } = await supabase.functions.invoke("generate-trivia", { body: {} });

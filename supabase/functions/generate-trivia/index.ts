@@ -18,6 +18,9 @@ interface TriviaQuestion {
   options: string[];
   correct_index: number;
   topic: string;
+  difficulty: "Easy" | "Medium" | "Hard" | "Expert";
+  explanation: string;
+  expires_at?: string;
   generated_at?: string;
 }
 
@@ -26,6 +29,8 @@ interface ClientQuestion {
   question: string;
   options: string[];
   topic: string;
+  difficulty: string;
+  expires_at: string;
 }
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -52,9 +57,11 @@ Each element must have exactly these fields:
 - "options": an array of exactly 4 string answer choices
 - "correct_answer": string (must be exactly one of the option strings)
 - "topic": a short topic label (e.g. "FPS Games", "Esports History", "RPG", "Strategy Games")
+- "difficulty": exactly one of "Easy", "Medium", "Hard", or "Expert"
+- "explanation": a concise one-sentence explanation of the correct answer
 
 Example format:
-[{"question":"...","options":["a","b","c","d"],"correct_answer":"b","topic":"FPS Games"}]`;
+[{"question":"...","options":["a","b","c","d"],"correct_answer":"b","topic":"FPS Games","difficulty":"Medium","explanation":"..."}]`;
 
   const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -80,7 +87,7 @@ Example format:
   // Strip any accidental markdown code fences
   const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 
-  let rawQuestions: Array<{ question: string; options: string[]; correct_answer: string; topic: string }>;
+  let rawQuestions: Array<{ question: string; options: string[]; correct_answer: string; topic: string; difficulty: string; explanation: string }>;
   try {
     rawQuestions = JSON.parse(cleaned);
   } catch {
@@ -97,7 +104,9 @@ Example format:
       !Array.isArray(q.options) ||
       q.options.length !== 4 ||
       typeof q.correct_answer !== "string" ||
-      typeof q.topic !== "string"
+      typeof q.topic !== "string" ||
+      !["Easy", "Medium", "Hard", "Expert"].includes(q.difficulty) ||
+      typeof q.explanation !== "string"
     ) {
       throw new Error(`OpenRouter returned a malformed question: ${JSON.stringify(q)}`);
     }
@@ -126,38 +135,36 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: JSON_HEADERS,
-      });
-    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Validate user JWT via anon client (server-side signature verification)
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authError } = await userClient.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: JSON_HEADERS,
+    // Authentication is optional for reading today's question preview. A valid
+    // user receives a persisted daily attempt; guests receive the same active
+    // questions without answers or server-side attempt state.
+    let userId: string | null = null;
+    if (authHeader) {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
       });
+      const { data: { user } } = await userClient.auth.getUser();
+      userId = user?.id ?? null;
     }
 
-    const userId = user.id;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const todayUtc = new Date().toISOString().slice(0, 10);
+    const nowIso = new Date().toISOString();
 
     // Step 1: Return existing attempt for today if present (questions stripped of correct_index)
-    const { data: existingAttempt, error: attemptCheckError } = await supabase
-      .from("trivia_attempts")
-      .select("id, questions_json, completed_at")
-      .eq("user_id", userId)
-      .eq("quiz_date", todayUtc)
-      .maybeSingle();
+    const { data: existingAttempt, error: attemptCheckError } = userId
+      ? await supabase
+          .from("trivia_attempts")
+          .select("id, questions_json, completed_at")
+          .eq("user_id", userId)
+          .eq("quiz_date", todayUtc)
+          .maybeSingle()
+      : { data: null, error: null };
 
     if (attemptCheckError) throw attemptCheckError;
 
@@ -168,6 +175,8 @@ serve(async (req) => {
           question: q.question,
           options: q.options,
           topic: q.topic,
+          difficulty: q.difficulty ?? "Medium",
+          expires_at: q.expires_at ?? nowIso,
         })
       );
       return new Response(
@@ -178,11 +187,13 @@ serve(async (req) => {
 
     // Step 2: Find questions not seen by user in last 14 days
     const fourteenDaysAgo = new Date(Date.now() - 14 * 86_400_000).toISOString();
-    const { data: seenRows, error: seenError } = await supabase
-      .from("trivia_user_seen")
-      .select("question_id")
-      .eq("user_id", userId)
-      .gte("seen_at", fourteenDaysAgo);
+    const { data: seenRows, error: seenError } = userId
+      ? await supabase
+          .from("trivia_user_seen")
+          .select("question_id")
+          .eq("user_id", userId)
+          .gte("seen_at", fourteenDaysAgo)
+      : { data: [], error: null };
 
     if (seenError) throw seenError;
 
@@ -192,7 +203,9 @@ serve(async (req) => {
     // seenIds come from a prior DB query so string interpolation into NOT IN is safe here.
     const baseQuery = supabase
       .from("trivia_questions")
-      .select("id, question, options, correct_index, topic");
+      .select("id, question, options, correct_index, topic, difficulty, explanation, expires_at")
+      .gt("expires_at", nowIso)
+      .order("generated_at", { ascending: false });
     const poolQuery = seenIds.length > 0
       ? baseQuery.not("id", "in", `(${seenIds.join(",")})`)
       : baseQuery;
@@ -222,12 +235,15 @@ serve(async (req) => {
         options: q.options,
         correct_index: q.correct_index,
         topic: q.topic,
-        generated_at: new Date().toISOString(),
+        difficulty: q.difficulty,
+        explanation: q.explanation,
+        generated_at: nowIso,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       }));
       const { data: insertedQuestions, error: insertError } = await supabase
         .from("trivia_questions")
         .insert(toInsert)
-        .select("id, question, options, correct_index, topic");
+        .select("id, question, options, correct_index, topic, difficulty, explanation, expires_at");
 
       if (insertError) throw insertError;
 
@@ -243,7 +259,27 @@ serve(async (req) => {
       options: q.options,
       correct_index: q.correct_index,
       topic: q.topic,
+      difficulty: q.difficulty ?? "Medium",
+      explanation: q.explanation ?? "",
+      expires_at: q.expires_at!,
     }));
+
+    // Public Hub/sidebar preview. Correct indexes stay server-side and no
+    // attempt is created until the visitor signs in.
+    if (!userId) {
+      const questions: ClientQuestion[] = questionsJson.map((q) => ({
+        id: q.id,
+        question: q.question,
+        options: q.options,
+        topic: q.topic,
+        difficulty: q.difficulty,
+        expires_at: q.expires_at,
+      }));
+      return new Response(
+        JSON.stringify({ questions, already_completed: false }),
+        { headers: JSON_HEADERS }
+      );
+    }
 
     const { error: createAttemptError } = await supabase
       .from("trivia_attempts")
@@ -253,7 +289,7 @@ serve(async (req) => {
         questions_json: questionsJson,
         answers_json: null,
         score: null,
-        xp_awarded: null,
+        xp_awarded: 0,
         completed_at: null,
       });
 
@@ -273,6 +309,8 @@ serve(async (req) => {
             question: q.question,
             options: q.options,
             topic: q.topic,
+            difficulty: q.difficulty ?? "Medium",
+            expires_at: q.expires_at ?? nowIso,
           })
         );
         return new Response(
@@ -301,6 +339,8 @@ serve(async (req) => {
         question: q.question,
         options: q.options,
         topic: q.topic,
+        difficulty: q.difficulty ?? "Medium",
+        expires_at: q.expires_at ?? nowIso,
       })
     );
 

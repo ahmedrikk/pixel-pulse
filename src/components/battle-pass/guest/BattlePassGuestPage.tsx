@@ -7,11 +7,9 @@ import HowYouEarnXP from './HowYouEarnXP';
 import FeaturedSeasonRewards from './FeaturedSeasonRewards';
 import TierTrackPreview from './TierTrackPreview';
 import UrgencyFinalCTA from './UrgencyFinalCTA';
-import { Navbar } from '@/components/Navbar';
-import { BottomNavBar } from '@/components/BottomNavBar';
 
 export default function BattlePassGuestPage() {
-  const [season, setSeason] = useState<any>(null);
+  const [season, setSeason] = useState<Awaited<ReturnType<typeof getCurrentSeason>> | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,7 +43,6 @@ export default function BattlePassGuestPage() {
         '--season-accent': season.accentTextColor,
       } as React.CSSProperties}
     >
-      <Navbar />
       <SeasonThemeHero season={season} />
       <WhyJoinSection season={season} />
       <MidPageCTAStrip season={season} />
@@ -53,7 +50,6 @@ export default function BattlePassGuestPage() {
       <FeaturedSeasonRewards season={season} />
       <TierTrackPreview season={season} />
       <UrgencyFinalCTA season={season} />
-      <BottomNavBar />
     </div>
   );
 }

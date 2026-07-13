@@ -31,6 +31,7 @@ const Esports        = lazy(() => import("./pages/Esports"));
 const GameCatalog    = lazy(() => import("./pages/GameCatalog"));
 const GameReview     = lazy(() => import("./pages/GameReview"));
 const Hub            = lazy(() => import("./pages/Hub"));
+const BattlePass     = lazy(() => import("./pages/BattlePass"));
 const NotFound       = lazy(() => import("./pages/NotFound"));
 const ComingSoon     = lazy(() => import("./pages/ComingSoon"));
 const OnboardingPage = lazy(() => import("./pages/onboarding/OnboardingPage"));
@@ -74,8 +75,7 @@ const App = () => (
                     <Route path="/esports/:gameId" element={<OnboardingGuard><Esports /></OnboardingGuard>} />
                     <Route path="/reviews" element={<OnboardingGuard><GameCatalog /></OnboardingGuard>} />
                     <Route path="/reviews/:gameId" element={<OnboardingGuard><GameReview /></OnboardingGuard>} />
-                    {/* Battle Pass is disabled until the season system ships — shows Coming Soon */}
-                    <Route path="/battle-pass" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
+                    <Route path="/battle-pass" element={<OnboardingGuard><BattlePass /></OnboardingGuard>} />
                     <Route path="/hub" element={<OnboardingGuard><Hub /></OnboardingGuard>} />
                     <Route path="/notifications" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                     <Route path="/guides" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />

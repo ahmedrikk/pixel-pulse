@@ -1,9 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { HelpCircle, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { useXP } from "@/contexts/XPContext";
-import { toast } from "sonner";
 import { useTrivia } from "@/hooks/useTrivia";
 
 function getTimeRemaining(date: Date): string {
@@ -16,14 +15,14 @@ function getTimeRemaining(date: Date): string {
 
 export function TriviaWidget() {
   const { isAuthenticated, openAuthModal } = useAuthGate();
-  const { addXP } = useXP();
-  const { triviaItems, isLoading, answerTrivia } = useTrivia();
+  const { triviaItems, isLoading, error } = useTrivia();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Use the daily question for the widget
   const dailyData = triviaItems.find(t => t.type === "daily");
 
-  if (isLoading || !dailyData) {
+  if (isLoading) {
     return (
       <Card className="animate-pulse border-border/40">
         <CardContent className="p-4 h-48 flex items-center justify-center">
@@ -33,10 +32,21 @@ export function TriviaWidget() {
     );
   }
 
+  if (error || !dailyData) {
+    return (
+      <Card className="border-border/40">
+        <CardContent className="flex min-h-36 flex-col items-center justify-center gap-2 p-4 text-center">
+          <HelpCircle className="h-5 w-5 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Today’s AI trivia is being prepared.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const revealed = !!dailyData.userAnswer;
   const selectedLetter = dailyData.userAnswer;
 
-  const handleAnswer = async (letter: string) => {
+  const handleAnswer = (_letter: string) => {
     if (revealed || isSubmitting) return;
     if (!isAuthenticated) {
       openAuthModal("trivia_answer");
@@ -44,19 +54,7 @@ export function TriviaWidget() {
     }
     
     setIsSubmitting(true);
-    try {
-      const result = await answerTrivia({ id: dailyData.id, selectedLetter: letter });
-      if (result.isCorrect) {
-        addXP(result.xpAwarded);
-        toast.success(`+${result.xpAwarded} XP earned! 🎉`, { description: "Correct answer!" });
-      } else {
-        toast.error("Incorrect! Better luck tomorrow.", { description: `The answer was ${result.correctLetter}.` });
-      }
-    } catch (error) {
-      toast.error("Failed to submit answer");
-    } finally {
-      setIsSubmitting(false);
-    }
+    navigate("/trivia");
   };
 
   const getOptionStyle = (letter: string) => {
