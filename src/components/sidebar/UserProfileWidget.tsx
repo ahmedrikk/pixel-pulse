@@ -18,7 +18,7 @@ export function UserProfileWidget() {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="bg-card rounded-lg border card-shadow overflow-hidden relative group">
+      <div className="group relative overflow-hidden rounded-xl border bg-card">
         {/* Banner Image */}
         <div className="h-16 w-full bg-secondary overflow-hidden relative">
           <div className="w-full h-full bg-gradient-to-r from-primary/20 to-accent/20" />
@@ -33,7 +33,7 @@ export function UserProfileWidget() {
           {/* Content */}
           <div className="pt-8">
             <button 
-              onClick={() => openAuthModal('signup_prompt' as any)} 
+              onClick={() => openAuthModal('signup_prompt')}
               className="text-left hover:underline cursor-pointer"
             >
               <h3 className="font-bold text-sm text-foreground truncate flex items-center gap-1.5">
@@ -51,7 +51,7 @@ export function UserProfileWidget() {
   }
 
   return (
-    <div className="bg-card rounded-lg border card-shadow overflow-hidden relative group">
+    <div className="group relative overflow-hidden rounded-xl border bg-card">
       {/* Banner Image */}
       <div className="h-16 w-full bg-secondary overflow-hidden relative">
         {profile?.banner_url ? (

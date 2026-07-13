@@ -354,7 +354,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   return (
     <article
       ref={cardRef}
-      className="bg-card rounded-xl border overflow-hidden card-shadow hover:card-shadow-hover transition-all duration-200 group"
+      className="group overflow-hidden rounded-xl border bg-card transition-colors duration-200 hover:border-primary/25"
     >
       {/* Hero Image — only shown when URL exists and loads successfully */}
       {showImage && (
@@ -362,7 +362,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           <img
             src={article.heroImageUrl}
             alt={article.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="h-full w-full object-cover"
             loading="lazy"
             onError={() => setImgError(true)}
           />
@@ -375,7 +375,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       )}
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-4 sm:p-5">
         {/* Tag pill when no image */}
         {!showImage && primaryTag && (
           <div className="mb-2">
@@ -386,7 +386,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         )}
 
         {/* Source Bar */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
           <span className="font-medium text-foreground">{article.sourceName}</span>
           <span>•</span>
           <span>{formatDate(article.publishedAt)}</span>
@@ -395,7 +395,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         </div>
 
         {/* Headline — clickable, opens the full article */}
-        <h2 className="text-[22px] font-bold mb-4 leading-tight line-clamp-3">
+        <h2 className="mb-3 text-xl font-bold leading-tight line-clamp-3">
           <a
             href={article.sourceUrl}
             target="_blank"
@@ -408,14 +408,14 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         </h2>
 
         {/* Summary */}
-        <div className="mb-5">
-          <p className="text-muted-foreground leading-relaxed text-[15px]">
+        <div className="mb-4">
+          <p className="text-[15px] leading-relaxed text-muted-foreground">
             {summaryText}
           </p>
         </div>
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-5">
+        <div className="mb-4 flex flex-wrap gap-2">
           {displayTags.map((tag) => (
             <button
               key={tag}

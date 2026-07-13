@@ -31,14 +31,14 @@ export function RightSidebar() {
   const showUpcoming = upcomingMatches.slice(0, 1).map(toPredictionMatch);
 
   return (
-    <aside className="w-full lg:w-72 space-y-4">
+    <aside className="w-full space-y-3">
       {/* Predictions Widget — pure live score card */}
-      <Card>
-        <CardContent className="p-4">
+      <Card className="rounded-xl shadow-none">
+        <CardContent className="p-3.5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold flex items-center gap-2">
               <Target className="h-4 w-4 text-primary" />
-              Predict & Win
+              Match Center
             </h3>
             <Link to="/esports">
               <Button variant="ghost" size="sm" className="h-7 text-xs">

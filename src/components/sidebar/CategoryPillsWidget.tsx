@@ -13,7 +13,7 @@ function Pill({ category, isActive, onClick }: PillProps) {
   const { isTrending } = category;
 
   const base =
-    "inline-flex items-center gap-1 px-2.5 py-[5px] rounded-full text-[11px] cursor-pointer select-none transition-all border";
+    "inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-2.5 py-[5px] rounded-full text-[11px] cursor-pointer select-none transition-all border";
   const variant = isActive
     ? "bg-primary text-primary-foreground border-primary font-medium hover:opacity-90"
     : isTrending

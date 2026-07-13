@@ -1,6 +1,7 @@
 import { Home, Trophy, Users, Swords, Star } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { UserProfileWidget } from "@/components/sidebar/UserProfileWidget";
+import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
@@ -11,23 +12,31 @@ const NAV_ITEMS = [
 ];
 
 export function LeftSidebar() {
+  const { pathname } = useLocation();
+
   return (
-    <aside className="w-full lg:w-64 space-y-4">
+    <aside className="w-full space-y-3">
       {/* User Profile Widget */}
       <UserProfileWidget />
 
       {/* Main Navigation */}
-      <nav className="bg-card rounded-lg border card-shadow overflow-hidden">
-        {NAV_ITEMS.map((item) => (
-          <Link
-            key={item.label}
-            to={item.href}
-            className="flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors text-foreground hover:text-primary"
-          >
-            <item.icon className="h-5 w-5 text-muted-foreground" />
-            <span className="font-medium">{item.label}</span>
-          </Link>
-        ))}
+      <nav className="overflow-hidden rounded-xl border bg-card p-2">
+        {NAV_ITEMS.map((item) => {
+          const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.label}
+              to={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-foreground transition-colors hover:bg-secondary",
+                isActive && "bg-secondary font-semibold"
+              )}
+            >
+              <item.icon className={cn("h-[18px] w-[18px] text-muted-foreground", isActive && "text-primary")} />
+              <span className="text-sm">{item.label}</span>
+            </Link>
+          );
+        })}
       </nav>
     </aside>
   );
