@@ -522,6 +522,9 @@ export type Database = {
       trivia_questions: {
         Row: {
           correct_index: number
+          difficulty: string
+          explanation: string | null
+          expires_at: string
           generated_at: string | null
           id: string
           options: Json
@@ -530,6 +533,9 @@ export type Database = {
         }
         Insert: {
           correct_index: number
+          difficulty?: string
+          explanation?: string | null
+          expires_at?: string
           generated_at?: string | null
           id?: string
           options: Json
@@ -538,6 +544,9 @@ export type Database = {
         }
         Update: {
           correct_index?: number
+          difficulty?: string
+          explanation?: string | null
+          expires_at?: string
           generated_at?: string | null
           id?: string
           options?: Json

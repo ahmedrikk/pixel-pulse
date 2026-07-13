@@ -1,7 +1,5 @@
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { useXP } from "@/contexts/XPContext";
-import { toast } from "sonner";
 import { useTrivia, type TriviaCardData } from "@/hooks/useTrivia";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
@@ -20,39 +18,21 @@ function getTimeRemaining(date: Date): string {
   return `${hrs}h ${mins}m`;
 }
 
-function TriviaCard({ data }: { data: TriviaCardData }) {
+function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void }) {
   const { isAuthenticated, openAuthModal } = useAuthGate();
-  const { addXP } = useXP();
-  const { answerTrivia } = useTrivia();
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const revealed = !!data.userAnswer;
   const selectedLetter = data.userAnswer;
 
   const categoryStyle = CATEGORY_COLORS[data.category] || { bg: "hsl(var(--secondary))", text: "hsl(var(--muted-foreground))" };
 
-  const handleAnswer = async (letter: string) => {
-    if (revealed || isSubmitting) return;
+  const handleAnswer = async (_letter: string) => {
+    if (revealed) return;
     if (!isAuthenticated) {
       openAuthModal("trivia_answer" as never);
       return;
     }
-    
-    setIsSubmitting(true);
-    try {
-      const result = await answerTrivia({ id: data.id, selectedLetter: letter });
-      if (result.isCorrect) {
-        addXP(result.xpAwarded);
-        toast.success(`+${result.xpAwarded} XP earned! 🎉`, { description: "Correct answer!" });
-      } else {
-        toast.error("Incorrect! Better luck tomorrow.", { description: `The answer was ${result.correctLetter}.` });
-      }
-    } catch (error) {
-      toast.error("Failed to submit answer");
-    } finally {
-      setIsSubmitting(false);
-    }
+    onPlay();
   };
 
   const getOptionStyle = (letter: string) => {
@@ -121,12 +101,12 @@ function TriviaCard({ data }: { data: TriviaCardData }) {
             <button
               key={opt.letter}
               onClick={() => handleAnswer(opt.letter)}
-              disabled={revealed || isSubmitting}
+              disabled={revealed}
               style={{
                 display: "flex", alignItems: "center", gap: 7,
                 padding: "7px 9px", borderRadius: 8,
                 ...getOptionStyle(opt.letter),
-                cursor: (revealed || isSubmitting) ? "not-allowed" : "pointer",
+                cursor: revealed ? "not-allowed" : "pointer",
                 fontSize: 11, transition: "all 0.15s", textAlign: "left", width: "100%",
               }}
             >
@@ -171,7 +151,7 @@ function TriviaCard({ data }: { data: TriviaCardData }) {
           paddingTop: 9, borderTop: "0.5px solid hsl(var(--border))", marginTop: 10,
         }}>
           <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))" }}>
-            {data.totalAnswered.toLocaleString()} answered · {data.correctPercent}% correct
+            AI-generated · 24h rotation
           </span>
           <button style={{ fontSize: 9, color: "#534AB7", background: "#EEEDFE", border: "none", padding: "3px 7px", borderRadius: 5, cursor: "pointer" }}>
             Share
@@ -183,7 +163,8 @@ function TriviaCard({ data }: { data: TriviaCardData }) {
 }
 
 export function TriviaSection() {
-  const { triviaItems, isLoading } = useTrivia();
+  const { triviaItems, isLoading, error } = useTrivia();
+  const navigate = useNavigate();
 
   return (
     <section style={{ padding: "18px 20px", borderBottom: "0.5px solid hsl(var(--border))" }}>
@@ -195,10 +176,10 @@ export function TriviaSection() {
           </div>
           <span style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }}>Daily trivia</span>
           <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))", padding: "2px 6px", borderRadius: 5 }}>
-            +200 XP today
+            Up to +155 XP today
           </span>
         </div>
-        <button style={{ fontSize: 11, color: "#534AB7", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
+        <button onClick={() => navigate("/trivia")} style={{ fontSize: 11, color: "#534AB7", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
           All trivia →
         </button>
       </div>
@@ -209,10 +190,14 @@ export function TriviaSection() {
           <div style={{ height: 250, background: "hsl(var(--secondary))", borderRadius: 12, animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
           <div style={{ height: 250, background: "hsl(var(--secondary))", borderRadius: 12, animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
         </div>
+      ) : error || triviaItems.length === 0 ? (
+        <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+          Today's AI trivia is being prepared. Check back shortly.
+        </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {triviaItems.map(card => (
-            <TriviaCard key={card.id} data={card} />
+            <TriviaCard key={card.id} data={card} onPlay={() => navigate("/trivia")} />
           ))}
         </div>
       )}
