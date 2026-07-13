@@ -11,6 +11,7 @@ import {
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { useAuthGate } from '@/contexts/AuthGateContext';
 import { useXP } from '@/contexts/XPContext';
+import { TalusLogo } from '@/components/TalusLogo';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -647,7 +648,7 @@ export default function OnboardingPage() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-6 h-[50px] flex-shrink-0"
            style={{ background: '#12122a', borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
-        <span className="text-[15px] font-semibold text-white tracking-wide">TALUS</span>
+        <TalusLogo size={34} />
         <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium text-[#a5b4fc]"
               style={{ background: 'rgba(83,74,183,0.2)', border: '0.5px solid rgba(83,74,183,0.4)' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
