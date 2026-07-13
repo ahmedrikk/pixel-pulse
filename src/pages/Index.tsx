@@ -47,10 +47,8 @@ function IndexContent() {
   return (
     <div className="min-h-screen pb-16 md:pb-0">
       <div className="talus-shell">
-          <div className="hidden lg:block min-w-0">
-            <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-              <LeftSidebar />
-            </div>
+          <div className="sticky top-4 hidden max-h-[calc(100vh-2rem)] min-w-0 self-start overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border lg:block">
+            <LeftSidebar />
           </div>
 
           <div className="talus-main-column">
@@ -60,10 +58,8 @@ function IndexContent() {
             </div>
           </div>
 
-          <div className="hidden xl:block min-w-0">
-            <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-              <RightSidebar />
-            </div>
+          <div className="sticky top-4 hidden max-h-[calc(100vh-2rem)] min-w-0 self-start overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border xl:block">
+            <RightSidebar />
           </div>
       </div>
 

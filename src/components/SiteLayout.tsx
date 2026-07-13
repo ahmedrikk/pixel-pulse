@@ -19,10 +19,8 @@ export function SiteLayout({ children }: SiteLayoutProps) {
 
         <div className="talus-shell">
             {/* Left Sidebar */}
-            <div className="hidden lg:block min-w-0">
-              <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                <LeftSidebar />
-              </div>
+            <div className="sticky top-4 hidden max-h-[calc(100vh-2rem)] min-w-0 self-start overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border lg:block">
+              <LeftSidebar />
             </div>
 
             {/* Main Content */}
@@ -37,10 +35,8 @@ export function SiteLayout({ children }: SiteLayoutProps) {
             </div>
 
             {/* Right Sidebar */}
-            <div className="hidden xl:block min-w-0">
-              <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                <RightSidebar />
-              </div>
+            <div className="sticky top-4 hidden max-h-[calc(100vh-2rem)] min-w-0 self-start overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border xl:block">
+              <RightSidebar />
             </div>
         </div>
       </div>
