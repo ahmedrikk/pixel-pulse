@@ -1,5 +1,7 @@
-import { useParams, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { SiteLayout } from "@/components/SiteLayout";
+import { BottomNavBar } from "@/components/BottomNavBar";
+import { Footer } from "@/components/Footer";
 import { Cpu, BookOpen, Clock, Swords } from "lucide-react";
 
 const PAGE_CONFIG: Record<string, { icon: React.ReactNode; title: string; description: string; color: string }> = {
@@ -34,18 +36,22 @@ export default function ComingSoon() {
   };
 
   return (
-    <SiteLayout>
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-        <div className={`mb-6 ${page.color} opacity-80`}>{page.icon}</div>
-        <h1 className="text-4xl font-black mb-2">
-          {page.title} <span className="text-primary">Coming Soon</span>
-        </h1>
-        <p className="text-muted-foreground text-lg max-w-md mt-3">{page.description}</p>
-        <div className="mt-8 flex items-center gap-2 px-5 py-2.5 rounded-full bg-secondary text-muted-foreground text-sm font-medium">
-          <Clock className="h-4 w-4" />
-          In development — stay tuned
+    <div className="min-h-screen pb-16 md:pb-0">
+      <SiteLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+          <div className={`mb-6 ${page.color} opacity-80`}>{page.icon}</div>
+          <h1 className="text-4xl font-black mb-2">
+            {page.title} <span className="text-primary">Coming Soon</span>
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-md mt-3">{page.description}</p>
+          <div className="mt-8 flex items-center gap-2 px-5 py-2.5 rounded-full bg-secondary text-muted-foreground text-sm font-medium">
+            <Clock className="h-4 w-4" />
+            In development — stay tuned
+          </div>
         </div>
-      </div>
-    </SiteLayout>
+      </SiteLayout>
+      <BottomNavBar />
+      <Footer />
+    </div>
   );
 }
