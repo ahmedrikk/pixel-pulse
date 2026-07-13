@@ -171,6 +171,44 @@
 }
 
 @layer utilities {
+  .talus-shell {
+    width: min(100%, 1264px);
+    margin-inline: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-inline: 0;
+  }
+
+  .talus-main-column {
+    min-width: 0;
+    width: 100%;
+    background: hsl(var(--background) / 0.72);
+  }
+
+  @media (min-width: 1024px) {
+    .talus-shell {
+      grid-template-columns: 220px minmax(0, 700px);
+      gap: 16px;
+      padding: 16px;
+      justify-content: center;
+      align-items: start;
+    }
+
+    .talus-main-column {
+      border: 1px solid hsl(var(--border));
+      border-radius: 14px;
+      overflow: clip;
+      background: hsl(var(--background) / 0.86);
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .talus-shell {
+      grid-template-columns: 220px minmax(0, 700px) 280px;
+    }
+  }
+
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
   }

@@ -15,33 +15,33 @@ export function SiteLayout({ children }: SiteLayoutProps) {
   return (
     <TagFilterProvider>
       <div className="min-h-screen">
-        <Navbar
-          onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          isMobileMenuOpen={isMobileMenuOpen}
-        />
         <MobileMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
 
-        <div className="container px-4 md:px-8 lg:px-12 py-8 md:py-10">
-          <div className="flex gap-6 md:gap-8 lg:gap-10 justify-center">
+        <div className="talus-shell">
             {/* Left Sidebar */}
-            <div className="hidden lg:block flex-shrink-0">
-              <div className="sticky top-24 w-64 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <div className="hidden lg:block min-w-0">
+              <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                 <LeftSidebar />
               </div>
             </div>
 
             {/* Main Content */}
-            <div className="w-full max-w-2xl min-w-0">
-              {children}
+            <div className="talus-main-column">
+              <Navbar
+                onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                isMobileMenuOpen={isMobileMenuOpen}
+              />
+              <div className="px-3 py-3 sm:px-4 sm:py-4">
+                {children}
+              </div>
             </div>
 
             {/* Right Sidebar */}
-            <div className="hidden xl:block flex-shrink-0">
-              <div className="sticky top-24 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+            <div className="hidden xl:block min-w-0">
+              <div className="sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                 <RightSidebar />
               </div>
             </div>
-          </div>
         </div>
       </div>
     </TagFilterProvider>

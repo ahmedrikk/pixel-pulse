@@ -13,7 +13,7 @@ interface NavbarProps {
   isMobileMenuOpen?: boolean;
 }
 
-export function Navbar({}: NavbarProps) {
+export function Navbar(_props: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
   const { openSignupPrompt } = useAuthGate();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,14 +36,18 @@ export function Navbar({}: NavbarProps) {
   }
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-nav-border bg-nav backdrop-blur-sm">
-      <div className="container flex h-16 items-center justify-between gap-3">
+    <nav className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur-md">
+      <div className="relative flex h-16 items-center justify-between px-4 sm:px-5">
         {/* Left spacer for centering the logo */}
         <div className="flex-1" />
 
         {/* Centered Talus logo */}
-        <Link to="/" className="flex items-center justify-center flex-shrink-0">
-          <TalusLogo size={28} />
+        <Link
+          to="/"
+          aria-label="Talus home"
+          className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+        >
+          <TalusLogo size={32} />
         </Link>
 
         {/* Right: theme toggle + auth */}
@@ -64,7 +68,7 @@ export function Navbar({}: NavbarProps) {
           ) : (
             <button
               onClick={openSignupPrompt}
-              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+              className="whitespace-nowrap rounded-lg px-2 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-secondary hover:text-primary sm:px-3"
             >
               Sign Up / Log In
             </button>

@@ -15,6 +15,10 @@ interface NewsFeedProps {
   onCardView?: (cardId: string) => void;
 }
 
+function normalizeTag(tag: string): string {
+  return tag.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 export function NewsFeed({ onCardView }: NewsFeedProps) {
   const { isAuthenticated, user } = useAuthGate();
 
@@ -26,13 +30,10 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     error,
     hasMore,
     newArticlesCount,
-    feedStats,
     loadFeed,
     loadMore,
-    checkForNewArticles,
     dismissNewBadge,
     trackImpression,
-    reshuffle,
   } = useSmartFeedReal({
     userId: isAuthenticated ? user?.id : undefined
   });
@@ -41,24 +42,19 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
   const navigate = useNavigate();
   const exitFilter = () => navigate("/");
   const [displayedCount, setDisplayedCount] = useState(6);
-  const [sortMode, setSortMode] = useState<"smart" | "recent" | "popular">("smart");
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Filter articles by active tag — must be declared before the observer useEffect
+  const normalizedActiveTag = activeTag ? normalizeTag(activeTag) : null;
   const tagFiltered = activeTag
     ? articles.filter((item) =>
-        item.topicTags.includes(activeTag) || item.gameTags.includes(activeTag)
+        [...item.topicTags, ...item.gameTags].some(
+          (tag) => normalizeTag(tag) === normalizedActiveTag
+        )
       )
     : articles;
 
-  const filteredArticles =
-    sortMode === "recent"
-      ? [...tagFiltered].sort(
-          (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-        )
-      : sortMode === "popular"
-      ? [...tagFiltered].sort((a, b) => b.engagementScore - a.engagementScore)
-      : tagFiltered;
+  const filteredArticles = tagFiltered;
 
   // Infinite scroll observer
   useEffect(() => {
@@ -82,7 +78,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     }
 
     return () => observer.disconnect();
-  }, [displayedCount, filteredArticles.length, hasMore, isLoading, loadMore]);
+  }, [displayedCount, filteredArticles.length, hasMore, isLoading, isLoadingMore, loadMore]);
 
   // Reset display count when filter changes
   useEffect(() => {
@@ -105,12 +101,6 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     }
   };
 
-  // Dynamic header text based on active category filter
-  const feedTitle = activeTag && categoryName ? `${categoryName} News` : "Latest Gaming News";
-  const feedSubtitle = activeTag && categoryName
-    ? `${filteredArticles.length} articles in ${categoryName}`
-    : `Live from ${filteredArticles.length} articles`;
-
   return (
     <main className="flex-1 space-y-4">
       {/* ── Mobile: Category pill horizontal scroll (hidden on lg+) ── */}
@@ -118,65 +108,24 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
         <MobileCategoryScroll />
       </div>
 
-      {/* Feed Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          {activeTag ? (
-            /* Bluesky-style filtered header: back button + category title */
-            <button
-              onClick={exitFilter}
-              className="flex items-center gap-2.5 group min-w-0"
-              title="Back to feed"
-            >
-              <span className="flex items-center justify-center h-9 w-9 rounded-full border bg-card group-hover:bg-secondary transition-colors flex-shrink-0">
-                <ArrowLeft className="h-4 w-4" />
-              </span>
-              <h1 className="text-2xl font-bold truncate">#{categoryName ?? activeTag}</h1>
-            </button>
-          ) : (
-            <>
-              <h1 className="text-2xl font-bold">{feedTitle}</h1>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => { reshuffle(); checkForNewArticles(); }}
-                disabled={isRefreshing}
-                className="h-8 w-8"
-                title="Shuffle feed"
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-              {isRefreshing && (
-                <span className="text-xs text-muted-foreground">Checking...</span>
-              )}
-            </>
-          )}
-        </div>
-        
-        {/* Feed Stats */}
-        {!isLoading && !activeTag && isAuthenticated && (
-          <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground">
-            {feedStats.personalized > 0 && (
-              <span className="px-2 py-1 rounded-full bg-primary/10">
-                {feedStats.personalized} for you
-              </span>
-            )}
-            <span className="px-2 py-1 rounded-full bg-secondary">
-              {articles.length} articles
+      {/* Category navigation only appears when the feed is filtered. */}
+      {activeTag && (
+        <div className="flex items-center justify-between border-b pb-3">
+          <button
+            onClick={exitFilter}
+            className="group flex min-w-0 items-center gap-2.5"
+            title="Back to feed"
+          >
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border bg-card transition-colors group-hover:bg-secondary">
+              <ArrowLeft className="h-4 w-4" />
             </span>
-          </div>
-        )}
-        
-        <select
-          value={sortMode}
-          onChange={(e) => setSortMode(e.target.value as "smart" | "recent" | "popular")}
-          className="bg-secondary text-foreground text-sm px-3 py-1.5 rounded-md border-0 focus:ring-2 focus:ring-primary"
-        >
-          <option value="smart">Smart Feed</option>
-          <option value="recent">Most Recent</option>
-          <option value="popular">Most Popular</option>
-        </select>
-      </div>
+            <div className="min-w-0 text-left">
+              <h1 className="truncate text-lg font-bold">#{categoryName ?? activeTag}</h1>
+              <p className="text-xs text-muted-foreground">{filteredArticles.length} articles</p>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* New Articles Banner */}
       {newArticlesCount > 0 && (
@@ -214,25 +163,14 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
         </div>
       )}
 
-      {/* Live indicator */}
-      {!isLoading && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            <span>{feedSubtitle}</span>
-          </div>
-        </div>
-      )}
-
       {/* News Cards */}
       <div className="space-y-4">
         <AnimatePresence mode="popLayout">
           {isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <NewsCardSkeleton key={`skeleton-${i}`} />
+              <motion.div key={`skeleton-${i}`}>
+                <NewsCardSkeleton />
+              </motion.div>
             ))
           ) : displayedNews.length > 0 ? (
             displayedNews.map((item, index) => {

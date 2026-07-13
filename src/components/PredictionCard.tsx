@@ -101,8 +101,8 @@ export function PredictionCard({
 
   if (compact) {
     return (
-      <Card className="overflow-hidden">
-        <CardContent className="p-3">
+      <div className="overflow-hidden rounded-lg border bg-background/50">
+        <div className="p-3">
           {/* Header: tournament name */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -146,8 +146,8 @@ export function PredictionCard({
               </span>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
