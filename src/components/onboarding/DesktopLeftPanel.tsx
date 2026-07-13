@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { TalusLogo } from '@/components/TalusLogo';
 
 const STEPS = [
   { n: 1, label: 'Identity',   sub: 'Your name and avatar' },
@@ -12,7 +13,7 @@ interface DesktopLeftPanelProps { currentStep: 1 | 2 | 3 | 4 }
 export function DesktopLeftPanel({ currentStep }: DesktopLeftPanelProps) {
   return (
     <div className="hidden md:flex w-[400px] min-h-screen flex-col bg-brand-gradient px-10 py-10 flex-shrink-0">
-      <div className="text-white font-semibold text-xl tracking-wide mb-2">TALUS</div>
+      <TalusLogo size={54} className="mb-2" />
       <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs text-white/80 mb-10 self-start">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
         Season 1 is live

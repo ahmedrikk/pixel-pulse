@@ -4,24 +4,19 @@ import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useTheme } from "@/contexts/ThemeContext";
 import { useXP } from "@/contexts/XPContext";
-import { Sun, Moon } from "lucide-react";
 import { type EsportsMatch } from "@/lib/pandascore";
 import { useEsportsMatches } from "@/hooks/useEsportsMatches";
 import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { XPProgressBar } from "@/components/XPProgressBar";
-import { Navbar } from "@/components/Navbar";
-import { LeftSidebar } from "@/components/LeftSidebar";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
-import { XPConnectionStrip } from "@/components/esports/XPConnectionStrip";
 import { FeaturedMatchHero } from "@/components/esports/FeaturedMatchHero";
-import { RightSidebar } from "@/components/RightSidebar";
 import { InlinePrediction } from "@/components/esports/InlinePrediction";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { WatchLiveButton } from "@/components/esports/WatchLiveButton";
+import { SiteLayout } from "@/components/SiteLayout";
 
 type TabType = "live" | "upcoming" | "results";
 
@@ -657,7 +652,6 @@ function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, gameFilte
    ═══════════════════════════════════════════════ */
 export default function Esports() {
   const { addXP } = useXP();
-  const { isAuthenticated } = useAuthGate();
   const { gameId } = useParams<{ gameId?: string }>();
   const navigate = useNavigate();
   const [activeGame, setActiveGame] = useState("all");
@@ -718,21 +712,8 @@ export default function Esports() {
 
   return (
     <div className="min-h-screen pb-16 md:pb-0">
-      <Navbar />
-
-      {/* XP Connection Strip */}
-      <XPConnectionStrip isAuthenticated={isAuthenticated} />
-
-      <div className="container py-6 max-w-7xl">
-       <div className="flex gap-6">
-        {/* Left Sidebar — consistent nav with the rest of the app */}
-        <div className="hidden lg:block flex-shrink-0">
-          <div className="sticky top-20 w-64 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-            <LeftSidebar />
-          </div>
-        </div>
-
-        <main className="flex-1 min-w-0">
+      <SiteLayout>
+        <main className="min-w-0">
         {/* Featured Match Hero — centered in the content column, aligned with
             the left & right rails so the page reads as one cohesive block. */}
         <FeaturedMatchHero match={featuredMatch} />
@@ -795,15 +776,7 @@ export default function Esports() {
           </AnimatePresence>
         </div>
         </main>
-
-        {/* Right Sidebar — cohesive with the rest of the app */}
-        <div className="hidden xl:block flex-shrink-0">
-          <div className="sticky top-20 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-            <RightSidebar />
-          </div>
-        </div>
-       </div>
-      </div>
+      </SiteLayout>
 
       {/* Twitch Embed Modal */}
       <AnimatePresence>
