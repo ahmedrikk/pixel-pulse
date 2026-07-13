@@ -19,7 +19,7 @@ export default function PrivacyPolicy() {
                   <h2 className="text-xl font-semibold mb-2">1. Information We Collect</h2>
                   <p className="text-muted-foreground leading-relaxed">
                     We collect account details, gameplay statistics, device information, and usage
-                    data to provide and improve PixelPulse. This includes your username, email,
+                    data to provide and improve Talus. This includes your username, email,
                     connected gaming accounts, IP address, and interactions with content on the
                     platform.
                   </p>
@@ -47,7 +47,7 @@ export default function PrivacyPolicy() {
                 <section>
                   <h2 className="text-xl font-semibold mb-2">4. Cookies & Tracking</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    PixelPulse uses cookies and similar technologies to remember preferences,
+                    Talus uses cookies and similar technologies to remember preferences,
                     maintain sessions, and analyze traffic. You can manage cookie settings through
                     your browser. Disabling cookies may limit certain platform features.
                   </p>
@@ -74,7 +74,7 @@ export default function PrivacyPolicy() {
                 <section>
                   <h2 className="text-xl font-semibold mb-2">7. Children's Privacy</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    PixelPulse is not intended for children under 13. We do not knowingly collect
+                    Talus is not intended for children under 13. We do not knowingly collect
                     data from children. If you believe we have collected data from a child under 13,
                     please contact us immediately so we can delete it.
                   </p>

@@ -34,7 +34,7 @@ export function ShareReviewButton({
   const [busy, setBusy] = useState(false);
   const url = `${window.location.origin}/reviews/${gameId}`;
   const stars = "★".repeat(starRating) + "☆".repeat(Math.max(0, 5 - starRating));
-  const text = `I rated ${gameName} ${stars} on PixelPulse${reviewText ? ` — "${reviewText}"` : ""}`;
+  const text = `I rated ${gameName} ${stars} on Talus${reviewText ? ` — "${reviewText}"` : ""}`;
 
   const shareStory = async () => {
     setBusy(true);

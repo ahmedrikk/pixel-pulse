@@ -18,7 +18,7 @@ export default function ContentGuidelines() {
                 <section>
                   <h2 className="text-xl font-semibold mb-2">1. Our Commitment</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    PixelPulse is a community built by gamers, for gamers. These guidelines ensure
+                    Talus is a community built by gamers, for gamers. These guidelines ensure
                     our platform remains welcoming, informative, and safe. By participating, you
                     agree to uphold these standards in every comment, review, prediction, and post.
                   </p>
@@ -77,7 +77,7 @@ export default function ContentGuidelines() {
                 <section>
                   <h2 className="text-xl font-semibold mb-2">7. Limitation of Liability</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    PixelPulse does not endorse user-generated content and is not liable for
+                    Talus does not endorse user-generated content and is not liable for
                     opinions expressed by community members. We act in good faith to moderate
                     but cannot guarantee real-time oversight of all interactions. Report
                     violations to help us maintain quality.

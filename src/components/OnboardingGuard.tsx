@@ -60,7 +60,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
       <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 animate-spin text-primary" />
-          <p className="text-muted-foreground animate-pulse font-medium">Loading PixelPulse...</p>
+          <p className="text-muted-foreground animate-pulse font-medium">Loading Talus...</p>
         </div>
       </div>
     );

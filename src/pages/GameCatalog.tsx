@@ -240,7 +240,7 @@ export default function GameCatalog() {
               <span className="text-gradient">Review</span>
             </h1>
             <p className="text-muted-foreground mt-1">
-              Community reviews from PixelPulse players plus RAWG ratings.
+              Community reviews from Talus players plus RAWG ratings.
               Open a game to read reviews or write your own.
             </p>
           </motion.div>

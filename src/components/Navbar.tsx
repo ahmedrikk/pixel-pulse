@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { TrendingUp, Sun, Moon, LogOut, LogIn } from "lucide-react";
+import { Sun, Moon, LogOut } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/Avatar";
 import { supabase } from "@/integrations/supabase/client";
+import { TalusLogo } from "@/components/TalusLogo";
+import { useAuthGate } from "@/contexts/AuthGateContext";
 
 interface NavbarProps {
   onMenuToggle?: () => void;
@@ -13,6 +15,7 @@ interface NavbarProps {
 
 export function Navbar({}: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
+  const { openSignupPrompt } = useAuthGate();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null);
 
@@ -34,17 +37,17 @@ export function Navbar({}: NavbarProps) {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-nav-border bg-nav backdrop-blur-sm">
-      <div className="container flex h-14 items-center justify-between gap-3">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 font-bold text-lg flex-shrink-0">
-          <TrendingUp className="h-6 w-6 text-primary" />
-          <span>
-            Pixel<span className="text-primary">Pulse</span>
-          </span>
+      <div className="container flex h-16 items-center justify-between gap-3">
+        {/* Left spacer for centering the logo */}
+        <div className="flex-1" />
+
+        {/* Centered Talus logo */}
+        <Link to="/" className="flex items-center justify-center flex-shrink-0">
+          <TalusLogo size={28} />
         </Link>
 
         {/* Right: theme toggle + auth */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center justify-end gap-2 flex-1 flex-shrink-0">
           <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-9 w-9" title="Toggle theme">
             {theme === "light" ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px] text-primary" />}
           </Button>
@@ -59,19 +62,12 @@ export function Navbar({}: NavbarProps) {
               </Button>
             </>
           ) : (
-            <>
-              <Link to="/login">
-                <Button variant="ghost" size="sm" className="text-xs h-9">
-                  <LogIn className="h-4 w-4 mr-1" />
-                  Log In
-                </Button>
-              </Link>
-              <Link to="/login">
-                <Button size="sm" className="text-xs h-9">
-                  Sign Up
-                </Button>
-              </Link>
-            </>
+            <button
+              onClick={openSignupPrompt}
+              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              Sign Up / Log In
+            </button>
           )}
         </div>
       </div>

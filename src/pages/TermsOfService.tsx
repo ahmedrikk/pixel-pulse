@@ -18,7 +18,7 @@ export default function TermsOfService() {
                 <section>
                   <h2 className="text-xl font-semibold mb-2">1. Acceptance of Terms</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    By accessing or using PixelPulse, you agree to be bound by these Terms of Service.
+                    By accessing or using Talus, you agree to be bound by these Terms of Service.
                     If you do not agree to all terms, you may not use our platform. We reserve the
                     right to update these terms at any time, and continued use constitutes acceptance
                     of changes.
@@ -38,7 +38,7 @@ export default function TermsOfService() {
                 <section>
                   <h2 className="text-xl font-semibold mb-2">3. Intellectual Property</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    All content, trademarks, and data on PixelPulse are the property of their
+                    All content, trademarks, and data on Talus are the property of their
                     respective owners. Users retain ownership of content they submit but grant us a
                     worldwide, royalty-free license to display and distribute it on the platform.
                     Game titles, artwork, and logos belong to their publishers and developers.
@@ -48,7 +48,7 @@ export default function TermsOfService() {
                 <section>
                   <h2 className="text-xl font-semibold mb-2">4. DMCA & Copyright</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    We respect intellectual property rights. If you believe content on PixelPulse
+                    We respect intellectual property rights. If you believe content on Talus
                     infringes your copyright, please submit a DMCA notice with sufficient detail
                     including identification of the work, infringing material, and your contact
                     information. We will investigate and remove infringing content promptly.
@@ -68,7 +68,7 @@ export default function TermsOfService() {
                 <section>
                   <h2 className="text-xl font-semibold mb-2">6. Limitation of Liability</h2>
                   <p className="text-muted-foreground leading-relaxed">
-                    PixelPulse is provided "as is" without warranties of any kind. We are not liable
+                    Talus is provided "as is" without warranties of any kind. We are not liable
                     for indirect, incidental, or consequential damages arising from platform use.
                     Our total liability shall not exceed the amount you paid us in the twelve months
                     preceding the claim.

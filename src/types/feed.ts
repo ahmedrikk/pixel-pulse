@@ -1,4 +1,4 @@
-// Feed Types for PixelPulse News System
+// Feed Types for Talus News System
 
 export interface Article {
   id: string;
