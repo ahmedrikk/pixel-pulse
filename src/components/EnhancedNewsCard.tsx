@@ -497,12 +497,16 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             </DropdownMenu>
           </div>
 
-          <Button size="sm" className="gap-2" onClick={async () => {
-            await handleReadFull();
-            window.open(article.sourceUrl, '_blank', 'noopener,noreferrer');
-          }}>
-            Read Full Article
-            <ExternalLink className="h-3 w-3" />
+          <Button asChild size="sm" className="gap-2">
+            <a
+              href={article.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => void handleReadFull()}
+            >
+              Read Full Article
+              <ExternalLink className="h-3 w-3" />
+            </a>
           </Button>
         </div>
 
