@@ -3,7 +3,7 @@
  *
  * Runs every 2 hours (configured in vercel.json).
  * Calls the Supabase Edge Function that:
- *   1. Fetches 11 gaming RSS feeds
+ *   1. Fetches the configured gaming, esports, streamer, and industry RSS feeds
  *   2. Runs Groq AI tag extraction on new articles
  *   3. Upserts results into cached_articles table
  *

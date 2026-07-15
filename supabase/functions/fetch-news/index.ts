@@ -19,7 +19,10 @@ const RSS_FEEDS = [
   { url: "https://kotaku.com/feed",                         source: "Kotaku" },
   { url: "https://www.polygon.com/rss/index.xml",           source: "Polygon" },
   { url: "https://www.dexerto.com/gaming/feed/",            source: "Dexerto" },
+  { url: "https://www.dexerto.com/twitch/feed/",            source: "Dexerto" },
   { url: "https://www.sportskeeda.com/feed/esports",        source: "Sportskeeda" },
+  { url: "https://www.sportskeeda.com/feed/streamers",      source: "Sportskeeda" },
+  { url: "https://www.gamedeveloper.com/rss.xml",           source: "Game Developer" },
   { url: "https://www.pcgamer.com/rss/",                    source: "PCGamer" },
   { url: "https://www.gematsu.com/feed",                    source: "Gematsu" },
   { url: "https://www.vg247.com/feed",                      source: "VG247" },
@@ -347,8 +350,8 @@ async function scrapeArticleJina(url: string): Promise<ScrapeResult> {
 
   // Strip Jina metadata header block — match greedily up to "Markdown Content:"
   // then drop the header label itself, leaving only the article body.
-  let content = text
-    .replace(/^﻿/, "")                            // strip BOM if present
+  const content = text
+    .replace(/^\uFEFF/, "")                         // strip BOM if present
     .replace(/^[\s\S]*?Markdown Content:\s*/i, "")     // drop everything before article body
     // markdown → plain text
     .replace(/!\[[^\]]*\]\([^)]+\)/g, "")              // images
