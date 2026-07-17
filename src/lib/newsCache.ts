@@ -32,7 +32,7 @@ export interface CachedArticle {
 
 // News is permanent; expiry is set to a far-future date.
 const PERMANENT_EXPIRES_AT = '2099-12-31T23:59:59.000Z';
-const PRIORITY_NEWS_SOURCES = ["Sportskeeda", "Game Developer", "Dexerto Twitch", "Dexerto"];
+const PRIORITY_NEWS_SOURCES = ["Game Developer", "Dexerto Twitch", "Dexerto"];
 
 /**
  * Convert NewsItem to database format

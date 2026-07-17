@@ -17,6 +17,7 @@ const KIMI_API_KEY = Deno.env.get("KIMI_API_KEY") ?? "";
 const KIMI_MODEL = Deno.env.get("KIMI_NEWS_MODEL") ?? "kimi-k3";
 const PROCESS_LIMIT = 20;
 const SCRAPE_LIMIT = 30;
+const REMOVED_SOURCES = ["Sportskeeda"];
 
 const RSS_FEEDS = [
   { url: "https://www.ign.com/rss/articles/feed?tags=news", source: "IGN" },
@@ -25,11 +26,6 @@ const RSS_FEEDS = [
   { url: "https://www.polygon.com/rss/index.xml",           source: "Polygon" },
   { url: "https://www.dexerto.com/gaming/feed/",            source: "Dexerto" },
   { url: "https://www.dexerto.com/twitch/feed/",            source: "Dexerto Twitch" },
-  // Sportskeeda blocks its old /feed/* endpoints with HTTP 405. Bing News
-  // exposes the same publisher pages as RSS and includes the original URL in
-  // its redirect query string, which normalizeFeedLink() unwraps below.
-  { url: "https://www.bing.com/news/search?q=site%3Asportskeeda.com%2Fesports&format=rss", source: "Sportskeeda" },
-  { url: "https://www.bing.com/news/search?q=site%3Asportskeeda.com%2Fus%2Fstreamers&format=rss", source: "Sportskeeda" },
   { url: "https://www.gamedeveloper.com/rss.xml",           source: "Game Developer" },
   { url: "https://www.pcgamer.com/rss/",                    source: "PCGamer" },
   { url: "https://www.gematsu.com/feed",                    source: "Gematsu" },
@@ -808,6 +804,14 @@ serve(async (req) => {
   }
 
   console.log("=== fetch-news pipeline starting ===");
+
+  // Keep retired publishers out of the public feed, including rows collected
+  // before the source was removed from RSS_FEEDS.
+  const { error: removedSourceError } = await supabase
+    .from("cached_articles")
+    .delete()
+    .in("source", REMOVED_SOURCES);
+  if (removedSourceError) console.warn(`  Retired source cleanup error: ${removedSourceError.message}`);
 
   let requestedSources: string[] = [];
   let diagnosticOnly = false;
