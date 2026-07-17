@@ -12,6 +12,11 @@ const corsHeaders = {
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
+const OPENROUTER_MODEL = Deno.env.get("OPENROUTER_NEWS_MODEL") ?? "~moonshotai/kimi-latest";
+const PROCESS_LIMIT = 20;
+const SCRAPE_LIMIT = 30;
 
 const RSS_FEEDS = [
   { url: "https://www.ign.com/rss/articles/feed?tags=news", source: "IGN" },
@@ -20,8 +25,11 @@ const RSS_FEEDS = [
   { url: "https://www.polygon.com/rss/index.xml",           source: "Polygon" },
   { url: "https://www.dexerto.com/gaming/feed/",            source: "Dexerto" },
   { url: "https://www.dexerto.com/twitch/feed/",            source: "Dexerto" },
-  { url: "https://www.sportskeeda.com/feed/esports",        source: "Sportskeeda" },
-  { url: "https://www.sportskeeda.com/feed/streamers",      source: "Sportskeeda" },
+  // Sportskeeda blocks its old /feed/* endpoints with HTTP 405. Bing News
+  // exposes the same publisher pages as RSS and includes the original URL in
+  // its redirect query string, which normalizeFeedLink() unwraps below.
+  { url: "https://www.bing.com/news/search?q=site%3Asportskeeda.com%2Fesports&format=rss", source: "Sportskeeda" },
+  { url: "https://www.bing.com/news/search?q=site%3Asportskeeda.com%2Fus%2Fstreamers&format=rss", source: "Sportskeeda" },
   { url: "https://www.gamedeveloper.com/rss.xml",           source: "Game Developer" },
   { url: "https://www.pcgamer.com/rss/",                    source: "PCGamer" },
   { url: "https://www.gematsu.com/feed",                    source: "Gematsu" },
@@ -54,6 +62,16 @@ interface RssItem {
   source: string;
 }
 
+interface FeedFetchResult {
+  items: RssItem[];
+  status: number | null;
+  contentType: string;
+  bytes: number;
+  rawItemTags: number;
+  preview: string;
+  error: string | null;
+}
+
 function decodeHtmlEntities(str: string): string {
   return str
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
@@ -67,6 +85,51 @@ function extractCDATA(block: string, tag: string): string {
   const plainRe  = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i");
   const m = block.match(cdataRe) || block.match(plainRe);
   return m ? decodeHtmlEntities(m[1].trim()) : "";
+}
+
+function normalizeFeedLink(value: string): string {
+  try {
+    const url = new URL(value);
+    if (url.hostname.endsWith("bing.com") && url.pathname.includes("/news/apiclick")) {
+      const original = url.searchParams.get("url");
+      if (original?.startsWith("http")) return original;
+    }
+  } catch {
+    // Keep the feed-provided value when it is not a URL we recognize.
+  }
+  return value;
+}
+
+/**
+ * Interleave publishers so the process limit cannot permanently starve feeds
+ * near the bottom of RSS_FEEDS. Rotate the starting publisher hourly so the
+ * final slot is also shared fairly when there are more publishers than slots.
+ */
+function interleaveBySource(items: RssItem[]): RssItem[] {
+  const grouped = new Map<string, RssItem[]>();
+  for (const item of items) {
+    const group = grouped.get(item.source) ?? [];
+    group.push(item);
+    grouped.set(item.source, group);
+  }
+
+  const groups = [...grouped.entries()];
+  if (groups.length === 0) return [];
+  const offset = Math.floor(Date.now() / 3_600_000) % groups.length;
+  const rotated = [...groups.slice(offset), ...groups.slice(0, offset)];
+  const ordered: RssItem[] = [];
+
+  for (let index = 0; ; index++) {
+    let added = false;
+    for (const [, group] of rotated) {
+      if (group[index]) {
+        ordered.push(group[index]);
+        added = true;
+      }
+    }
+    if (!added) break;
+  }
+  return ordered;
 }
 
 /**
@@ -137,10 +200,9 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
     const block = match[1];
 
     const title = extractCDATA(block, "title");
-    const link  = decodeHtmlEntities(
-                    block.match(/<link>(.*?)<\/link>/i)?.[1]?.trim()
-                 || block.match(/<link[^>]+href="([^"]+)"/i)?.[1]?.trim()
-                 || ""
+    const link  = normalizeFeedLink(
+                    extractCDATA(block, "link")
+                 || decodeHtmlEntities(block.match(/<link[^>]+href="([^"]+)"/i)?.[1]?.trim() || "")
                   );
     if (!title || !link) continue;
 
@@ -468,6 +530,110 @@ function countSentences(text: string): number {
   return text.split(/[.!?]+/).filter(s => s.trim().length > 3).length;
 }
 
+function buildSourceExcerpt(content: string): string {
+  const clean = removeBoilerplate(content)
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean || /^(Title:|URL Source:|Published Time:|Markdown Content:)/i.test(clean)) return "";
+
+  const candidates = clean.match(/[^.!?]+[.!?]+(?:["']|$)?/g) ?? [];
+  const selected: string[] = [];
+  let words = 0;
+  for (const candidate of candidates) {
+    const sentence = candidate.trim();
+    const sentenceWords = countWords(sentence);
+    if (sentenceWords < 7 || sentenceWords > 45) continue;
+    if (/https?:\/\/|subscribe|cookie|privacy policy|sign up|log in/i.test(sentence)) continue;
+    if (words + sentenceWords > 90) break;
+    selected.push(sentence);
+    words += sentenceWords;
+    if (words >= 50 || selected.length === 4) break;
+  }
+
+  // Publisher RSS descriptions are sometimes only one or two sentences. They
+  // are still preferable to dropping a valid article when every AI provider is
+  // unavailable, provided the excerpt is substantial and ends cleanly.
+  const excerpt = selected.join(" ").trim();
+  return countWords(excerpt) >= 20 && excerpt.length >= 100 ? excerpt : "";
+}
+
+function parseSummaryResult(raw: string, provider: string): SummarizeResult | null {
+  const parsed = extractJsonObject(raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim());
+  if (!parsed) {
+    console.warn(`  ${provider}: JSON parse failed`);
+    return null;
+  }
+
+  let summary = String(parsed.summary ?? "").trim();
+  if (!summary) return null;
+  summary = summary
+    .replace(/^Title:\s*/i, "")
+    .replace(/\s*URL Source:\s*https?:\/\/\S+/gi, "")
+    .replace(/\s*Published Time:\s*[^.]+/gi, "")
+    .replace(/\s+([.,;:!?])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (/\.{2,}\s*$|…\s*$/.test(summary)) {
+    summary = summary.replace(/\.{2,}\s*$|…\s*$/g, "").trim();
+    const lastStop = Math.max(summary.lastIndexOf(". "), summary.lastIndexOf("! "), summary.lastIndexOf("? "));
+    summary = lastStop > 80 ? summary.substring(0, lastStop + 1).trim() : "";
+  }
+
+  const wc = countWords(summary);
+  const sentences = countSentences(summary);
+  if (wc < 50 || wc > 100 || sentences < 3 || summary.startsWith("http") || !/[.!?"']/.test(summary.slice(-1))) {
+    console.warn(`  ${provider}: rejected (${wc}w, ${sentences}s)`);
+    return null;
+  }
+
+  const tags = (Array.isArray(parsed.tags) ? parsed.tags as unknown[] : [])
+    .filter((tag): tag is string => typeof tag === "string" && tag.length > 1 && tag.length < 40)
+    .slice(0, 6);
+  const gameTags = (Array.isArray(parsed.gameTags) ? parsed.gameTags as unknown[] : [])
+    .filter((tag): tag is string => typeof tag === "string" && tag.length > 1 && tag.length < 40)
+    .slice(0, 3);
+
+  console.log(`  ok ${wc}w ${sentences}s (${provider})`);
+  return { summary, gameTags, tags };
+}
+
+async function summarizeWithKimi(title: string, content: string): Promise<SummarizeResult> {
+  if (!OPENROUTER_API_KEY || countWords(content) < 15) return { summary: "", gameTags: [], tags: [] };
+  try {
+    const res = await fetch(OPENROUTER_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://pixel-pulse-roan.vercel.app",
+        "X-Title": "Talus News",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: `Article Title: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nWrite a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with summary, gameTags, and tags.` },
+        ],
+        temperature: 0.3,
+        max_tokens: 500,
+        response_format: { type: "json_object" },
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) {
+      console.warn(`  Kimi fallback ${res.status}: ${(await res.text()).substring(0, 200)}`);
+      return { summary: "", gameTags: [], tags: [], rateLimited: res.status === 429 };
+    }
+    const data = await res.json();
+    return parseSummaryResult(data.choices?.[0]?.message?.content ?? "", `Kimi ${OPENROUTER_MODEL}`)
+      ?? { summary: "", gameTags: [], tags: [] };
+  } catch (error) {
+    console.warn("  Kimi fallback error:", error);
+    return { summary: "", gameTags: [], tags: [] };
+  }
+}
+
 async function summarizeWithGroq(title: string, content: string): Promise<SummarizeResult> {
   if (!GROQ_API_KEY) return { summary: "", gameTags: [], tags: [] };
   // Not enough content to produce a real summary — skip and retry next run
@@ -515,6 +681,12 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
         if (res.status === 429) {
           await res.text(); // drain body
           sawRateLimit = true;
+          // Avoid losing an entire fetch cycle when the Groq free-tier quota is
+          // exhausted. The existing OpenRouter secret powers a Kimi fallback.
+          if (OPENROUTER_API_KEY) {
+            console.warn(`  Groq ${model} rate limited — trying Kimi via OpenRouter`);
+            return await summarizeWithKimi(title, content);
+          }
           // Respect Retry-After if present, otherwise back off 5s.
           const retryAfterSec = parseFloat(res.headers.get("retry-after") ?? "") || 5;
           const waitMs = Math.min(retryAfterSec * 1000, MAX_RATE_LIMIT_WAIT_MS - rateLimitWaitMs);
@@ -635,6 +807,21 @@ serve(async (req) => {
 
   console.log("=== fetch-news pipeline starting ===");
 
+  let requestedSources: string[] = [];
+  let diagnosticOnly = false;
+  try {
+    const payload = await req.clone().json();
+    if (Array.isArray(payload?.sources)) {
+      requestedSources = payload.sources.filter((value: unknown): value is string => typeof value === "string");
+    }
+    diagnosticOnly = payload?.diagnosticOnly === true;
+  } catch {
+    // Cron calls may omit a JSON body.
+  }
+  const selectedFeeds = requestedSources.length
+    ? RSS_FEEDS.filter((feed) => requestedSources.includes(feed.source))
+    : RSS_FEEDS;
+
   // Step 0: Delete cached articles with bad summaries so they get re-fetched
   const { data: badArticles } = await supabase
     .from("cached_articles")
@@ -650,9 +837,10 @@ serve(async (req) => {
     const lastChar = summary.slice(-1);
     const endsCleanly = /[.!?"')]/.test(lastChar);
     if (
-      words < 50 ||
+      row.source_url.startsWith("<![CDATA[") ||
+      words < 20 ||
       words > 110 ||
-      sentences < 3 ||
+      sentences < 1 ||
       endsInEllipsis ||
       !endsCleanly ||
       summary.startsWith("http") ||
@@ -678,37 +866,70 @@ serve(async (req) => {
   // Step 1: Fetch all RSS feeds in parallel (each with its own 10s timeout)
   // so wall-clock time stays ~10s regardless of how many feeds we add.
   const feedResults = await Promise.allSettled(
-    RSS_FEEDS.map(async (feed) => {
+    selectedFeeds.map(async (feed, feedIndex): Promise<FeedFetchResult> => {
       const controller = new AbortController();
       const tid = setTimeout(() => controller.abort(), 10000);
       try {
+        // Bing returns a tiny HTML throttle page when both Sportskeeda searches
+        // hit it simultaneously. Stagger only duplicate Bing requests.
+        const earlierBingFeeds = selectedFeeds.slice(0, feedIndex)
+          .filter((candidate) => candidate.url.includes("bing.com/news/search")).length;
+        if (feed.url.includes("bing.com/news/search") && earlierBingFeeds > 0) {
+          await new Promise((resolve) => setTimeout(resolve, earlierBingFeeds * 1000));
+        }
         const res = await fetch(feed.url, {
           signal: controller.signal,
           headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; PixelPulseBot/1.0)",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
             "Accept": "application/rss+xml, application/xml, text/xml, */*",
+            "Accept-Language": "en-US,en;q=0.9",
           },
           redirect: "follow",
         });
         if (!res.ok) {
           console.warn(`  RSS ${feed.source}: HTTP ${res.status}`);
-          return [] as RssItem[];
+          return { items: [], status: res.status, contentType: res.headers.get("content-type") ?? "", bytes: 0, rawItemTags: 0, preview: "", error: `HTTP ${res.status}` };
         }
         const xml = await res.text();
         const items = parseRSSItems(xml, feed.source);
         console.log(`  ${feed.source}: ${items.length} items`);
-        return items;
+        return {
+          items,
+          status: res.status,
+          contentType: res.headers.get("content-type") ?? "",
+          bytes: xml.length,
+          rawItemTags: (xml.match(/<item[\s>]/gi) ?? []).length,
+          preview: xml.slice(0, 120).replace(/\s+/g, " "),
+          error: null,
+        };
       } catch (e) {
         console.warn(`  RSS ${feed.source}: ${e}`);
-        return [] as RssItem[];
+        return { items: [], status: null, contentType: "", bytes: 0, rawItemTags: 0, preview: "", error: String(e) };
       } finally {
         clearTimeout(tid);
       }
     })
   );
   const allItems: RssItem[] = feedResults.flatMap((r) =>
-    r.status === "fulfilled" ? r.value : []
+    r.status === "fulfilled" ? r.value.items : []
   );
+  const feedStats = feedResults.map((result, index) => ({
+    source: selectedFeeds[index].source,
+    url: selectedFeeds[index].url,
+    items: result.status === "fulfilled" ? result.value.items.length : 0,
+    status: result.status === "fulfilled" ? result.value.status : null,
+    contentType: result.status === "fulfilled" ? result.value.contentType : "",
+    bytes: result.status === "fulfilled" ? result.value.bytes : 0,
+    rawItemTags: result.status === "fulfilled" ? result.value.rawItemTags : 0,
+    preview: result.status === "fulfilled" ? result.value.preview : "",
+    error: result.status === "fulfilled" ? result.value.error : String(result.reason),
+  }));
+
+  if (diagnosticOnly) {
+    return new Response(JSON.stringify({ total: allItems.length, feeds: feedStats }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   // Step 2: Filter out already-cached articles (news is permanent)
   const urls = allItems.map(i => i.link);
@@ -718,7 +939,7 @@ serve(async (req) => {
     .in("source_url", urls);
 
   const existingUrls = new Set((existing ?? []).map(e => e.source_url));
-  const newItems = allItems.filter(item => !existingUrls.has(item.link));
+  const newItems = interleaveBySource(allItems.filter(item => !existingUrls.has(item.link)));
   console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
   // Step 3: Scrape all new articles in parallel
   interface EnrichedItem extends RssItem {
@@ -731,7 +952,7 @@ serve(async (req) => {
   const enrichedItems: EnrichedItem[] = [];
 
   const scrapeResults = await Promise.allSettled(
-    newItems.map(async (item) => {
+    newItems.slice(0, SCRAPE_LIMIT).map(async (item) => {
       const rssDesc = removeBoilerplate(stripHtml(item.description));
       const rssWords = rssDesc.split(/\s+/).filter(Boolean).length;
 
@@ -779,10 +1000,10 @@ serve(async (req) => {
   // wall-time limit — unprocessed articles are picked up on the next run.
   const pipelineStart = Date.now();
   const TIME_BUDGET_MS = 110_000;
-  const PROCESS_LIMIT = 20;
   let consecutiveRateLimits = 0;
   const itemsToProcess = enrichedItems.slice(0, PROCESS_LIMIT);
   console.log(`Processing ${itemsToProcess.length}/${enrichedItems.length} articles (limit: ${PROCESS_LIMIT})`);
+  const processedBySource: Record<string, number> = {};
   for (const item of itemsToProcess) {
     if (Date.now() - pipelineStart > TIME_BUDGET_MS) {
       console.warn(`  Time budget exhausted — deferring remaining articles to next run`);
@@ -790,7 +1011,18 @@ serve(async (req) => {
       break;
     }
     try {
-      const { summary, gameTags, tags, rateLimited } = await summarizeWithGroq(item.title, item.content);
+      let { summary, gameTags, tags, rateLimited } = await summarizeWithGroq(item.title, item.content);
+
+      if (!summary) {
+        const sourceExcerpt = buildSourceExcerpt(item.content);
+        if (sourceExcerpt) {
+          summary = sourceExcerpt;
+          gameTags = [];
+          tags = [];
+          rateLimited = false;
+          console.log(`  using clean source excerpt (${countWords(summary)}w)`);
+        }
+      }
 
       if (!summary || summary.length < 100) {
         if (rateLimited) {
@@ -829,7 +1061,10 @@ serve(async (req) => {
       }, { onConflict: "source_url" });
 
       if (error) console.error(`DB upsert error for "${item.title}":`, error);
-      else processed++;
+      else {
+        processed++;
+        processedBySource[item.source] = (processedBySource[item.source] || 0) + 1;
+      }
 
       await new Promise(r => setTimeout(r, 2000));
     } catch (err) {
@@ -845,6 +1080,8 @@ serve(async (req) => {
     new:       newItems.length,
     scraped:   enrichedItems.length,
     processed,
+    processedBySource,
+    feeds: feedStats,
     skipped:   skipReasons,
     elapsedMs: Date.now() - pipelineStart,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
