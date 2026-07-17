@@ -10,9 +10,45 @@ import { useTagFilter } from "@/contexts/TagFilterContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { MobileCategoryScroll } from "@/components/sidebar/CategoryPillsWidget";
+import { FeedHigherLowerCard, FeedSentimentCard } from "@/components/hub/HubEngagementWidgets";
+import type { RankedArticle } from "@/types/feed";
 
 interface NewsFeedProps {
   onCardView?: (cardId: string) => void;
+}
+
+type FeedEntry =
+  | { type: "article"; article: RankedArticle; index: number }
+  | { type: "signup"; key: string }
+  | { type: "higher-lower"; key: string }
+  | { type: "sentiment"; key: string };
+
+function buildFeedEntries(articles: RankedArticle[], isAuthenticated: boolean): FeedEntry[] {
+  const entries: FeedEntry[] = [];
+  let pendingWidget: "higher-lower" | "sentiment" | null = null;
+  articles.forEach((article, index) => {
+    const position = index + 1;
+    entries.push({ type: "article", article, index });
+
+    const showSignup = !isAuthenticated && position % 3 === 0;
+    if (showSignup) entries.push({ type: "signup", key: `signup-${position}` });
+
+    if (pendingWidget && !showSignup) {
+      entries.push({ type: pendingWidget, key: `${pendingWidget}-deferred-${position}` });
+      pendingWidget = null;
+    }
+
+    const scheduledWidget = position % 10 === 5
+      ? "higher-lower"
+      : position % 10 === 0
+        ? "sentiment"
+        : null;
+    if (scheduledWidget) {
+      if (showSignup) pendingWidget = scheduledWidget;
+      else entries.push({ type: scheduledWidget, key: `${scheduledWidget}-${position}` });
+    }
+  });
+  return entries;
 }
 
 function normalizeTag(tag: string): string {
@@ -86,6 +122,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
   }, [activeTag]);
 
   const displayedNews = filteredArticles.slice(0, displayedCount);
+  const feedEntries = buildFeedEntries(displayedNews, isAuthenticated);
 
   // Get priority badge
   const getPriorityBadge = (priority: string) => {
@@ -173,8 +210,17 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
               </motion.div>
             ))
           ) : displayedNews.length > 0 ? (
-            displayedNews.map((item, index) => {
-              const showSignupPrompt = !isAuthenticated && index > 0 && index % 3 === 0;
+            feedEntries.map((entry) => {
+              if (entry.type === "signup") {
+                return <motion.div key={entry.key} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}><InFeedSignupPrompt /></motion.div>;
+              }
+              if (entry.type === "higher-lower") {
+                return <motion.div key={entry.key} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}><FeedHigherLowerCard /></motion.div>;
+              }
+              if (entry.type === "sentiment") {
+                return <motion.div key={entry.key} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}><FeedSentimentCard /></motion.div>;
+              }
+              const { article: item, index } = entry;
               return (
                 <motion.div
                   key={item.id}
@@ -185,13 +231,6 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   className="relative"
                 >
-                  {/* In-feed signup prompt before every 3rd article (for guests) */}
-                  {showSignupPrompt && (
-                    <div className="mb-4">
-                      <InFeedSignupPrompt />
-                    </div>
-                  )}
-
                   {/* New badge */}
                   {item.isNew && (
                     <div className="absolute -top-2 -right-2 z-10">

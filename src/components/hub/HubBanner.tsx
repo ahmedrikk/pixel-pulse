@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-type HubTab = "all" | "trivia" | "hype";
+export type HubTab = "all" | "trivia" | "higher-lower" | "sentiment" | "hype";
 
 interface HubBannerProps {
   activeTab: HubTab;
@@ -11,6 +11,8 @@ export function HubBanner({ activeTab, setActiveTab }: HubBannerProps) {
   const tabs: { id: HubTab; label: string; dot?: boolean }[] = [
     { id: "all", label: "Everything" },
     { id: "trivia", label: "Trivia" },
+    { id: "higher-lower", label: "Higher or Lower" },
+    { id: "sentiment", label: "Sentiment" },
     { id: "hype", label: "Hype Meter" },
   ];
 
@@ -53,7 +55,7 @@ export function HubBanner({ activeTab, setActiveTab }: HubBannerProps) {
           The <span style={{ color: "#818CF8", fontStyle: "normal" }}>Hub</span>
         </h1>
         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginBottom: 12, lineHeight: 1.5 }}>
-          Where the community lives — trivia and game hype.
+          Where the community plays, votes, remembers, and lives games.
         </p>
 
         {/* Filter Tabs */}
