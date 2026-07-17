@@ -32,6 +32,7 @@ export interface CachedArticle {
 
 // News is permanent; expiry is set to a far-future date.
 const PERMANENT_EXPIRES_AT = '2099-12-31T23:59:59.000Z';
+const PRIORITY_NEWS_SOURCES = ["Sportskeeda", "Game Developer", "Dexerto Twitch", "Dexerto"];
 
 /**
  * Convert NewsItem to database format
@@ -291,7 +292,6 @@ export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
  * high-volume outlet from filling the entire first page.
  */
 function spreadRecentArticlesBySource(articles: NewsItem[]): NewsItem[] {
-  const requestedSources = ["Sportskeeda", "Game Developer", "Dexerto Twitch", "Dexerto"];
   const groups = new Map<string, NewsItem[]>();
   for (const article of articles) {
     const group = groups.get(article.source) ?? [];
@@ -300,8 +300,8 @@ function spreadRecentArticlesBySource(articles: NewsItem[]): NewsItem[] {
   }
 
   const sourceOrder = [...groups.keys()].sort((a, b) => {
-    const aPriority = requestedSources.indexOf(a);
-    const bPriority = requestedSources.indexOf(b);
+    const aPriority = PRIORITY_NEWS_SOURCES.indexOf(a);
+    const bPriority = PRIORITY_NEWS_SOURCES.indexOf(b);
     if (aPriority !== -1 || bPriority !== -1) {
       if (aPriority === -1) return 1;
       if (bPriority === -1) return -1;
@@ -399,7 +399,25 @@ export async function getAllCachedArticles(offset = 0, limit = 50, category?: st
         return [];
       }
 
-      const balanced = spreadRecentArticlesBySource((data || []).map(toNewsItem));
+      let feedRows = data || [];
+      if (windowStart === 0) {
+        const priorityResults = await Promise.all(PRIORITY_NEWS_SOURCES.map(async (source) => {
+          let priorityQuery = supabase
+            .from('cached_articles')
+            .select('*')
+            .eq('source', source)
+            .order('article_date', { ascending: false })
+            .limit(1);
+          if (category) priorityQuery = priorityQuery.eq('category', category);
+          const { data: priorityData } = await priorityQuery;
+          return priorityData?.[0] ?? null;
+        }));
+        const priorityRows = priorityResults.filter((row): row is NonNullable<typeof row> => row !== null);
+        const priorityUrls = new Set(priorityRows.map((row) => row.source_url));
+        feedRows = [...priorityRows, ...feedRows.filter((row) => !priorityUrls.has(row.source_url))];
+      }
+
+      const balanced = spreadRecentArticlesBySource(feedRows.map(toNewsItem));
       const startInWindow = offset - windowStart;
       return balanced.slice(startInWindow, startInWindow + limit);
     } catch (err) {
