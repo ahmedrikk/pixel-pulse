@@ -12,9 +12,9 @@ const corsHeaders = {
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
-const OPENROUTER_MODEL = Deno.env.get("OPENROUTER_NEWS_MODEL") ?? "~moonshotai/kimi-latest";
+const KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions";
+const KIMI_API_KEY = Deno.env.get("KIMI_API_KEY") ?? "";
+const KIMI_MODEL = Deno.env.get("KIMI_NEWS_MODEL") ?? "kimi-k2.6";
 const PROCESS_LIMIT = 20;
 const SCRAPE_LIMIT = 30;
 
@@ -599,23 +599,21 @@ function parseSummaryResult(raw: string, provider: string): SummarizeResult | nu
 }
 
 async function summarizeWithKimi(title: string, content: string): Promise<SummarizeResult> {
-  if (!OPENROUTER_API_KEY || countWords(content) < 15) return { summary: "", gameTags: [], tags: [] };
+  if (!KIMI_API_KEY || countWords(content) < 15) return { summary: "", gameTags: [], tags: [] };
   try {
-    const res = await fetch(OPENROUTER_API_URL, {
+    const res = await fetch(KIMI_API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Authorization": `Bearer ${KIMI_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://pixel-pulse-roan.vercel.app",
-        "X-Title": "Talus News",
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+        model: KIMI_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `Article Title: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nWrite a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with summary, gameTags, and tags.` },
         ],
-        temperature: 0.3,
+        thinking: { type: "disabled" },
         max_tokens: 500,
         response_format: { type: "json_object" },
       }),
@@ -626,7 +624,7 @@ async function summarizeWithKimi(title: string, content: string): Promise<Summar
       return { summary: "", gameTags: [], tags: [], rateLimited: res.status === 429 };
     }
     const data = await res.json();
-    return parseSummaryResult(data.choices?.[0]?.message?.content ?? "", `Kimi ${OPENROUTER_MODEL}`)
+    return parseSummaryResult(data.choices?.[0]?.message?.content ?? "", `Kimi ${KIMI_MODEL}`)
       ?? { summary: "", gameTags: [], tags: [] };
   } catch (error) {
     console.warn("  Kimi fallback error:", error);
@@ -681,12 +679,6 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
         if (res.status === 429) {
           await res.text(); // drain body
           sawRateLimit = true;
-          // Avoid losing an entire fetch cycle when the Groq free-tier quota is
-          // exhausted. The existing OpenRouter secret powers a Kimi fallback.
-          if (OPENROUTER_API_KEY) {
-            console.warn(`  Groq ${model} rate limited — trying Kimi via OpenRouter`);
-            return await summarizeWithKimi(title, content);
-          }
           // Respect Retry-After if present, otherwise back off 5s.
           const retryAfterSec = parseFloat(res.headers.get("retry-after") ?? "") || 5;
           const waitMs = Math.min(retryAfterSec * 1000, MAX_RATE_LIMIT_WAIT_MS - rateLimitWaitMs);
@@ -775,6 +767,15 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
   // Never fall back to raw scraped content as a summary — that produces garbage.
   // Skip the article; it will be retried on the next pipeline run.
   return { summary: "", gameTags: [], tags: [], rateLimited: sawRateLimit };
+}
+
+async function summarizeArticle(title: string, content: string): Promise<SummarizeResult> {
+  if (KIMI_API_KEY) {
+    const kimiResult = await summarizeWithKimi(title, content);
+    if (kimiResult.summary) return kimiResult;
+    console.warn("  Kimi did not return a usable summary — trying Groq backup");
+  }
+  return await summarizeWithGroq(title, content);
 }
 
 // ---------------------------------------------------------------------------
@@ -1011,7 +1012,7 @@ serve(async (req) => {
       break;
     }
     try {
-      let { summary, gameTags, tags, rateLimited } = await summarizeWithGroq(item.title, item.content);
+      let { summary, gameTags, tags, rateLimited } = await summarizeArticle(item.title, item.content);
 
       if (!summary) {
         const sourceExcerpt = buildSourceExcerpt(item.content);
