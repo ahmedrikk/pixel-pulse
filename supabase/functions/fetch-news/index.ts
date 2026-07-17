@@ -14,7 +14,7 @@ const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 const KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions";
 const KIMI_API_KEY = Deno.env.get("KIMI_API_KEY") ?? "";
-const KIMI_MODEL = Deno.env.get("KIMI_NEWS_MODEL") ?? "kimi-k2.6";
+const KIMI_MODEL = Deno.env.get("KIMI_NEWS_MODEL") ?? "kimi-k3";
 const PROCESS_LIMIT = 20;
 const SCRAPE_LIMIT = 30;
 
@@ -24,7 +24,7 @@ const RSS_FEEDS = [
   { url: "https://kotaku.com/feed",                         source: "Kotaku" },
   { url: "https://www.polygon.com/rss/index.xml",           source: "Polygon" },
   { url: "https://www.dexerto.com/gaming/feed/",            source: "Dexerto" },
-  { url: "https://www.dexerto.com/twitch/feed/",            source: "Dexerto" },
+  { url: "https://www.dexerto.com/twitch/feed/",            source: "Dexerto Twitch" },
   // Sportskeeda blocks its old /feed/* endpoints with HTTP 405. Bing News
   // exposes the same publisher pages as RSS and includes the original URL in
   // its redirect query string, which normalizeFeedLink() unwraps below.
@@ -613,21 +613,22 @@ async function summarizeWithKimi(title: string, content: string): Promise<Summar
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: `Article Title: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nWrite a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with summary, gameTags, and tags.` },
         ],
-        thinking: { type: "disabled" },
-        max_tokens: 500,
+        // Kimi K3 always reasons and does not accept the K2.x `thinking`
+        // parameter. Keep enough completion room for reasoning + final JSON.
+        max_completion_tokens: 2000,
         response_format: { type: "json_object" },
       }),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(60_000),
     });
     if (!res.ok) {
-      console.warn(`  Kimi fallback ${res.status}: ${(await res.text()).substring(0, 200)}`);
+      console.warn(`  Kimi ${res.status}: ${(await res.text()).substring(0, 200)}`);
       return { summary: "", gameTags: [], tags: [], rateLimited: res.status === 429 };
     }
     const data = await res.json();
     return parseSummaryResult(data.choices?.[0]?.message?.content ?? "", `Kimi ${KIMI_MODEL}`)
       ?? { summary: "", gameTags: [], tags: [] };
   } catch (error) {
-    console.warn("  Kimi fallback error:", error);
+    console.warn("  Kimi error:", error);
     return { summary: "", gameTags: [], tags: [] };
   }
 }
@@ -930,6 +931,20 @@ serve(async (req) => {
     return new Response(JSON.stringify({ total: allItems.length, feeds: feedStats }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  // The gaming and Twitch feeds historically shared the generic "Dexerto"
+  // label. Correct current Twitch rows so source-balanced feeds can surface
+  // the requested Twitch publisher independently.
+  const dexertoTwitchUrls = allItems
+    .filter((item) => item.source === "Dexerto Twitch")
+    .map((item) => item.link);
+  if (dexertoTwitchUrls.length > 0) {
+    const { error: relabelError } = await supabase
+      .from("cached_articles")
+      .update({ source: "Dexerto Twitch" })
+      .in("source_url", dexertoTwitchUrls);
+    if (relabelError) console.warn(`  Dexerto Twitch relabel error: ${relabelError.message}`);
   }
 
   // Step 2: Filter out already-cached articles (news is permanent)
