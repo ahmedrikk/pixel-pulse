@@ -286,6 +286,47 @@ export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
 }
 
 /**
+ * Deterministic source spreading for normal feed loads. Articles remain newest
+ * first within each publisher, while round-robin selection prevents a
+ * high-volume outlet from filling the entire first page.
+ */
+function spreadRecentArticlesBySource(articles: NewsItem[]): NewsItem[] {
+  const requestedSources = ["Sportskeeda", "Game Developer", "Dexerto Twitch", "Dexerto"];
+  const groups = new Map<string, NewsItem[]>();
+  for (const article of articles) {
+    const group = groups.get(article.source) ?? [];
+    group.push(article);
+    groups.set(article.source, group);
+  }
+
+  const sourceOrder = [...groups.keys()].sort((a, b) => {
+    const aPriority = requestedSources.indexOf(a);
+    const bPriority = requestedSources.indexOf(b);
+    if (aPriority !== -1 || bPriority !== -1) {
+      if (aPriority === -1) return 1;
+      if (bPriority === -1) return -1;
+      return aPriority - bPriority;
+    }
+    const aDate = new Date(groups.get(a)![0].timestamp).getTime();
+    const bDate = new Date(groups.get(b)![0].timestamp).getTime();
+    return bDate - aDate || a.localeCompare(b);
+  });
+
+  const result: NewsItem[] = [];
+  for (let round = 0; ; round++) {
+    let added = false;
+    for (const source of sourceOrder) {
+      const article = groups.get(source)?.[round];
+      if (article) {
+        result.push(article);
+        added = true;
+      }
+    }
+    if (!added) return result;
+  }
+}
+
+/**
  * Tag frequency across all cached articles.
  * Powers the real "Browse by category" counts — each count is the number
  * of articles actually tagged with that entity. An article counts once per
@@ -332,11 +373,15 @@ export async function getAllCachedArticles(offset = 0, limit = 50, category?: st
   // Retry up to 3 times — Supabase auth init can abort in-flight queries
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      // Balance within a stable 100-row window so each page contains a mix of
+      // publishers without random pagination duplicates.
+      const windowSize = Math.max(100, limit);
+      const windowStart = Math.floor(offset / windowSize) * windowSize;
       let query = supabase
         .from('cached_articles')
         .select('*')
         .order('article_date', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .range(windowStart, windowStart + windowSize - 1);
 
       if (category) {
         query = query.eq('category', category);
@@ -354,7 +399,9 @@ export async function getAllCachedArticles(offset = 0, limit = 50, category?: st
         return [];
       }
 
-      return (data || []).map(toNewsItem);
+      const balanced = spreadRecentArticlesBySource((data || []).map(toNewsItem));
+      const startInWindow = offset - windowStart;
+      return balanced.slice(startInWindow, startInWindow + limit);
     } catch (err) {
       const isAbort = err instanceof DOMException && err.name === 'AbortError';
       if (isAbort && attempt < 2) {
