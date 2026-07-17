@@ -68,17 +68,17 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
     : <img src={value.url!} alt="avatar" className="w-full h-full rounded-full object-cover" />;
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex w-full flex-col items-center gap-4">
       <div className="w-20 h-20 rounded-full ring-2 ring-[#534AB7] overflow-hidden bg-gray-100">
         {preview}
       </div>
 
-      <div className="flex gap-3 flex-wrap justify-center">
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-center sm:gap-3">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex items-center gap-1.5 text-xs border border-gray-200 rounded-lg px-3 py-2 hover:border-[#534AB7] transition-colors"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] transition-colors hover:border-[#534AB7] sm:min-h-10 sm:px-3 sm:text-xs"
         >
           <Camera className="w-3.5 h-3.5" /> {uploading ? 'Uploading…' : 'Upload'}
         </button>
@@ -87,7 +87,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="flex items-center gap-1.5 text-xs border border-gray-200 rounded-lg px-3 py-2 hover:border-[#534AB7] transition-colors"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] transition-colors hover:border-[#534AB7] sm:min-h-10 sm:px-3 sm:text-xs"
         >
           <Grid2x2 className="w-3.5 h-3.5" /> Choose avatar
         </button>
@@ -95,7 +95,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
         <button
           type="button"
           onClick={useInitials}
-          className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${
+          className={`col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] transition-colors sm:col-auto sm:min-h-10 sm:text-xs ${
             value.type === 'initials' ? 'border-[#534AB7] bg-purple-50 text-[#534AB7]' : 'border-gray-200 hover:border-[#534AB7]'
           }`}
         >
@@ -104,9 +104,9 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
       </div>
 
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[85dvh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
           <DialogTitle>Choose your avatar</DialogTitle>
-          <div className="grid grid-cols-6 gap-3 mt-2">
+          <div className="mt-2 grid grid-cols-4 place-items-center gap-3 sm:grid-cols-6">
             {PRESET_SEEDS.map(seed => (
               <button
                 key={seed}

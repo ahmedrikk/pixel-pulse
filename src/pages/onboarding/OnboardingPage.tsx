@@ -109,7 +109,7 @@ function StepCard({
       }}
     >
       {/* Header */}
-      <div className="flex items-start gap-3 p-4 pb-3">
+      <div className="flex items-start gap-3 p-4 pb-3 sm:p-5 sm:pb-3">
         <div
           className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
           style={{ background: active ? '#534AB7' : 'rgba(255,255,255,0.08)', color: 'white' }}
@@ -123,13 +123,13 @@ function StepCard({
       </div>
 
       {/* Content */}
-      <div className="px-4 pb-3 flex flex-col gap-4 flex-1">
+      <div className="px-4 pb-4 flex flex-col gap-4 flex-1 sm:px-5">
         {children}
       </div>
 
       {/* Footer */}
       {footer && (
-        <div className="mt-auto px-4 py-3 flex items-center gap-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+        <div className="mt-auto flex flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center sm:px-5" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
           {footer}
         </div>
       )}
@@ -139,7 +139,7 @@ function StepCard({
 
 function ProgBar({ step, pct }: { step: string; pct: number }) {
   return (
-    <div className="flex-1 mr-3">
+    <div className="flex-1 sm:mr-3">
       <p className="text-[9px] text-white/50 mb-1">{step}</p>
       <div className="h-[3px] rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
         <div className="h-full bg-[#534AB7] rounded-sm" style={{ width: `${pct}%` }} />
@@ -210,7 +210,7 @@ export default function OnboardingPage() {
   useEffect(() => {
     const initials = (displayName || username).slice(0, 2).toUpperCase() || 'GP';
     if (avatar.type === 'initials') setAvatar(prev => ({ ...prev, initials }));
-  }, [displayName, username]);
+  }, [displayName, username, avatar.type]);
 
   // Debounced username availability check
   const checkUsername = useCallback(async (u: string) => {
@@ -262,9 +262,9 @@ export default function OnboardingPage() {
       setStep2({ platforms, skillLevel: skill });
       setPage(2);
       window.scrollTo({ top: 0 });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err.message || 'Failed to save profile. Please try again.');
+      toast.error(err instanceof Error ? err.message : 'Failed to save profile. Please try again.');
     } finally {
       setP1Loading(false);
     }
@@ -291,9 +291,9 @@ export default function OnboardingPage() {
       }
       clear();
       navigate('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err.message || 'Failed to complete onboarding. Please try again.');
+      toast.error(err instanceof Error ? err.message : 'Failed to complete onboarding. Please try again.');
       setCompleting(false);
     }
   }
@@ -376,7 +376,7 @@ export default function OnboardingPage() {
     </aside>
   );
 
-  const inputCls = "w-full rounded-lg px-3 py-2 text-[12px] text-white outline-none bg-white/5 border border-white/10 placeholder:text-white/22 focus:border-[#534AB7]";
+  const inputCls = "min-h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-base text-white outline-none placeholder:text-white/22 focus:border-[#534AB7] sm:min-h-0 sm:text-[12px]";
 
   // ── Step cards ───────────────────────────────────────────────────────────
 
@@ -404,7 +404,7 @@ export default function OnboardingPage() {
               key={b.id}
               onClick={() => setBannerPreset(b.id)}
               title={b.label}
-              className="relative h-10 rounded-lg overflow-hidden border-2 transition-all"
+              className="relative h-11 overflow-hidden rounded-lg border-2 transition-all sm:h-10"
               style={{
                 background: BANNER_GRADIENTS[b.id],
                 borderColor: bannerPreset === b.id ? '#534AB7' : 'transparent',
@@ -459,7 +459,7 @@ export default function OnboardingPage() {
       <div>
         <FieldLabel>Bio <span className="text-white/20 normal-case tracking-normal">(optional)</span></FieldLabel>
         <textarea
-          className={`${inputCls} resize-none h-14`}
+          className={`${inputCls} h-20 resize-none sm:h-14`}
           placeholder="Tell other gamers about yourself..."
           value={bio}
           maxLength={120}
@@ -481,7 +481,7 @@ export default function OnboardingPage() {
               <button
                 key={p.id}
                 onClick={() => togglePlatform(p.id)}
-                className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all"
+                className="flex min-h-11 items-center gap-1.5 rounded-lg px-2 py-2 text-left transition-all sm:gap-2 sm:px-2.5"
                 style={{
                   background: sel ? 'rgba(83,74,183,0.15)' : 'rgba(255,255,255,0.04)',
                   border: sel ? '0.5px solid rgba(83,74,183,0.4)' : '0.5px solid rgba(255,255,255,0.08)',
@@ -507,7 +507,7 @@ export default function OnboardingPage() {
             <button
               key={s}
               onClick={() => setSkill(s)}
-              className="flex-1 py-1.5 rounded-[7px] text-[10px] transition-all"
+              className="min-h-11 flex-1 rounded-[7px] py-1.5 text-[10px] transition-all sm:min-h-0"
               style={{
                 background: skill === s ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
                 border: skill === s ? '0.5px solid #534AB7' : '0.5px solid rgba(255,255,255,0.08)',
@@ -542,7 +542,7 @@ export default function OnboardingPage() {
             * min 3 · {selectedIds.length} selected
           </span>
         </FieldLabel>
-        <div className="[&_input]:!bg-white/5 [&_input]:!border-white/10 [&_input]:!text-white [&_input]:!placeholder-white/22 [&_input:focus]:!border-[#534AB7] [&_svg]:!text-white/30">
+        <div className="[&_input]:!min-h-11 [&_input]:!border-white/10 [&_input]:!bg-white/5 [&_input]:!text-base [&_input]:!text-white [&_input]:!placeholder-white/22 [&_input:focus]:!border-[#534AB7] [&_svg]:!text-white/30 sm:[&_input]:!text-sm">
           <GameSearchInput onResults={handleSearchResults} onClear={() => setSearchResults(null)} />
         </div>
         <div className="flex flex-wrap gap-1.5 mt-2">
@@ -553,7 +553,7 @@ export default function OnboardingPage() {
               <button
                 key={g.id}
                 onClick={() => toggleGame(g.id)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] transition-all"
+                className="inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] transition-all sm:min-h-0"
                 style={{
                   background: sel ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
                   border: sel ? '0.5px solid #534AB7' : '0.5px solid rgba(255,255,255,0.08)',
@@ -577,7 +577,7 @@ export default function OnboardingPage() {
               <button
                 key={g}
                 onClick={() => toggleGenre(g)}
-                className="inline-flex px-2.5 py-1 rounded-full text-[10px] transition-all"
+                className="inline-flex min-h-9 items-center rounded-full px-2.5 py-1 text-[10px] transition-all sm:min-h-0"
                 style={{
                   background: sel ? 'rgba(13,148,136,0.15)' : 'rgba(255,255,255,0.04)',
                   border: sel ? '0.5px solid rgba(13,148,136,0.4)' : '0.5px solid rgba(255,255,255,0.08)',
@@ -615,10 +615,10 @@ export default function OnboardingPage() {
           { icon: '📰', label: 'Feed personalised', val: 'Ready ✓', color: '#10b981' },
           { icon: '🏅', label: 'Season 1 status',  val: 'Founder ✓', color: '#FCD34D' },
         ].map(row => (
-          <div key={row.label} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          <div key={row.label} className="flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
             <span className="text-sm w-5 text-center flex-shrink-0">{row.icon}</span>
-            <span className="text-[11px] text-white/40 flex-1">{row.label}</span>
-            <span className="text-[11px] font-medium" style={{ color: row.color ?? '#a5b4fc' }}>{row.val}</span>
+            <span className="min-w-0 flex-1 text-[11px] text-white/40">{row.label}</span>
+            <span className="max-w-[48%] truncate text-right text-[11px] font-medium" style={{ color: row.color ?? '#a5b4fc' }}>{row.val}</span>
           </div>
         ))}
       </div>
@@ -626,7 +626,7 @@ export default function OnboardingPage() {
       <button
         onClick={handleComplete}
         disabled={!canComplete || completing}
-        className="w-full h-10 rounded-[9px] bg-[#534AB7] text-white text-[13px] font-semibold flex items-center justify-center gap-2 mt-2 hover:bg-[#3C3489] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-[9px] bg-[#534AB7] text-[13px] font-semibold text-white transition-colors hover:bg-[#3C3489] disabled:cursor-not-allowed disabled:opacity-40"
       >
         {completing ? (
           <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -644,12 +644,12 @@ export default function OnboardingPage() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0d0d1a', fontFamily: 'var(--font-sans, system-ui, sans-serif)' }}>
+    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden" style={{ background: '#0d0d1a', fontFamily: 'var(--font-sans, system-ui, sans-serif)' }}>
       {/* Nav */}
-      <nav className="flex items-center justify-between px-6 h-[50px] flex-shrink-0"
+      <nav className="flex min-h-[54px] flex-shrink-0 items-center justify-between gap-3 px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6"
            style={{ background: '#12122a', borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
         <TalusLogo size={34} />
-        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-medium text-[#a5b4fc]"
+        <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[9px] font-medium text-[#a5b4fc] sm:px-3 sm:text-[10px]"
               style={{ background: 'rgba(83,74,183,0.2)', border: '0.5px solid rgba(83,74,183,0.4)' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           Season 1 is live
@@ -657,34 +657,59 @@ export default function OnboardingPage() {
       </nav>
 
       {/* Page tabs */}
-      <div className="flex px-6 flex-shrink-0"
+      <div className="flex flex-shrink-0 overflow-x-auto px-2 sm:px-6"
            style={{ background: '#12122a', borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
         {([1, 2] as const).map(p => (
           <button
             key={p}
             onClick={() => setPage(p)}
-            className="px-[18px] py-[9px] text-[11px] border-b-2 transition-colors"
+            type="button"
+            aria-current={page === p ? 'step' : undefined}
+            className="min-h-11 min-w-0 flex-1 whitespace-nowrap border-b-2 px-2 py-2.5 text-[10px] transition-colors sm:min-h-0 sm:flex-none sm:px-[18px] sm:text-[11px]"
             style={{
               color: page === p ? '#fff' : 'rgba(255,255,255,0.35)',
               fontWeight: page === p ? 500 : 400,
               borderColor: page === p ? '#534AB7' : 'transparent',
             }}
           >
-            {p === 1 ? 'Page 1 — Identity & Platforms' : 'Page 2 — Games & Confirm'}
+            <span className="sm:hidden">{p === 1 ? '1. Identity & platforms' : '2. Games & confirm'}</span>
+            <span className="hidden sm:inline">{p === 1 ? 'Page 1 — Identity & Platforms' : 'Page 2 — Games & Confirm'}</span>
           </button>
         ))}
       </div>
 
-      {/* Layout */}
-      <div className="flex flex-1 overflow-hidden">
-        {sidebar}
+      {/* Compact progress for phones and tablets (desktop uses the sidebar). */}
+      <div className="grid grid-cols-4 gap-1 border-b border-white/5 bg-[#12122a] px-3 py-3 lg:hidden">
+        {[
+          { n: 1, label: 'Identity' },
+          { n: 2, label: 'Platforms' },
+          { n: 3, label: 'Games' },
+          { n: 4, label: 'Done' },
+        ].map((step, index) => {
+          const done = page === 2 && step.n <= 2;
+          const current = page === 1 ? step.n <= 2 : step.n >= 3;
+          return (
+            <div key={step.n} className="relative flex min-w-0 flex-col items-center gap-1.5">
+              {index > 0 && <span className={`absolute right-1/2 top-3 h-px w-full ${done ? 'bg-[#534AB7]' : 'bg-white/10'}`} />}
+              <span className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold ${done || current ? 'bg-[#534AB7] text-white' : 'bg-white/8 text-white/35'}`}>
+                {done ? <Check className="h-3 w-3" /> : step.n}
+              </span>
+              <span className={`w-full truncate text-center text-[9px] ${current || done ? 'text-white/75' : 'text-white/30'}`}>{step.label}</span>
+            </div>
+          );
+        })}
+      </div>
 
-        <main className="flex-1 p-6 flex flex-col gap-5 overflow-y-auto">
-          <p className="text-[12px] text-white/30 uppercase tracking-[0.06em]">
+      {/* Layout */}
+      <div className="flex flex-1 flex-col lg:flex-row lg:overflow-hidden">
+        <div className="hidden lg:contents">{sidebar}</div>
+
+        <main className="flex w-full flex-1 flex-col gap-4 px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 lg:overflow-y-auto">
+          <p className="px-1 text-[10px] uppercase tracking-[0.06em] text-white/30 sm:px-0 sm:text-[12px]">
             Step {page} of 2 — Page {page}
           </p>
 
-          <div className="grid grid-cols-2 gap-4 flex-1">
+          <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
             {page === 1 ? (
               <>
                 <StepCard active number={1} title="Identity" sub="Your name, avatar and banner" footer={
@@ -699,7 +724,7 @@ export default function OnboardingPage() {
                     <button
                       onClick={handlePage1Continue}
                       disabled={!canContinuePage1 || p1Loading}
-                      className="text-[11px] font-medium text-white bg-[#534AB7] px-4 py-1.5 rounded-[7px] whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-[7px] bg-[#534AB7] px-4 py-2 text-[12px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-0 sm:w-auto sm:py-1.5 sm:text-[11px]"
                     >
                       {p1Loading ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
                       Continue →

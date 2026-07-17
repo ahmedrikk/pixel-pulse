@@ -61,7 +61,7 @@ export function GameSearchInput({ onResults, onClear }: GameSearchInputProps) {
         value={query}
         onChange={e => setQuery(e.target.value)}
         placeholder="Search games (powered by RAWG)…"
-        className="w-full pl-9 pr-9 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#534AB7]"
+        className="min-h-11 w-full rounded-lg border border-gray-200 py-2 pl-9 pr-9 text-base focus:border-[#534AB7] focus:outline-none sm:min-h-0 sm:text-sm"
       />
       {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-[#534AB7]" />}
     </div>
