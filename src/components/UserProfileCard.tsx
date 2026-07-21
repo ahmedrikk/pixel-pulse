@@ -45,7 +45,7 @@ export function UserProfileCard() {
         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-2xl mx-auto">
           🎮
         </div>
-        <p className="text-sm text-muted-foreground">Sign in to track your XP and stats</p>
+        <p className="text-sm text-muted-foreground">Sign in to personalize your feed and track your activity</p>
         <Link to="/login">
           <Button className="w-full" size="sm">Sign In</Button>
         </Link>

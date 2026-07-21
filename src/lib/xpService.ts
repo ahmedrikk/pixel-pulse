@@ -146,19 +146,19 @@ export const trackReaction     = (url: string, emoji: string) => awardXp("react"
 export const trackScroll       = (page: string, depth: 50 | 90) =>
   awardXp(depth === 50 ? "scroll_50" : "scroll_90", page, `${depth}% Read`);
 
-export async function submitPrediction(matchId: number, team: string): Promise<XpResult | null> {
+export async function submitPrediction(matchId: number, team: string): Promise<boolean> {
   if (isDemoMode()) {
-    return awardXpDemo("predict_submit", String(matchId));
+    return true;
   }
   
   // Get current user
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     console.error("No user logged in");
-    return null;
+    return false;
   }
   
-  // One prediction per match: skip (and don't re-award XP) if one exists.
+  // One prediction per match.
   // The predictions_user_id_match_id_key unique constraint backstops races.
   const { data: existing } = await supabase
     .from("predictions")
@@ -166,20 +166,20 @@ export async function submitPrediction(matchId: number, team: string): Promise<X
     .eq("user_id", user.id)
     .eq("match_id", matchId)
     .maybeSingle();
-  if (existing) return null;
+  if (existing) return false;
 
   const { error } = await supabase.from("predictions").insert({
     user_id: user.id,
     match_id: matchId,
     predicted_team: team,
-    xp_participation: 20,
+    xp_participation: 0,
   });
   if (error) {
-    if ((error as { code?: string }).code === "23505") return null; // raced a duplicate
+    if ((error as { code?: string }).code === "23505") return false; // raced a duplicate
     console.error("Prediction insert failed:", error);
-    return null;
+    return false;
   }
-  return awardXp("predict_submit", String(matchId), "Prediction Made");
+  return true;
 }
 
 export async function getTodayTrivia(): Promise<{ questions: TriviaQuestion[]; already_completed: boolean } | null> {
@@ -198,7 +198,7 @@ export async function getTodayTrivia(): Promise<{ questions: TriviaQuestion[]; a
 
 export async function submitTrivia(
   answers: number[]
-): Promise<{ score: number; total: number; xp_awarded: number; results: { correct: boolean; correct_index: number }[] } | null> {
+): Promise<{ score: number; total: number; results: { correct: boolean; correct_index: number }[] } | null> {
   if (isDemoMode()) {
     // Calculate score
     const correctAnswers = [1, 2, 1]; // Correct indices for demo questions
@@ -209,24 +209,11 @@ export async function submitTrivia(
       return { correct, correct_index: correctAnswers[idx] };
     });
     
-    // Calculate XP
-    const baseXp = score * 10; // 10 XP per correct
-    const perfectBonus = score === 3 ? 75 : 0;
-    const totalXp = baseXp + perfectBonus;
-    
-    // Award XP
-    const state = getDemoXPState();
-    state.xp_today += totalXp;
-    state.xp_season += totalXp;
-    state.xp_lifetime += totalXp;
-    saveDemoXPState(state);
-    
     localStorage.setItem('demo_trivia_completed', new Date().toDateString());
     
     return {
       score,
       total: 3,
-      xp_awarded: totalXp,
       results,
     };
   }

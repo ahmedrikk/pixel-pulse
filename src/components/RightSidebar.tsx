@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { PredictionCard } from "./PredictionCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { TriviaWidget } from "@/components/shared/TriviaWidget";
-import { CategoryPillsWidget } from "@/components/sidebar/CategoryPillsWidget";
 import { useEsportsMatches } from "@/hooks/useEsportsMatches";
 import type { EsportsMatch as PandaMatch } from "@/lib/pandascore";
 
@@ -63,9 +62,6 @@ export function RightSidebar() {
 
       {/* Daily Trivia */}
       <TriviaWidget />
-
-      {/* Browse by category */}
-      <CategoryPillsWidget />
     </aside>
   );
 }

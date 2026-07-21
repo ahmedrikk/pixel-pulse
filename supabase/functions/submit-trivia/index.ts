@@ -16,46 +16,6 @@ interface StoredQuestion {
   topic: string;
 }
 
-interface AwardXpResult {
-  awarded: number;
-  duplicate?: boolean;
-  capped?: boolean;
-  xp_today?: number;
-}
-
-async function callAwardXp(
-  supabaseUrl: string,
-  authHeader: string,
-  actionType: string,
-  refId: string
-): Promise<number> {
-  const url = `${supabaseUrl}/functions/v1/award-xp`;
-
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Authorization": authHeader,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ action_type: actionType, ref_id: refId }),
-  });
-
-  if (!resp.ok) {
-    const errText = await resp.text();
-    console.error(`award-xp call failed for ${actionType} (${resp.status}): ${errText}`);
-    // Non-fatal: return 0 so we don't block the trivia completion
-    return 0;
-  }
-
-  try {
-    const result: AwardXpResult = await resp.json();
-    return result.awarded ?? 0;
-  } catch {
-    console.error(`award-xp returned non-JSON body for ${actionType}`);
-    return 0;
-  }
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -162,9 +122,7 @@ serve(async (req) => {
     }));
 
     const score = results.filter((r) => r.correct).length;
-    const isPerfect = score === questions.length;
-
-    // Mark attempt complete BEFORE awarding XP — prevents double-XP if the process restarts mid-flight
+    // Mark the attempt complete after scoring it.
     const { error: updateError } = await supabase
       .from("trivia_attempts")
       .update({
@@ -178,38 +136,11 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Step 3: Award XP for trivia performance — calls are parallelized via Promise.all
-    const xpCalls: Promise<number>[] = [callAwardXp(supabaseUrl, authHeader, "trivia_participate", todayUtc)];
-
-    for (let i = 0; i < questions.length; i++) {
-      if (results[i].correct) {
-        xpCalls.push(callAwardXp(supabaseUrl, authHeader, "trivia_correct", `${todayUtc}-q${i}`));
-      }
-    }
-
-    if (isPerfect) {
-      xpCalls.push(callAwardXp(supabaseUrl, authHeader, "trivia_perfect", todayUtc));
-    }
-
-    const xpResults = await Promise.all(xpCalls);
-    const totalXpAwarded = xpResults.reduce((a, b) => a + b, 0);
-
-    // Step 4: Persist xp_awarded total after collecting results from parallel XP calls
-    const { error: xpUpdateError } = await supabase
-      .from("trivia_attempts")
-      .update({ xp_awarded: totalXpAwarded })
-      .eq("id", attempt.id);
-
-    if (xpUpdateError) {
-      throw xpUpdateError;
-    }
-
-    // Step 5: Return score, results, and XP summary
+    // Return only the trivia result; rewards are disabled while Battle Pass is unavailable.
     return new Response(
       JSON.stringify({
         score,
         total: questions.length,
-        xp_awarded: totalXpAwarded,
         results,
       }),
       { headers: JSON_HEADERS }

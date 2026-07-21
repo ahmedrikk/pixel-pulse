@@ -43,16 +43,16 @@ function shuffleArray<T>(arr: T[]): T[] {
 
 // `needed` tells the generator how many questions are required so validation is accurate
 // when the pool already has some questions (e.g. 3 pool + 2 AI = 5 total).
-async function generateQuestionsFromOpenRouter(needed: number): Promise<TriviaQuestion[]> {
-  const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+async function generateQuestionsFromKimi(needed: number): Promise<TriviaQuestion[]> {
+  const apiKey = Deno.env.get("KIMI_API_KEY");
   if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY is not configured");
+    throw new Error("KIMI_API_KEY is not configured");
   }
 
   // Prompt requests correct_answer as text so the server derives correct_index via indexOf.
   // This prevents correct_index from appearing in the LLM wire response.
-  const prompt = `Generate exactly ${needed} gaming trivia questions. Return ONLY a valid JSON array with no extra text, markdown, or code fences.
-Each element must have exactly these fields:
+  const prompt = `Generate exactly ${needed} factual gaming trivia questions. Return ONLY one valid JSON object with a "questions" array and no extra text, markdown, or code fences.
+Each item in "questions" must have exactly these fields:
 - "question": a trivia question string about video games, esports, or gaming culture
 - "options": an array of exactly 4 string answer choices
 - "correct_answer": string (must be exactly one of the option strings)
@@ -60,25 +60,29 @@ Each element must have exactly these fields:
 - "difficulty": exactly one of "Easy", "Medium", "Hard", or "Expert"
 - "explanation": a concise one-sentence explanation of the correct answer
 
-Example format:
-[{"question":"...","options":["a","b","c","d"],"correct_answer":"b","topic":"FPS Games","difficulty":"Medium","explanation":"..."}]`;
+Avoid rumors, subjective questions, ambiguous answers, and facts that may change over time.
 
-  const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+Example format:
+{"questions":[{"question":"...","options":["a","b","c","d"],"correct_answer":"b","topic":"FPS Games","difficulty":"Medium","explanation":"..."}]}`;
+
+  const resp = await fetch("https://api.moonshot.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "openai/gpt-4o-mini",
-      temperature: 0.8,
+      model: Deno.env.get("KIMI_TRIVIA_MODEL") ?? "kimi-k3",
+      temperature: 0.7,
+      max_completion_tokens: 4000,
+      response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
     }),
   });
 
   if (!resp.ok) {
     const errText = await resp.text();
-    throw new Error(`OpenRouter request failed (${resp.status}): ${errText}`);
+    throw new Error(`Kimi request failed (${resp.status}): ${errText}`);
   }
 
   const data = await resp.json();
@@ -89,13 +93,14 @@ Example format:
 
   let rawQuestions: Array<{ question: string; options: string[]; correct_answer: string; topic: string; difficulty: string; explanation: string }>;
   try {
-    rawQuestions = JSON.parse(cleaned);
+    const parsed = JSON.parse(cleaned);
+    rawQuestions = Array.isArray(parsed) ? parsed : parsed?.questions;
   } catch {
-    throw new Error(`OpenRouter returned malformed JSON: ${content}`);
+    throw new Error(`Kimi returned malformed JSON: ${content}`);
   }
 
   if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
-    throw new Error(`OpenRouter returned unexpected structure: ${content}`);
+    throw new Error(`Kimi returned unexpected structure: ${content}`);
   }
 
   for (const q of rawQuestions) {
@@ -108,7 +113,7 @@ Example format:
       !["Easy", "Medium", "Hard", "Expert"].includes(q.difficulty) ||
       typeof q.explanation !== "string"
     ) {
-      throw new Error(`OpenRouter returned a malformed question: ${JSON.stringify(q)}`);
+      throw new Error(`Kimi returned a malformed question: ${JSON.stringify(q)}`);
     }
   }
 
@@ -122,7 +127,7 @@ Example format:
   const valid = withIndex.filter((q) => q.correct_index !== -1);
 
   if (valid.length < needed) {
-    throw new Error(`OpenRouter returned only ${valid.length} valid questions, need ${needed}`);
+    throw new Error(`Kimi returned only ${valid.length} valid questions, need ${needed}`);
   }
 
   return valid.slice(0, needed) as TriviaQuestion[];
@@ -215,14 +220,14 @@ serve(async (req) => {
 
     let availableQuestions: TriviaQuestion[] = shuffleArray(pool ?? []).slice(0, TRIVIA_QUESTION_COUNT);
 
-    // Step 3: If pool is short, generate the missing questions from OpenRouter
+    // Step 3: If the pool is short, generate the missing questions with Kimi.
     if (availableQuestions.length < TRIVIA_QUESTION_COUNT) {
       const needed = TRIVIA_QUESTION_COUNT - availableQuestions.length;
       let aiQuestions: TriviaQuestion[];
       try {
-        aiQuestions = await generateQuestionsFromOpenRouter(needed);
+        aiQuestions = await generateQuestionsFromKimi(needed);
       } catch (genErr) {
-        console.error("OpenRouter generation error:", genErr);
+        console.error("Kimi generation error:", genErr);
         return new Response(
           JSON.stringify({ error: `Failed to generate trivia questions: ${String(genErr)}` }),
           { status: 500, headers: JSON_HEADERS }

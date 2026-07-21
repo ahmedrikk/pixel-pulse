@@ -15,7 +15,6 @@ export interface TriviaCardData {
   options: TriviaOption[];
   correctLetter: string | null;
   explanation: string;
-  xpReward: number;
   streakDays: number;
   totalAnswered: number;
   correctPercent: number;
@@ -50,7 +49,6 @@ export function useTrivia() {
         })),
         correctLetter: null,
         explanation: "",
-        xpReward: 15,
         streakDays: 0,
         totalAnswered: 0,
         correctPercent: 0,

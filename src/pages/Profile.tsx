@@ -36,8 +36,6 @@ const SteamIcon = ({ className }: { className?: string }) => (
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/components/ui/use-toast";
-import { BattlePassPanel } from "@/components/BattlePassPanel";
-import { XP_PER_TIER } from "@/lib/xpConstants";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/Avatar";
@@ -63,7 +61,6 @@ import {
   syncSteamGames,
   saveSteamProfile,
   fetchSteamProfile,
-  claimDailyBonus,
   uploadBanner,
   uploadNameplate,
   type Profile as ProfileType,
@@ -114,8 +111,6 @@ export default function Profile() {
   const [linkingManually, setLinkingManually] = useState(false);
 
   // Gamification state
-  const [claimingBonus, setClaimingBonus] = useState(false);
-  const [bonusGained, setBonusGained] = useState<number | null>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [bannerPickerOpen, setBannerPickerOpen] = useState(false);
   const [savingBanner, setSavingBanner] = useState(false);
@@ -303,29 +298,6 @@ export default function Profile() {
       if (type === 'avatar') setUploadingAvatar(false);
       if (type === 'banner') setUploadingBanner(false);
       if (type === 'nameplate') setUploadingNameplate(false);
-    }
-  }
-
-  async function handleClaimDailyBonus() {
-    if (!user) return;
-    setClaimingBonus(true);
-    try {
-      const xpGained = await claimDailyBonus(user.id);
-      if (xpGained > 0) {
-        setBonusGained(xpGained);
-        const updated = await getCurrentUserProfile();
-        setProfile(updated);
-        setEditedProfile(updated || {});
-
-        // Show floating text for +XP and Streak
-        setTimeout(() => setBonusGained(null), 3000);
-      } else {
-        alert("You've already claimed your daily bonus today!");
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setClaimingBonus(false);
     }
   }
 
@@ -606,27 +578,8 @@ export default function Profile() {
               )}
             </div>
 
-            {/* Action Buttons & Daily Bonus */}
+            {/* Profile actions */}
             <div className="flex flex-col sm:flex-row gap-3 items-center">
-              {/* Daily Bonus Button */}
-              {!editMode && (
-                <Button
-                  onClick={handleClaimDailyBonus}
-                  disabled={claimingBonus || (profile?.daily_bonus_claimed_at && new Date(profile.daily_bonus_claimed_at).toDateString() === new Date().toDateString())}
-                  className={`gap-2 relative ${!(profile?.daily_bonus_claimed_at && new Date(profile.daily_bonus_claimed_at).toDateString() === new Date().toDateString()) ? 'animate-pulse bg-yellow-500 hover:bg-yellow-600 text-black' : 'bg-secondary text-secondary-foreground'}`}
-                >
-                  {claimingBonus ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                  {profile?.daily_bonus_claimed_at && new Date(profile.daily_bonus_claimed_at).toDateString() === new Date().toDateString() ? 'Bonus Claimed' : 'Claim Daily +50 XP'}
-
-                  {/* Floating XP Animation */}
-                  {bonusGained !== null && (
-                    <span className="absolute -top-8 text-yellow-500 font-bold text-lg animate-bounce">
-                      +{bonusGained} XP!
-                    </span>
-                  )}
-                </Button>
-              )}
-
               {/* Edit Mode Toggles */}
               {editMode ? (
                 <>
@@ -658,18 +611,16 @@ export default function Profile() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             icon={<Trophy className="h-5 w-5 text-yellow-500" />}
-            label="Tier"
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            value={String((profile as any)?.tier || profile?.level || 1)}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            sub={`${(((profile as any)?.xp_season || profile?.xp || 0) % XP_PER_TIER)} / ${XP_PER_TIER} XP to next`}
+            label="Reviews"
+            value={String(myReviews.length)}
+            sub="community reviews"
             highlight={true}
           />
           <StatCard
-            icon={<Zap className="h-5 w-5 text-orange-500" />}
-            label="Daily Streak"
-            value={String(profile?.daily_streak || 0)}
-            sub={profile?.daily_streak ? "days in a row!" : "Claim bonus to start"}
+            icon={<Star className="h-5 w-5 text-orange-500" />}
+            label="Favorites"
+            value={String(games.filter(g => g.is_favorite).length)}
+            sub="showcased games"
           />
           <StatCard
             icon={<Gamepad2 className="h-5 w-5 text-primary" />}
@@ -950,7 +901,7 @@ export default function Profile() {
                     className="cursor-pointer gap-1 hover:bg-destructive hover:text-destructive-foreground transition-colors"
                     onClick={() => handleRemovePreference(pref.id)}
                   >
-                    #{pref.tag}
+                    {pref.tag}
                     <X className="h-3 w-3" />
                   </Badge>
                 ))}

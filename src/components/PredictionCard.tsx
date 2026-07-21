@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { TrendingUp, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -80,15 +80,9 @@ export function PredictionCard({
       setPredicted(team);
       onPredict?.(match.id, team);
       
-      if (result.awarded) {
-        toast.success(`+${result.awarded} XP!`, {
-          description: `Prediction submitted for ${team === "teamA" ? match.teamA.name : match.teamB.name}`,
-        });
-      }
-      
-      if (result.capped) {
-        toast.info("Daily prediction limit reached!");
-      }
+      toast.success("Prediction submitted", {
+        description: `You picked ${team === "teamA" ? match.teamA.name : match.teamB.name}`,
+      });
     } else {
       toast.error("Failed to submit prediction. Please try again.");
     }
@@ -241,17 +235,6 @@ export function PredictionCard({
           </Button>
         </div>
 
-        {/* XP Info */}
-        <div className="flex items-center justify-center gap-4 mt-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <TrendingUp className="h-3 w-3" />
-            20 XP to predict
-          </span>
-          <span className="flex items-center gap-1">
-            <CheckCircle className="h-3 w-3" />
-            65 XP if correct
-          </span>
-        </div>
       </CardContent>
     </Card>
   );

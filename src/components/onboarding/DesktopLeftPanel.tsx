@@ -51,7 +51,7 @@ export function DesktopLeftPanel({ currentStep }: DesktopLeftPanelProps) {
       </nav>
 
       <div className="mt-auto rounded-xl bg-white/10 px-4 py-3 text-sm text-white/80">
-        +50 XP awaits on completion
+        Your personalized feed awaits
       </div>
     </div>
   );

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { useTagFilter } from "@/contexts/TagFilterContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { MobileCategoryScroll } from "@/components/sidebar/CategoryPillsWidget";
 import { FeedHigherLowerCard, FeedSentimentCard } from "@/components/hub/HubEngagementWidgets";
 import type { RankedArticle } from "@/types/feed";
 
@@ -140,11 +139,6 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
 
   return (
     <main className="flex-1 space-y-4">
-      {/* ── Mobile: Category pill horizontal scroll (hidden on lg+) ── */}
-      <div className="block lg:hidden">
-        <MobileCategoryScroll />
-      </div>
-
       {/* Category navigation only appears when the feed is filtered. */}
       {activeTag && (
         <div className="flex items-center justify-between border-b pb-3">
@@ -157,7 +151,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
               <ArrowLeft className="h-4 w-4" />
             </span>
             <div className="min-w-0 text-left">
-              <h1 className="truncate text-lg font-bold">#{categoryName ?? activeTag}</h1>
+              <h1 className="truncate text-lg font-bold">{categoryName ?? activeTag}</h1>
               <p className="text-xs text-muted-foreground">{filteredArticles.length} articles</p>
             </div>
           </button>
@@ -254,7 +248,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
             })
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              <p>{activeTag ? `No articles found matching #${activeTag}` : "No articles available yet."}</p>
+              <p>{activeTag ? `No articles found matching ${activeTag}` : "No articles available yet."}</p>
               {activeTag ? (
                 <Button variant="link" onClick={exitFilter} className="mt-2">
                   View all articles

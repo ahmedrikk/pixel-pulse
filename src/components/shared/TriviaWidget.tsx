@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { HelpCircle, Zap } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useTrivia } from "@/hooks/useTrivia";
@@ -72,10 +72,7 @@ export function TriviaWidget() {
           <span className="text-sm">🔮</span>
           <h3 className="font-semibold text-sm">Daily trivia</h3>
         </div>
-        <div className="flex items-center gap-1 bg-accent/10 text-accent px-2 py-0.5 rounded text-xs font-medium border border-accent/20">
-          <Zap className="w-3 h-3" />
-          +{dailyData.xpReward} XP
-        </div>
+        <span className="text-xs text-muted-foreground">Daily challenge</span>
       </div>
 
       <CardContent className="p-3.5 pt-4">

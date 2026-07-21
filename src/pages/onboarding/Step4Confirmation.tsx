@@ -1,34 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthGate } from '@/contexts/AuthGateContext';
 import { DesktopLeftPanel } from '@/components/onboarding/DesktopLeftPanel';
 import { completeOnboarding } from '@/lib/onboardingService';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
-import { useXP } from '@/contexts/XPContext';
 
 export default function Step4Confirmation() {
   const { user } = useAuthGate();
-  const { enableXP, addXP } = useXP();
   const navigate = useNavigate();
   const { state, clear } = useOnboardingState();
   const awarded = useRef(false);
-  const [xpAwarded, setXpAwarded] = useState(0);
 
   useEffect(() => {
     if (!user || awarded.current) return;
     awarded.current = true;
-    completeOnboarding(user.id).then(xp => {
-      // Unlock XP earning immediately — user is now fully onboarded
-      enableXP();
-      setXpAwarded(xp);
-      if (xp > 0) {
-        addXP(xp);
-        window.dispatchEvent(new CustomEvent('xp-gained', {
-          detail: { awarded: xp, label: 'Profile Complete!', tier_up: false },
-        }));
-      }
-    });
-  }, [user, enableXP, addXP]);
+    completeOnboarding(user.id);
+  }, [user]);
 
   function goToFeed() {
     clear();
@@ -53,12 +40,6 @@ export default function Step4Confirmation() {
             <p className="text-gray-500 mt-2">You're in, {displayName}. Season 1 has begun.</p>
           </div>
 
-          {xpAwarded > 0 && (
-            <div className="flex items-center gap-2 rounded-full bg-[#534AB7] px-5 py-2 text-white text-sm font-semibold">
-              +{xpAwarded} XP — Profile XP added to your Battle Pass
-            </div>
-          )}
-
           <div className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-5 text-left text-sm">
             <div className="flex flex-col gap-2">
               <div className="flex justify-between">
@@ -76,10 +57,6 @@ export default function Step4Confirmation() {
               <div className="flex justify-between">
                 <span className="text-gray-500">Genres</span>
                 <span className={`font-medium ${genres === 'Not set' ? 'text-gray-400' : ''}`}>{genres}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Season tier</span>
-                <span className="font-medium text-[#534AB7]">Tier 1 · 50 XP</span>
               </div>
             </div>
           </div>

@@ -4,10 +4,9 @@ import { useAuthGate } from '@/contexts/AuthGateContext';
 
 interface InlinePredictionProps {
   match: EsportsMatch;
-  isLive: boolean;
 }
 
-export function InlinePrediction({ match, isLive }: InlinePredictionProps) {
+export function InlinePrediction({ match }: InlinePredictionProps) {
   const { isAuthenticated, openAuthModal } = useAuthGate();
   const [selectedTeam, setSelectedTeam] = useState<'teamA' | 'teamB' | null>(null);
 
@@ -45,25 +44,7 @@ export function InlinePrediction({ match, isLive }: InlinePredictionProps) {
           );
         })}
 
-        {/* XP pill */}
-        <span
-          className={`text-[10px] font-medium px-1.5 py-0.5 rounded-lg flex-shrink-0 ${
-            isLive
-              ? 'bg-destructive/10 text-destructive'
-              : 'bg-primary/10 text-primary'
-          }`}
-        >
-          {isLive ? '+10 XP if correct' : '+45 XP if correct'}
-        </span>
       </div>
-
-      {/* Live XP window note */}
-      {isLive && (
-        <p className="text-[9px] text-muted-foreground mt-1.5">
-          ⏰ Match is live — <span className="text-destructive font-medium">reduced XP window</span>.{' '}
-          Pre-match picks earn <b className="text-primary">+65 XP</b> · Live picks earn <b className="text-primary">+10 XP</b>
-        </p>
-      )}
     </div>
   );
 }

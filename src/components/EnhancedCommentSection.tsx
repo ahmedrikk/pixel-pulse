@@ -183,7 +183,7 @@ export function EnhancedCommentSection({
     if (ok) {
       setNewComment("");
       await reload();
-      toast.success("+25 XP! Comment posted");
+      toast.success("Comment posted");
     } else {
       toast.error("Couldn't post comment");
     }

@@ -10,11 +10,8 @@ import {
   MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Article, XP_VALUES, GameReview } from "@/types/feed";
-import { useTagFilter } from "@/contexts/TagFilterContext";
+import { Article, GameReview } from "@/types/feed";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { useXP } from "@/contexts/XPContext";
-import { awardXP } from "@/lib/xp";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EnhancedCommentSection } from "./EnhancedCommentSection";
@@ -56,21 +53,8 @@ function formatDate(dateString: string | null | undefined): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const JUNK_TAGS = new Set([
-  "update","updates","gaming","news","videogames","game","games",
-  "entertainment","fun","action","adventure","horror","sport","sports",
-  "racing","puzzle","strategy","simulation","rpg","fps","moba",
-  "multiplayer","singleplayer","coop","indie","streaming","trailer",
-  "review","preview","rumor","leak","delay","dlc","remake","remaster",
-]);
-function isSpecificTag(tag: string): boolean {
-  return !JUNK_TAGS.has(tag.toLowerCase());
-}
-
 export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps) {
-  const { setActiveTag } = useTagFilter();
   const { isAuthenticated, openAuthModal, user } = useAuthGate();
-  const { addXP, refreshFromServer } = useXP();
   // useBookmarks removed for Talus redesign
 
   const [vote, setVote] = useState<"up" | "down" | null>(null);
@@ -78,21 +62,13 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const [showComments, setShowComments] = useState(false);
   const [userReactions, setUserReactions] = useState<Record<string, number>>(article.reactions || {});
   const [myReactions, setMyReactions] = useState<Set<string>>(new Set());
-  const [hasAwardedView, setHasAwardedView] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   const [reviewGame, setReviewGame] = useState<{ id: string; name: string; coverUrl: string } | null>(null);
 
   const cardRef = useRef<HTMLElement>(null);
-  const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isVisibleRef = useRef(false);
   const hasTriggeredViewRef = useRef(false);
   const hasCheckedGameRef = useRef(false);
-
-  // Bookmarks removed for Talus redesign
-  const primaryTag = article.topicTags.find(isSpecificTag) ?? null;
-
-  const handleTagClick = (tag: string) => setActiveTag(tag);
 
   // Lazy RAWG lookup — only fires once per card, only for authenticated users.
   // Prefers the article's explicit gameTags (real game names), falls back to
@@ -185,15 +161,8 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       setVote("up");
       setVoteScore((s) => s + 1 + (vote === "down" ? 1 : 0));
     }
-    const result = await awardXP("react", article.sourceUrl);
-    if (result && result.awarded > 0) {
-      toast.success(`+${result.awarded} XP! Tier ${result.tier}`, { duration: 1500 });
-      await refreshFromServer();
-    } else if (result?.capped) {
-      toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
-    }
     checkGameAndShowReview();
-  }, [isAuthenticated, vote, article.id, article.sourceUrl, openAuthModal, refreshFromServer, checkGameAndShowReview]);
+  }, [isAuthenticated, vote, article.id, openAuthModal, checkGameAndShowReview]);
 
   const handleReaction = useCallback(async (emoji: string) => {
     if (!isAuthenticated) { openAuthModal("react", { articleId: article.id }); return; }
@@ -207,15 +176,8 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
     setMyReactions(prev => new Set(prev).add(emoji));
     setUserReactions(prev => ({ ...prev, [emoji]: (prev[emoji] || 0) + 1 }));
-    const result = await awardXP("react", article.sourceUrl);
-    if (result && result.awarded > 0) {
-      toast.success(`+${result.awarded} XP! Tier ${result.tier}`, { duration: 1500 });
-      await refreshFromServer();
-    } else if (result?.capped) {
-      toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
-    }
     checkGameAndShowReview();
-  }, [isAuthenticated, myReactions, article.id, article.sourceUrl, openAuthModal, refreshFromServer, checkGameAndShowReview]);
+  }, [isAuthenticated, myReactions, article.id, openAuthModal, checkGameAndShowReview]);
 
   const handleDownvote = useCallback(async () => {
     if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
@@ -292,36 +254,15 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     }
   }, [article]);
 
-  const awardViewXP = useCallback(async () => {
-    if (hasAwardedView) return;
-    setHasAwardedView(true);
-    const result = await awardXP("read_summary", article.sourceUrl);
-    if (result && result.awarded > 0) {
-      toast.success(`+${result.awarded} XP`, { duration: 1500 });
-      await refreshFromServer();
-    } else if (result === null) {
-      addXP(XP_VALUES.VIEW_SUMMARY); // guest fallback
-    }
-  }, [hasAwardedView, article.sourceUrl, addXP, refreshFromServer]);
-
   useEffect(() => {
     const card = cardRef.current;
     if (!card) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            if (!isVisibleRef.current && !hasAwardedView) {
-              isVisibleRef.current = true;
-              if (onCardView && !hasTriggeredViewRef.current) {
-                onCardView(article.id);
-                hasTriggeredViewRef.current = true;
-              }
-              dwellTimerRef.current = setTimeout(() => { awardViewXP(); }, 5000);
-            }
-          } else {
-            isVisibleRef.current = false;
-            if (dwellTimerRef.current) { clearTimeout(dwellTimerRef.current); dwellTimerRef.current = null; }
+          if (entry.isIntersecting && onCardView && !hasTriggeredViewRef.current) {
+            onCardView(article.id);
+            hasTriggeredViewRef.current = true;
           }
         });
       },
@@ -330,25 +271,10 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     observer.observe(card);
     return () => {
       observer.disconnect();
-      if (dwellTimerRef.current) clearTimeout(dwellTimerRef.current);
     };
-  }, [article.id, awardViewXP, hasAwardedView, onCardView]);
-
-  const handleReadFull = useCallback(async () => {
-    const result = await awardXP("read_more", article.sourceUrl);
-    if (result && result.awarded > 0) {
-      toast.success(`+${result.awarded} XP! Tier ${result.tier}`, { duration: 1500 });
-      await refreshFromServer();
-    } else if (result?.capped) {
-      toast.info("Daily XP cap reached — come back tomorrow!", { duration: 2000 });
-    } else if (result === null) {
-      // Guest fallback
-      addXP(XP_VALUES.READ_FULL_ARTICLE);
-    }
-  }, [article.sourceUrl, addXP, refreshFromServer]);
+  }, [article.id, onCardView]);
 
   const summaryText = article.summary || "";
-  const displayTags = article.topicTags.slice(0, 4);
   const showImage = !imgError && !!article.heroImageUrl;
 
   return (
@@ -366,25 +292,11 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             loading="lazy"
             onError={() => setImgError(true)}
           />
-          {primaryTag && (
-            <span className="absolute top-3 left-3 px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
-              #{primaryTag}
-            </span>
-          )}
         </div>
       )}
 
       {/* Content */}
       <div className="p-4 sm:p-5">
-        {/* Tag pill when no image */}
-        {!showImage && primaryTag && (
-          <div className="mb-2">
-            <span className="px-2 py-1 rounded-md bg-tag text-tag-foreground text-xs font-semibold">
-              #{primaryTag}
-            </span>
-          </div>
-        )}
-
         {/* Source Bar */}
         <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
           <span className="font-medium text-foreground">{article.sourceName}</span>
@@ -400,7 +312,6 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             href={article.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => handleReadFull()}
             className="hover:text-primary transition-colors cursor-pointer"
           >
             {article.title}
@@ -413,20 +324,6 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             {summaryText}
           </p>
         </div>
-
-        {/* Tags */}
-        <div className="mb-4 flex flex-wrap gap-2">
-          {displayTags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => handleTagClick(tag)}
-              className="px-2 py-1 text-xs font-medium rounded-full bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
-            >
-              #{tag}
-            </button>
-          ))}
-        </div>
-
 
         {/* Action Bar */}
         <div className="flex items-center justify-between pt-4 border-t">
@@ -502,7 +399,6 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
               href={article.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => void handleReadFull()}
             >
               Read Full Article
               <ExternalLink className="h-3 w-3" />

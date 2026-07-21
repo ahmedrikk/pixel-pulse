@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Clock, Trophy, Brain, Zap, CheckCircle, XCircle, Timer } from "lucide-react";
+import { ArrowLeft, Trophy, Brain, CheckCircle, XCircle, Timer } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getTodayTrivia, submitTrivia } from "@/lib/xpService";
 import { Footer } from "@/components/Footer";
-import { toast } from "sonner";
 
 interface TriviaQuestion {
   id: string;
@@ -29,7 +28,6 @@ export default function DailyTrivia() {
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState<{
     score: number;
-    xp_awarded: number;
     correct_answers: boolean[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,12 +40,7 @@ export default function DailyTrivia() {
       if (data?.already_completed) {
         setAlreadyCompleted(true);
       } else if (data?.questions) {
-        // Shuffle options for each question
-        const shuffledQuestions = data.questions.slice(0, TOTAL_QUESTIONS).map(q => ({
-          ...q,
-          options: shuffleArray([...q.options]),
-        }));
-        setQuestions(shuffledQuestions);
+        setQuestions(data.questions.slice(0, TOTAL_QUESTIONS));
       }
       setLoading(false);
     }
@@ -72,15 +65,6 @@ export default function DailyTrivia() {
     return () => clearInterval(timer);
   }, [currentIndex, answers, showResults, isSubmitting]);
 
-  const shuffleArray = <T,>(array: T[]): T[] => {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-  };
-
   const handleAnswer = useCallback(async (answerIndex: number) => {
     if (isSubmitting) return;
 
@@ -95,16 +79,9 @@ export default function DailyTrivia() {
       if (result) {
         setResults({
           score: result.score,
-          xp_awarded: result.xp_awarded,
           correct_answers: result.results.map(r => r.correct),
         });
         setShowResults(true);
-        
-        if (result.xp_awarded > 0) {
-          toast.success(`+${result.xp_awarded} XP earned!`, {
-            description: `You got ${result.score}/${result.total} correct`,
-          });
-        }
       }
       setIsSubmitting(false);
     } else {
@@ -141,7 +118,7 @@ export default function DailyTrivia() {
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-2">Already Completed!</h2>
             <p className="text-muted-foreground mb-6">
-              You've already completed today's trivia. Come back tomorrow for more XP!
+              You've already completed today's trivia. Come back tomorrow for a new challenge!
             </p>
             <Button onClick={() => navigate(-1)}>Go Back</Button>
           </Card>
@@ -152,7 +129,7 @@ export default function DailyTrivia() {
 
   // No questions available (guest session or trivia not seeded for today) —
   // without this guard the page renders "Question 1 of 0" and an empty
-  // results card with undefined score/XP.
+  // results card with an undefined score.
   if (questions.length === 0) {
     return (
       <div className="min-h-screen">
@@ -170,8 +147,7 @@ export default function DailyTrivia() {
             <Brain className="h-16 w-16 text-primary mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-2">No trivia right now</h2>
             <p className="text-muted-foreground mb-6">
-              Sign in to play today's trivia and earn up to 155 XP — or check
-              back later if you're already signed in.
+              Today&apos;s trivia has not been generated yet. Check back shortly.
             </p>
             <Button onClick={() => navigate("/")} className="w-full">
               Back to the feed
@@ -198,10 +174,6 @@ export default function DailyTrivia() {
             <p className="text-xs text-muted-foreground">
               Question {currentIndex + 1} of {Math.min(questions.length, TOTAL_QUESTIONS)}
             </p>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Trophy className="h-4 w-4" />
-            <span>Up to 155 XP</span>
           </div>
         </div>
       </header>
@@ -274,21 +246,6 @@ export default function DailyTrivia() {
                 ))}
               </div>
 
-              {/* XP Info */}
-              <div className="flex justify-center gap-6 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Zap className="h-3 w-3" />
-                  10 XP per correct
-                </span>
-                <span className="flex items-center gap-1">
-                  <Trophy className="h-3 w-3" />
-                  75 XP perfect bonus
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  50 XP speed bonus
-                </span>
-              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -318,11 +275,6 @@ export default function DailyTrivia() {
                     ? "Great job! Almost perfect!"
                     : "Good effort! Try again tomorrow!"}
                 </p>
-
-                <div className="flex justify-center items-center gap-2 text-2xl font-bold text-primary mb-6">
-                  <Zap className="h-6 w-6" />
-                  +{results?.xp_awarded} XP
-                </div>
 
                 <Button onClick={() => navigate(-1)} className="w-full">
                   Continue

@@ -170,14 +170,7 @@ export default function PublicProfile() {
             <div className="container max-w-5xl mx-auto px-4 pb-16 space-y-8 relative z-10">
 
                 {/* ---- STATS ROW ---- */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <StatCard
-                        icon={<Trophy className="h-5 w-5 text-yellow-500" />}
-                        label="Level"
-                        value={String(profile.level || 1)}
-                        sub={`${(profile.xp || 0) % 100} / 100 XP`}
-                        highlight={true}
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <StatCard
                         icon={<Zap className="h-5 w-5 text-orange-500" />}
                         label="Best Streak"

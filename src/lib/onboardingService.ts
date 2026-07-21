@@ -110,18 +110,17 @@ export async function saveStep3(userId: string, data: Step3Data): Promise<void> 
 }
 
 /**
- * Mark onboarding complete and award +50 XP (idempotent).
- * Returns awarded XP (0 if already completed).
+ * Mark onboarding complete (idempotent).
  */
-export async function completeOnboarding(userId: string): Promise<number> {
+export async function completeOnboarding(userId: string): Promise<void> {
   // Check if already completed
   const { data: profile } = await supabase
     .from('profiles')
-    .select('onboarding_completed, xp, xp_season')
+    .select('onboarding_completed')
     .eq('id', userId)
     .single();
 
-  if (!profile || profile.onboarding_completed) return 0;
+  if (!profile || profile.onboarding_completed) return;
 
   const { error } = await supabase
     .from('profiles')
@@ -129,13 +128,10 @@ export async function completeOnboarding(userId: string): Promise<number> {
       onboarding_completed: true,
       onboarding_completed_at: new Date().toISOString(),
       onboarding_step: 4,
-      xp: (profile.xp ?? 0) + 50,
-      xp_season: (profile.xp_season ?? 0) + 50,
     })
     .eq('id', userId);
 
   if (error) throw new Error(`completeOnboarding failed: ${error.message}`);
-  return 50;
 }
 
 /** Upload avatar file to Supabase Storage, return public URL */
