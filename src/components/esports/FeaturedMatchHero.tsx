@@ -33,12 +33,6 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
     setSelectedTeam(prev => prev === team ? null : team);
   }
 
-  const xpCards = [
-    { label: 'Pre-match', val: '+20 XP', desc: '+45 if correct', cls: 'bg-primary/10 border-primary/20 text-primary' },
-    { label: 'Live', val: '+5 XP', desc: '+10 if correct', cls: 'bg-destructive/10 border-destructive/20 text-destructive' },
-    { label: 'Streak', val: '2× XP', desc: '7-day login streak', cls: 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400' },
-  ];
-
   return (
     <div className="mb-6">
       <div className="mx-auto bg-card border rounded-2xl card-shadow p-5 md:p-6">
@@ -86,21 +80,10 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
           </div>
         </div>
 
-        {/* XP Tier Cards */}
-        <div className="flex gap-2 mt-5">
-          {xpCards.map(card => (
-            <div key={card.label} className={`flex-1 rounded-lg border px-2.5 py-2 text-center ${card.cls}`}>
-              <div className="text-[9px] font-semibold opacity-80">{card.label}</div>
-              <div className="text-[15px] font-semibold text-foreground">{card.val}</div>
-              <div className="text-[9px] text-muted-foreground">{card.desc}</div>
-            </div>
-          ))}
-        </div>
-
         {/* Prediction Widget */}
         <div className="bg-secondary/60 border rounded-xl mt-3 px-3.5 py-3">
           <p className="text-[11px] text-muted-foreground text-center mb-2">
-            Who wins the series? Predict before it starts for maximum XP
+            Who wins the series?
           </p>
 
           {/* Pick buttons */}
@@ -124,10 +107,6 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
             })}
           </div>
 
-          <p className="text-[10px] text-muted-foreground text-center mt-2">
-            Pre-match: <b className="text-amber-600 dark:text-amber-400">+65 XP</b> if correct ·{' '}
-            Live: <b className="text-amber-600 dark:text-amber-400">+10 XP</b>
-          </p>
         </div>
       </div>
     </div>

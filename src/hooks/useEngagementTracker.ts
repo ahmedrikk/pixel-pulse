@@ -1,14 +1,11 @@
 import { useCallback, useRef } from "react";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 
-export function useEngagementTracker(
-  addXP?: (amount: number) => void
-) {
+export function useEngagementTracker() {
   const { incrementArticleScroll, isAuthenticated } = useAuthGate();
   const viewedCards = useRef(new Set<string>());
-  const cardMilestones = useRef(0);
 
-  // Card view tracking + XP
+  // Track unique card views for the guest sign-up cadence.
   const trackCardView = useCallback(
     (cardId: string) => {
       if (!viewedCards.current.has(cardId)) {
@@ -17,18 +14,10 @@ export function useEngagementTracker(
         if (!isAuthenticated) {
           // Increment guest scroll count in AuthGateContext
           incrementArticleScroll();
-        } else {
-          // Grant XP for logged in users
-          const size = viewedCards.current.size;
-          const newMilestone = Math.floor(size / 10);
-          if (newMilestone > cardMilestones.current) {
-            cardMilestones.current = newMilestone;
-            addXP?.(50);
-          }
         }
       }
     },
-    [isAuthenticated, incrementArticleScroll, addXP]
+    [isAuthenticated, incrementArticleScroll]
   );
 
   return { trackCardView };

@@ -6,7 +6,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import { XPProvider } from "@/contexts/XPContext";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
 import { AuthGatePopup } from "@/components/AuthGatePopup";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -26,7 +25,6 @@ const Login          = lazy(() => import("./pages/Login"));
 const SteamCallback  = lazy(() => import("./pages/SteamCallback"));
 const PublicProfile  = lazy(() => import("./pages/PublicProfile"));
 const DailyTrivia    = lazy(() => import("./pages/DailyTrivia"));
-const Leaderboard    = lazy(() => import("./pages/Leaderboard"));
 const Esports        = lazy(() => import("./pages/Esports"));
 const GameCatalog    = lazy(() => import("./pages/GameCatalog"));
 const GameReview     = lazy(() => import("./pages/GameReview"));
@@ -45,8 +43,7 @@ const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <XPProvider>
-          <AuthGateProvider>
+        <AuthGateProvider>
             <TooltipProvider>
               <Toaster />
               <Sonner />
@@ -68,7 +65,7 @@ const App = () => (
                     <Route path="/u/:username" element={<OnboardingGuard><PublicProfile /></OnboardingGuard>} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/trivia" element={<OnboardingGuard><DailyTrivia /></OnboardingGuard>} />
-                    <Route path="/leaderboard" element={<OnboardingGuard><Leaderboard /></OnboardingGuard>} />
+                    <Route path="/leaderboard" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                     <Route path="/auth/steam/callback" element={<SteamCallback />} />
                     <Route path="/esports" element={<OnboardingGuard><Esports /></OnboardingGuard>} />
                     <Route path="/esports/:gameId" element={<OnboardingGuard><Esports /></OnboardingGuard>} />
@@ -90,8 +87,7 @@ const App = () => (
                 </Suspense>
               </BrowserRouter>
             </TooltipProvider>
-          </AuthGateProvider>
-        </XPProvider>
+        </AuthGateProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </ErrorBoundary>

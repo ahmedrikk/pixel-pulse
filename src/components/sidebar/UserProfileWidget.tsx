@@ -42,7 +42,7 @@ export function UserProfileWidget() {
               </h3>
             </button>
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-              Log in to track your stats, predict matches, and earn rewards.
+              Log in to personalize your feed, save preferences, and predict matches.
             </p>
           </div>
         </div>

@@ -68,12 +68,6 @@ function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void
           )}
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{
-            background: "rgba(83,74,183,0.25)", border: "0.5px solid rgba(83,74,183,0.4)",
-            color: "#AFA9EC", fontSize: 10, fontWeight: 500, padding: "2px 7px", borderRadius: 5, marginBottom: 3,
-          }}>
-            +{data.xpReward} XP
-          </div>
           <p style={{ fontSize: 8, color: "rgba(255,255,255,0.22)" }}>
             {revealed ? "Come back tomorrow" : `Resets in ${getTimeRemaining(data.resetsAt)}`}
           </p>
@@ -139,9 +133,7 @@ function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void
             <p style={{ fontSize: 11, lineHeight: 1.5, marginBottom: 6 }}>
               {data.explanation}
             </p>
-            <p style={{ fontSize: 10, fontWeight: 500, opacity: 0.8 }}>
-              {selectedLetter === data.correctLetter ? `+${data.xpReward} XP earned` : "Come back tomorrow"}
-            </p>
+            <p style={{ fontSize: 10, fontWeight: 500, opacity: 0.8 }}>Come back tomorrow for a new challenge</p>
           </div>
         )}
 
@@ -176,7 +168,7 @@ export function TriviaSection() {
           </div>
           <span style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }}>Daily trivia</span>
           <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))", padding: "2px 6px", borderRadius: 5 }}>
-            Up to +155 XP today
+            5 questions today
           </span>
         </div>
         <button onClick={() => navigate("/trivia")} style={{ fontSize: 11, color: "#534AB7", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>

@@ -13,6 +13,7 @@ vi.mock("@/integrations/supabase/client", () => ({
       insert: vi.fn().mockResolvedValue({ error: null }),
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
     }),
   },
 }));
@@ -63,12 +64,10 @@ describe("xpService", () => {
     });
   });
 
-  it("submitPrediction inserts prediction then calls predict_submit", async () => {
+  it("submitPrediction inserts a prediction without awarding XP", async () => {
     const { supabase } = await import("@/integrations/supabase/client");
     await submitPrediction(123, "Team A");
     expect(supabase.from).toHaveBeenCalledWith("predictions");
-    expect(supabase.functions.invoke).toHaveBeenCalledWith("award-xp", {
-      body: { action_type: "predict_submit", ref_id: "123" },
-    });
+    expect(supabase.functions.invoke).not.toHaveBeenCalled();
   });
 });

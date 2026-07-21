@@ -10,7 +10,6 @@ import {
 } from '@/lib/onboardingService';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { useAuthGate } from '@/contexts/AuthGateContext';
-import { useXP } from '@/contexts/XPContext';
 import { TalusLogo } from '@/components/TalusLogo';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -62,11 +61,11 @@ const GENRES = [
 ];
 
 const BENEFIT_CARDS = [
-  { icon: '⭐', iconBg: 'rgba(83,74,183,0.2)', label: 'Earn Battle Pass XP', desc: 'Every action earns XP — reading news, predicting matches, reviewing games.', xp: '+50 XP on signup' },
+  { icon: '⭐', iconBg: 'rgba(83,74,183,0.2)', label: 'Make Talus yours', desc: 'Set up your profile, favorite games, and preferred platforms.' },
   { icon: '📰', iconBg: 'rgba(16,185,129,0.12)', label: 'Personalised feed', desc: 'News filtered to the games and genres you actually play.' },
-  { icon: '🏆', iconBg: 'rgba(220,38,38,0.12)', label: 'Leaderboards', desc: 'Your username and frame appear on community leaderboards.' },
-  { icon: '🔥', iconBg: 'rgba(217,119,6,0.12)', label: 'Season 1 Founder', desc: 'Join now and every reward carries a permanent Founder tag — never repeats.' },
-  { icon: '🎯', iconBg: 'rgba(13,148,136,0.12)', label: 'Predict & win XP', desc: 'Call esports match outcomes and earn up to +65 XP per correct prediction.' },
+  { icon: '🏆', iconBg: 'rgba(220,38,38,0.12)', label: 'Join the community', desc: 'Share reviews, answer trivia, and follow community sentiment.' },
+  { icon: '🔥', iconBg: 'rgba(217,119,6,0.12)', label: 'Find what is trending', desc: 'Keep up with the games and stories the community is talking about.' },
+  { icon: '🎯', iconBg: 'rgba(13,148,136,0.12)', label: 'Make predictions', desc: 'Call esports match outcomes and track the live action.' },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -152,7 +151,6 @@ function ProgBar({ step, pct }: { step: string; pct: number }) {
 
 export default function OnboardingPage() {
   const { user } = useAuthGate();
-  const { enableXP, addXP } = useXP();
   const navigate = useNavigate();
   const { state, setStep1, setStep2, setStep3, clear } = useOnboardingState();
 
@@ -280,15 +278,8 @@ export default function OnboardingPage() {
         .map(g => ({ id: g.id, name: g.name, coverUrl: g.coverUrl }));
       await saveStep3(user.id, { favGameIds: selectedIds, favGenres: genres, favGames });
       setStep3({ favGameIds: selectedIds, favGenres: genres });
-      const xp = await completeOnboarding(user.id);
+      await completeOnboarding(user.id);
       awarded.current = true;
-      enableXP();
-      if (xp > 0) {
-        addXP(xp);
-        window.dispatchEvent(new CustomEvent('xp-gained', {
-          detail: { awarded: xp, label: 'Profile Complete!', tier_up: false },
-        }));
-      }
       clear();
       navigate('/');
     } catch (err: unknown) {
@@ -334,12 +325,6 @@ export default function OnboardingPage() {
             <span className="text-[12px] font-medium text-white">{b.label}</span>
           </div>
           <p className="text-[10px] text-white/65 leading-[1.4]">{b.desc}</p>
-          {b.xp && (
-            <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-[5px] text-[9px] font-semibold text-[#FCD34D]"
-                  style={{ background: 'rgba(251,191,36,0.15)', border: '0.5px solid rgba(251,191,36,0.3)' }}>
-              {b.xp}
-            </span>
-          )}
         </div>
       ))}
 
@@ -525,9 +510,9 @@ export default function OnboardingPage() {
         background: 'rgba(83,74,183,0.1)',
         border: '0.5px solid rgba(83,74,183,0.2)',
       }}>
-        <p className="text-[11px] text-[#a5b4fc] font-medium mb-0.5">⭐ You're earning XP right now</p>
+        <p className="text-[11px] text-[#a5b4fc] font-medium mb-0.5">⭐ Your feed is taking shape</p>
         <p className="text-[10px] text-white/35 leading-[1.4]">
-          Completing your profile earns +50 XP above your daily cap — awarded the moment you finish Step 4.
+          Your choices help Talus prioritize the games, platforms, and stories you care about.
         </p>
       </div>
     </>
@@ -599,10 +584,10 @@ export default function OnboardingPage() {
 
   const step4Content = (
     <>
-      {/* XP box */}
+      {/* Completion box */}
       <div className="rounded-[10px] p-3.5 text-center" style={{ background: 'rgba(251,191,36,0.1)', border: '0.5px solid rgba(251,191,36,0.25)' }}>
-        <p className="text-2xl font-bold text-[#FCD34D]">+50 XP</p>
-        <p className="text-[10px] text-white/35 mt-0.5">Profile completion bonus — credited above daily cap</p>
+        <p className="text-lg font-bold text-[#FCD34D]">You&apos;re all set</p>
+        <p className="text-[10px] text-white/35 mt-0.5">Your personalized Talus feed is ready</p>
       </div>
 
       {/* Confirmation rows */}

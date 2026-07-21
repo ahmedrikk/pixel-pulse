@@ -4,12 +4,10 @@ import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useXP } from "@/contexts/XPContext";
 import { type EsportsMatch } from "@/lib/pandascore";
 import { useEsportsMatches } from "@/hooks/useEsportsMatches";
 import { format, isToday, isTomorrow, isYesterday, parseISO, differenceInSeconds } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { XPProgressBar } from "@/components/XPProgressBar";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { FeaturedMatchHero } from "@/components/esports/FeaturedMatchHero";
@@ -372,7 +370,7 @@ function MatchCard({
 
       {/* Inline Prediction — only for live and upcoming */}
       {(status === "live" || status === "upcoming") && (
-        <InlinePrediction match={match} isLive={status === "live"} />
+        <InlinePrediction match={match} />
       )}
     </motion.div>
   );
@@ -401,7 +399,6 @@ interface AllGamesViewProps {
 
 function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, gameFilters, onWatchLive, activeTab, setActiveTab }: AllGamesViewProps) {
   const navigate = useNavigate();
-  const { addXP } = useXP();
 
   const liveCount = liveMatches.length;
 
@@ -508,10 +505,7 @@ function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, ga
                 </div>
                 <button
                   className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-                  onClick={() => {
-                    addXP(15);
-                    navigate(`/esports/${game.id}`);
-                  }}
+                  onClick={() => navigate(`/esports/${game.id}`)}
                 >
                   Full schedule
                 </button>
@@ -651,7 +645,6 @@ function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, gameFilte
    Main Esports Page
    ═══════════════════════════════════════════════ */
 export default function Esports() {
-  const { addXP } = useXP();
   const { gameId } = useParams<{ gameId?: string }>();
   const navigate = useNavigate();
   const [activeGame, setActiveGame] = useState("all");
@@ -700,13 +693,11 @@ export default function Esports() {
     if (id === "all") {
       navigate("/esports");
     } else {
-      addXP(10);
       navigate(`/esports/${id}`);
     }
   };
 
   const handleWatchLive = (match: EsportsMatch) => {
-    addXP(25);
     setWatchingMatch(match);
   };
 
@@ -717,11 +708,6 @@ export default function Esports() {
         {/* Featured Match Hero — centered in the content column, aligned with
             the left & right rails so the page reads as one cohesive block. */}
         <FeaturedMatchHero match={featuredMatch} />
-
-        {/* XP Bar */}
-        <div className="mb-6">
-          <XPProgressBar />
-        </div>
 
         {/* Error */}
         {error && (

@@ -33,7 +33,7 @@ export function HypeSubmitModal({ game, isOpen, onClose, onSubmit, isSubmitting 
           </div>
           
           <p className="text-sm text-muted-foreground leading-relaxed">
-            This game will be added to the community hype meter. You'll be the first to vote for it and earn <strong className="text-primary">+15 XP</strong>.
+            This game will be added to the community hype meter, and you&apos;ll be the first to vote for it.
           </p>
         </div>
 

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { useXP } from "@/contexts/XPContext";
 import { toast } from "sonner";
 import { useHypeMeter, type HypeGame, type SearchResult } from "@/hooks/useHypeMeter";
 import { HypeSearch } from "./HypeSearch";
@@ -18,7 +17,6 @@ const BAR_COLORS = ["#D97706", "#534AB7", "#0D9488", "hsl(var(--muted-foreground
 
 function HypeCard({ game }: { game: HypeGame }) {
   const { isAuthenticated, openAuthModal } = useAuthGate();
-  const { addXP } = useXP();
   const { toggleVote, isVoting } = useHypeMeter();
 
   const handleHype = async () => {
@@ -29,8 +27,7 @@ function HypeCard({ game }: { game: HypeGame }) {
     }
     
     try {
-      const justHyped = await toggleVote(game.id);
-      if (justHyped) addXP(10);
+      await toggleVote(game.id);
     } catch (e) {
       toast.error("Failed to vote");
     }
@@ -108,7 +105,6 @@ function HypeCard({ game }: { game: HypeGame }) {
 
 export function HypeMeterSection() {
   const { topGames, isLoading, submitGame, isSubmitting } = useHypeMeter();
-  const { addXP } = useXP();
   const [modalGame, setModalGame] = useState<SearchResult | null>(null);
 
   const handleSelectGame = (game: SearchResult) => {
@@ -130,8 +126,7 @@ export function HypeMeterSection() {
     if (!modalGame) return;
     try {
       await submitGame(modalGame);
-      addXP(15);
-      toast.success("✓ Submitted!", { description: `You're the first to hype ${modalGame.name}. +15 XP awarded` });
+      toast.success("Submitted!", { description: `You're the first to hype ${modalGame.name}.` });
       setModalGame(null);
     } catch (e) {
       toast.error("Failed to submit game");

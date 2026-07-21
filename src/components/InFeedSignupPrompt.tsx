@@ -15,7 +15,7 @@ export function InFeedSignupPrompt() {
             Talus is the home for people who live games.
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Join the community. Track your stats, predict matches, and earn rewards.
+            Join the community. Personalize your feed, predict matches, and share your take.
           </p>
           <div className="flex items-center gap-3 mt-4">
             <button

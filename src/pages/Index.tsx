@@ -8,14 +8,12 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { TagFilterProvider, useTagFilter } from "@/contexts/TagFilterContext";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
-import { useXP } from "@/contexts/XPContext";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { prettifyTag } from "@/hooks/useTrendingCategories";
 
 // Inner component so it can use TagFilterContext
 function IndexContent() {
-  const { addXP } = useXP();
-  const { trackCardView } = useEngagementTracker(addXP);
+  const { trackCardView } = useEngagementTracker();
   const [searchParams] = useSearchParams();
   const { setActiveTag, setCategoryName } = useTagFilter();
   const { openSignupPrompt } = useAuthGate();

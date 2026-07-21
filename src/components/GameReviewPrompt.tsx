@@ -3,8 +3,7 @@ import { Star, X, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { GameReview, XP_VALUES } from "@/types/feed";
-import { useXP } from "@/contexts/XPContext";
+import { GameReview } from "@/types/feed";
 import { toast } from "sonner";
 
 interface GameReviewPromptProps {
@@ -39,7 +38,6 @@ export function GameReviewPrompt({
   const [reviewText, setReviewText] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const { addXP } = useXP();
 
   // Delay showing the prompt
   const [showPrompt, setShowPrompt] = useState(false);
@@ -86,15 +84,9 @@ export function GameReviewPrompt({
     }
     setIsSaving(false);
 
-    // Award XP
-    const xpAmount = reviewText.trim().length > 0
-      ? XP_VALUES.REVIEW_WITH_TEXT
-      : XP_VALUES.REVIEW_RATING_ONLY;
-
-    addXP(xpAmount);
     setIsSubmitted(true);
 
-    toast.success(`+${xpAmount} XP! Review posted`, {
+    toast.success("Review posted", {
       description: "Thanks for sharing your thoughts!",
     });
 
@@ -102,7 +94,7 @@ export function GameReviewPrompt({
     setTimeout(() => {
       onDismiss();
     }, 2000);
-  }, [rating, reviewText, selectedTags, gameId, onSubmit, addXP, onDismiss]);
+  }, [rating, reviewText, selectedTags, gameId, onSubmit, onDismiss]);
 
   if (!showPrompt || isSubmitted) {
     if (isSubmitted) {
@@ -184,15 +176,10 @@ export function GameReviewPrompt({
           className="min-h-[80px] resize-none"
           maxLength={500}
         />
-        <div className="flex justify-between mt-1">
+        <div className="mt-1">
           <span className="text-xs text-muted-foreground">
             {reviewText.length}/500
           </span>
-          {reviewText.length > 0 && (
-            <span className="text-xs text-green-500 font-medium">
-              +{XP_VALUES.REVIEW_WITH_TEXT - XP_VALUES.REVIEW_RATING_ONLY} bonus XP
-            </span>
-          )}
         </div>
       </div>
 
