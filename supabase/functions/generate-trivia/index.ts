@@ -145,6 +145,36 @@ async function generateQuestionsFromKimi(needed: number): Promise<TriviaQuestion
   return parseGeneratedQuestions("Kimi", content, needed);
 }
 
+async function generateQuestionsFromGroq(needed: number): Promise<TriviaQuestion[]> {
+  const apiKey = Deno.env.get("GROQ_API_KEY");
+  if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
+
+  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    signal: AbortSignal.timeout(60_000),
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: Deno.env.get("GROQ_TRIVIA_MODEL") ?? "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 2500,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: buildTriviaPrompt(needed) }],
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`Groq request failed (${resp.status}): ${errText}`);
+  }
+
+  const data = await resp.json();
+  const content: string = data?.choices?.[0]?.message?.content ?? "";
+  return parseGeneratedQuestions("Groq", content, needed);
+}
+
 async function generateQuestionsFromOpenRouter(needed: number): Promise<TriviaQuestion[]> {
   const apiKey = Deno.env.get("OPENROUTER_API_KEY");
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
@@ -181,9 +211,15 @@ async function generateQuestions(needed: number): Promise<TriviaQuestion[]> {
   try {
     return await generateQuestionsFromKimi(needed);
   } catch (kimiError) {
-    // Kimi remains the primary provider. OpenRouter is a continuity fallback for
-    // quota outages so the daily experience does not disappear for everyone.
-    console.error("Kimi generation failed; trying OpenRouter:", kimiError);
+    console.error("Kimi generation failed; trying Groq:", kimiError);
+  }
+
+  try {
+    return await generateQuestionsFromGroq(needed);
+  } catch (groqError) {
+    // OpenRouter remains the final continuity fallback so the daily experience
+    // does not disappear if both primary providers are unavailable.
+    console.error("Groq generation failed; trying OpenRouter:", groqError);
   }
 
   return await generateQuestionsFromOpenRouter(needed);
