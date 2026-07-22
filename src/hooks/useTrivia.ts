@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getTodayTrivia } from "@/lib/xpService";
+import { getTodayTrivia } from "@/lib/triviaService";
 
 export interface TriviaOption {
   letter: string;
