@@ -13,15 +13,6 @@ export interface XpResult {
   capped?: boolean;
 }
 
-export interface TriviaQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  topic: string;
-  difficulty?: "Easy" | "Medium" | "Hard" | "Expert";
-  expires_at: string;
-}
-
 // Demo mode XP tracking (stored in localStorage)
 const DEMO_XP_KEY = 'demo_xp_state';
 
@@ -180,50 +171,6 @@ export async function submitPrediction(matchId: number, team: string): Promise<b
     return false;
   }
   return true;
-}
-
-export async function getTodayTrivia(): Promise<{ questions: TriviaQuestion[]; already_completed: boolean } | null> {
-  if (isDemoMode()) {
-    // Do not substitute hard-coded questions for the production AI feed.
-    return null;
-  }
-  
-  const { data, error } = await supabase.functions.invoke("generate-trivia", { body: {} });
-  if (error) {
-    console.error("Trivia fetch failed:", error);
-    return null;
-  }
-  return data;
-}
-
-export async function submitTrivia(
-  answers: number[]
-): Promise<{ score: number; total: number; results: { correct: boolean; correct_index: number }[] } | null> {
-  if (isDemoMode()) {
-    // Calculate score
-    const correctAnswers = [1, 2, 1]; // Correct indices for demo questions
-    let score = 0;
-    const results = answers.map((answer, idx) => {
-      const correct = answer === correctAnswers[idx];
-      if (correct) score++;
-      return { correct, correct_index: correctAnswers[idx] };
-    });
-    
-    localStorage.setItem('demo_trivia_completed', new Date().toDateString());
-    
-    return {
-      score,
-      total: 3,
-      results,
-    };
-  }
-  
-  const { data, error } = await supabase.functions.invoke("submit-trivia", { body: { answers } });
-  if (error) {
-    console.error("Trivia submit failed:", error);
-    return null;
-  }
-  return data;
 }
 
 // Get current XP for components

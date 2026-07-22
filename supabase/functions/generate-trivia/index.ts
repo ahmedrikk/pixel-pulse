@@ -33,6 +33,15 @@ interface ClientQuestion {
   expires_at: string;
 }
 
+interface RawTriviaQuestion {
+  question: string;
+  options: string[];
+  correct_answer: string;
+  topic: string;
+  difficulty: string;
+  explanation: string;
+}
+
 function shuffleArray<T>(arr: T[]): T[] {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -41,17 +50,10 @@ function shuffleArray<T>(arr: T[]): T[] {
   return arr;
 }
 
-// `needed` tells the generator how many questions are required so validation is accurate
-// when the pool already has some questions (e.g. 3 pool + 2 AI = 5 total).
-async function generateQuestionsFromKimi(needed: number): Promise<TriviaQuestion[]> {
-  const apiKey = Deno.env.get("KIMI_API_KEY");
-  if (!apiKey) {
-    throw new Error("KIMI_API_KEY is not configured");
-  }
-
+function buildTriviaPrompt(needed: number): string {
   // Prompt requests correct_answer as text so the server derives correct_index via indexOf.
   // This prevents correct_index from appearing in the LLM wire response.
-  const prompt = `Generate exactly ${needed} factual gaming trivia questions. Return ONLY one valid JSON object with a "questions" array and no extra text, markdown, or code fences.
+  return `Generate exactly ${needed} factual gaming trivia questions. Return ONLY one valid JSON object with a "questions" array and no extra text, markdown, or code fences.
 Each item in "questions" must have exactly these fields:
 - "question": a trivia question string about video games, esports, or gaming culture
 - "options": an array of exactly 4 string answer choices
@@ -64,9 +66,62 @@ Avoid rumors, subjective questions, ambiguous answers, and facts that may change
 
 Example format:
 {"questions":[{"question":"...","options":["a","b","c","d"],"correct_answer":"b","topic":"FPS Games","difficulty":"Medium","explanation":"..."}]}`;
+}
+
+function parseGeneratedQuestions(
+  provider: string,
+  content: string,
+  needed: number,
+): TriviaQuestion[] {
+  const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+
+  let rawQuestions: RawTriviaQuestion[];
+  try {
+    const parsed = JSON.parse(cleaned);
+    rawQuestions = Array.isArray(parsed) ? parsed : parsed?.questions;
+  } catch {
+    throw new Error(`${provider} returned malformed JSON`);
+  }
+
+  if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
+    throw new Error(`${provider} returned an unexpected response structure`);
+  }
+
+  for (const q of rawQuestions) {
+    if (
+      typeof q.question !== "string" ||
+      !Array.isArray(q.options) ||
+      q.options.length !== 4 ||
+      q.options.some((option) => typeof option !== "string") ||
+      typeof q.correct_answer !== "string" ||
+      typeof q.topic !== "string" ||
+      !["Easy", "Medium", "Hard", "Expert"].includes(q.difficulty) ||
+      typeof q.explanation !== "string"
+    ) {
+      throw new Error(`${provider} returned a malformed question`);
+    }
+  }
+
+  const valid = rawQuestions
+    .map((q) => ({ ...q, correct_index: q.options.indexOf(q.correct_answer) }))
+    .filter((q) => q.correct_index !== -1);
+
+  if (valid.length < needed) {
+    throw new Error(`${provider} returned only ${valid.length} valid questions; ${needed} required`);
+  }
+
+  return valid.slice(0, needed) as TriviaQuestion[];
+}
+
+// `needed` tells the generator how many questions are required so validation is accurate
+// when the pool already has some questions (e.g. 3 pool + 2 generated = 5 total).
+async function generateQuestionsFromKimi(needed: number): Promise<TriviaQuestion[]> {
+  const apiKey = Deno.env.get("KIMI_API_KEY");
+  if (!apiKey) throw new Error("KIMI_API_KEY is not configured");
 
   const resp = await fetch("https://api.moonshot.ai/v1/chat/completions", {
     method: "POST",
+    signal: AbortSignal.timeout(90_000),
     headers: {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
@@ -76,7 +131,7 @@ Example format:
       temperature: 0.7,
       max_completion_tokens: 4000,
       response_format: { type: "json_object" },
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user", content: buildTriviaPrompt(needed) }],
     }),
   });
 
@@ -87,50 +142,51 @@ Example format:
 
   const data = await resp.json();
   const content: string = data?.choices?.[0]?.message?.content ?? "";
+  return parseGeneratedQuestions("Kimi", content, needed);
+}
 
-  // Strip any accidental markdown code fences
-  const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+async function generateQuestionsFromOpenRouter(needed: number): Promise<TriviaQuestion[]> {
+  const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
-  let rawQuestions: Array<{ question: string; options: string[]; correct_answer: string; topic: string; difficulty: string; explanation: string }>;
+  const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    signal: AbortSignal.timeout(60_000),
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://pixel-pulse-roan.vercel.app",
+      "X-Title": "Talus Daily Trivia",
+    },
+    body: JSON.stringify({
+      model: Deno.env.get("OPENROUTER_TRIVIA_MODEL") ?? "openrouter/free",
+      temperature: 0.7,
+      max_tokens: 2500,
+      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: buildTriviaPrompt(needed) }],
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    throw new Error(`OpenRouter request failed (${resp.status}): ${errText}`);
+  }
+
+  const data = await resp.json();
+  const content: string = data?.choices?.[0]?.message?.content ?? "";
+  return parseGeneratedQuestions("OpenRouter", content, needed);
+}
+
+async function generateQuestions(needed: number): Promise<TriviaQuestion[]> {
   try {
-    const parsed = JSON.parse(cleaned);
-    rawQuestions = Array.isArray(parsed) ? parsed : parsed?.questions;
-  } catch {
-    throw new Error(`Kimi returned malformed JSON: ${content}`);
+    return await generateQuestionsFromKimi(needed);
+  } catch (kimiError) {
+    // Kimi remains the primary provider. OpenRouter is a continuity fallback for
+    // quota outages so the daily experience does not disappear for everyone.
+    console.error("Kimi generation failed; trying OpenRouter:", kimiError);
   }
 
-  if (!Array.isArray(rawQuestions) || rawQuestions.length === 0) {
-    throw new Error(`Kimi returned unexpected structure: ${content}`);
-  }
-
-  for (const q of rawQuestions) {
-    if (
-      typeof q.question !== "string" ||
-      !Array.isArray(q.options) ||
-      q.options.length !== 4 ||
-      typeof q.correct_answer !== "string" ||
-      typeof q.topic !== "string" ||
-      !["Easy", "Medium", "Hard", "Expert"].includes(q.difficulty) ||
-      typeof q.explanation !== "string"
-    ) {
-      throw new Error(`Kimi returned a malformed question: ${JSON.stringify(q)}`);
-    }
-  }
-
-  // Derive correct_index server-side from the answer text — never trust an index from the LLM
-  const withIndex = rawQuestions.map((q) => ({
-    ...q,
-    correct_index: q.options.indexOf(q.correct_answer),
-  }));
-
-  // Filter out questions where correct_answer didn't match any option
-  const valid = withIndex.filter((q) => q.correct_index !== -1);
-
-  if (valid.length < needed) {
-    throw new Error(`Kimi returned only ${valid.length} valid questions, need ${needed}`);
-  }
-
-  return valid.slice(0, needed) as TriviaQuestion[];
+  return await generateQuestionsFromOpenRouter(needed);
 }
 
 serve(async (req) => {
@@ -225,12 +281,12 @@ serve(async (req) => {
       const needed = TRIVIA_QUESTION_COUNT - availableQuestions.length;
       let aiQuestions: TriviaQuestion[];
       try {
-        aiQuestions = await generateQuestionsFromKimi(needed);
+        aiQuestions = await generateQuestions(needed);
       } catch (genErr) {
-        console.error("Kimi generation error:", genErr);
+        console.error("All trivia generation providers failed:", genErr);
         return new Response(
-          JSON.stringify({ error: `Failed to generate trivia questions: ${String(genErr)}` }),
-          { status: 500, headers: JSON_HEADERS }
+          JSON.stringify({ error: "Trivia generation is temporarily unavailable" }),
+          { status: 503, headers: JSON_HEADERS }
         );
       }
 

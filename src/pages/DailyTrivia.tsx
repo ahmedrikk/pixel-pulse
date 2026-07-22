@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { getTodayTrivia, submitTrivia } from "@/lib/xpService";
+import { getTodayTrivia, submitTrivia } from "@/lib/triviaService";
 import { Footer } from "@/components/Footer";
 
 interface TriviaQuestion {
@@ -47,24 +47,6 @@ export default function DailyTrivia() {
     loadTrivia();
   }, []);
 
-  // Timer countdown
-  useEffect(() => {
-    if (showResults || isSubmitting || answers.length > currentIndex) return;
-    
-    const timer = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          // Auto-submit on timeout
-          handleAnswer(-1);
-          return QUESTION_TIME_LIMIT;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [currentIndex, answers, showResults, isSubmitting]);
-
   const handleAnswer = useCallback(async (answerIndex: number) => {
     if (isSubmitting) return;
 
@@ -89,6 +71,24 @@ export default function DailyTrivia() {
       setTimeRemaining(QUESTION_TIME_LIMIT);
     }
   }, [answers, questions.length, isSubmitting]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (showResults || isSubmitting || answers.length > currentIndex) return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          // Auto-submit on timeout
+          void handleAnswer(-1);
+          return QUESTION_TIME_LIMIT;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [currentIndex, answers, showResults, isSubmitting, handleAnswer]);
 
   if (loading) {
     return (
