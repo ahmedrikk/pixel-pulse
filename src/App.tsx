@@ -7,14 +7,15 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { useEffect } from "react";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthGateProvider } from "@/contexts/AuthGateContext";
+import { ProfileProvider } from "@/contexts/ProfileContext";
 import { AuthGatePopup } from "@/components/AuthGatePopup";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { RouteFallback } from "@/components/RouteFallback";
 
 function ScrollToTop() {
-  const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  const { pathname, search } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname, search]);
   return null;
 }
 
@@ -44,7 +45,8 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthGateProvider>
-            <TooltipProvider>
+          <ProfileProvider>
+      <TooltipProvider>
               <Toaster />
               <Sonner />
               <AuthGatePopup />
@@ -86,7 +88,8 @@ const App = () => (
                   </Routes>
                 </Suspense>
               </BrowserRouter>
-            </TooltipProvider>
+      </TooltipProvider>
+          </ProfileProvider>
         </AuthGateProvider>
       </ThemeProvider>
     </QueryClientProvider>

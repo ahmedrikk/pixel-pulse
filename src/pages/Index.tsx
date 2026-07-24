@@ -1,37 +1,19 @@
 import { useEffect } from "react";
-import { useSearchParams, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { NewsFeed } from "@/components/NewsFeed";
 import { RightSidebar } from "@/components/RightSidebar";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
-import { TagFilterProvider, useTagFilter } from "@/contexts/TagFilterContext";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { prettifyTag } from "@/hooks/useTrendingCategories";
 
 // Inner component so it can use TagFilterContext
 function IndexContent() {
   const { trackCardView } = useEngagementTracker();
-  const [searchParams] = useSearchParams();
-  const { setActiveTag, setCategoryName } = useTagFilter();
   const { openSignupPrompt } = useAuthGate();
   const location = useLocation();
-
-  // The ?category= URL param is the single source of truth for the feed
-  // filter. Category pills navigate to /?category=slug (from any page), and
-  // the back button navigates to /, so we sync the filter on every change.
-  const categorySlug = searchParams.get("category");
-  useEffect(() => {
-    if (categorySlug) {
-      setActiveTag(categorySlug);
-      setCategoryName(prettifyTag(categorySlug));
-    } else {
-      setActiveTag(null);
-      setCategoryName(null);
-    }
-  }, [categorySlug, setActiveTag, setCategoryName]);
 
   // Open auth modal when redirected from /login or /signup
   useEffect(() => {
@@ -67,10 +49,6 @@ function IndexContent() {
   );
 }
 
-const Index = () => (
-  <TagFilterProvider>
-    <IndexContent />
-  </TagFilterProvider>
-);
+const Index = () => <IndexContent />;
 
 export default Index;

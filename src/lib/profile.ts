@@ -152,7 +152,11 @@ export async function updateProfile(
     console.error('Error updating profile:', error);
     return null;
   }
-  return data;
+  const updated = data as Profile;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("talus:profile-updated", { detail: updated }));
+  }
+  return updated;
 }
 
 // ============================================

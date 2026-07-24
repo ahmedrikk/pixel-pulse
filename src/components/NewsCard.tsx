@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { ExternalLink, Share2, Bookmark, MessageCircle, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NewsItem } from "@/data/mockNews";
-import { useTagFilter } from "@/contexts/TagFilterContext";
 import { trackArticleRead, trackReadMore, trackArticleCombo } from "@/lib/xpService";
 import { ReactionBar } from "./ReactionBar";
 import { CommentSection } from "./CommentSection";
@@ -26,7 +26,7 @@ function formatDate(dateString: string): string {
 }
 
 export function NewsCard({ news, articleNumber = 0 }: NewsCardProps) {
-  const { setActiveTag } = useTagFilter();
+  const navigate = useNavigate();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(news.likes || 0);
   const [showComments, setShowComments] = useState(false);
@@ -43,7 +43,7 @@ export function NewsCard({ news, articleNumber = 0 }: NewsCardProps) {
   };
 
   const handleTagClick = (tag: string) => {
-    setActiveTag(tag);
+    navigate(`/?category=${encodeURIComponent(tag)}`);
   };
 
   // Track article read (dwell time)

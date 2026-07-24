@@ -1,8 +1,13 @@
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
-import { Cpu, BookOpen, Clock, Swords } from "lucide-react";
+import { Bell, Check, Cpu, BookOpen, Clock, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuthGate } from "@/contexts/AuthGateContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const PAGE_CONFIG: Record<string, { icon: React.ReactNode; title: string; description: string; color: string }> = {
   hardware: {
@@ -17,17 +22,81 @@ const PAGE_CONFIG: Record<string, { icon: React.ReactNode; title: string; descri
     description: "Pro tips, walkthroughs, tier lists, and strategy guides for your favourite games.",
     color: "text-purple-500",
   },
-  "battle-pass": {
-    icon: <Swords className="h-16 w-16" />,
-    title: "Battle Pass",
-    description: "Seasonal tiers, badges, titles, and real rewards for reading, predicting, and reviewing. Worth the wait.",
-    color: "text-orange-500",
-  },
 };
 
 export default function ComingSoon() {
   const location = useLocation();
   const slug = location.pathname.split("/").filter(Boolean).pop() ?? "";
+  const { isAuthenticated, isLoading: isAuthLoading, openAuthModal } = useAuthGate();
+  const [isJoining, setIsJoining] = useState(false);
+  const [isOnWaitlist, setIsOnWaitlist] = useState(false);
+
+  useEffect(() => {
+    if (slug !== "battle-pass" || !isAuthenticated) {
+      setIsOnWaitlist(false);
+      return;
+    }
+    supabase.rpc("is_on_battle_pass_waitlist")
+      .then(({ data, error }) => {
+        if (!error) setIsOnWaitlist(Boolean(data));
+      });
+  }, [isAuthenticated, slug]);
+
+  async function handleBattlePassNotify() {
+    if (!isAuthenticated) {
+      openAuthModal("battlepass");
+      return;
+    }
+    setIsJoining(true);
+    const { error } = await supabase.rpc("join_battle_pass_waitlist");
+    setIsJoining(false);
+    if (error) {
+      console.error("Battle Pass waitlist error:", error);
+      toast.error("We couldn't add you right now. Please try again.");
+      return;
+    }
+    setIsOnWaitlist(true);
+    toast.success("You're on the Battle Pass notification list!");
+  }
+
+  if (slug === "battle-pass") {
+    return (
+      <div className="min-h-screen pb-16 md:pb-0">
+        <SiteLayout>
+          <div className="mx-auto w-full max-w-3xl py-2 sm:py-4">
+            <div className="relative overflow-hidden rounded-2xl border bg-card shadow-sm">
+              <img
+                src="/battle-pass-coming-soon.jpg"
+                alt="Talus Battle Pass coming soon — stay tuned"
+                className="block h-auto w-full"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-4 pb-5 pt-20 sm:px-8 sm:pb-8">
+                <Button
+                  type="button"
+                  size="lg"
+                  onClick={handleBattlePassNotify}
+                  disabled={isJoining || isAuthLoading || isOnWaitlist}
+                  className="mx-auto flex min-w-52 gap-2 rounded-full shadow-xl"
+                >
+                  {isJoining ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : isOnWaitlist ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Bell className="h-4 w-4" />
+                  )}
+                  {isOnWaitlist ? "You're on the list" : "Notify me"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </SiteLayout>
+        <BottomNavBar />
+        <Footer />
+      </div>
+    );
+  }
+
   const page = PAGE_CONFIG[slug] ?? {
     icon: <Clock className="h-16 w-16" />,
     title: slug.charAt(0).toUpperCase() + slug.slice(1),

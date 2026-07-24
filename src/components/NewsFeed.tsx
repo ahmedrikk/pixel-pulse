@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { RefreshCw, AlertCircle, Sparkles, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSmartFeedReal } from "@/hooks/useSmartFeedReal";
 import { EnhancedNewsCard } from "./EnhancedNewsCard";
 import { NewsCardSkeleton } from "./NewsCardSkeleton";
 import { InFeedSignupPrompt } from "./InFeedSignupPrompt";
 import { Button } from "@/components/ui/button";
-import { useTagFilter } from "@/contexts/TagFilterContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { FeedHigherLowerCard, FeedSentimentCard } from "@/components/hub/HubEngagementWidgets";
 import type { RankedArticle } from "@/types/feed";
+import { prettifyTag } from "@/hooks/useTrendingCategories";
 
 interface NewsFeedProps {
   onCardView?: (cardId: string) => void;
@@ -56,6 +56,9 @@ function normalizeTag(tag: string): string {
 
 export function NewsFeed({ onCardView }: NewsFeedProps) {
   const { isAuthenticated, user } = useAuthGate();
+  const [searchParams] = useSearchParams();
+  const activeTag = searchParams.get("category");
+  const categoryName = activeTag ? prettifyTag(activeTag) : null;
 
   const {
     articles,
@@ -70,10 +73,10 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
     dismissNewBadge,
     trackImpression,
   } = useSmartFeedReal({
-    userId: isAuthenticated ? user?.id : undefined
+    userId: isAuthenticated ? user?.id : undefined,
+    tag: activeTag || undefined,
   });
   
-  const { activeTag, categoryName } = useTagFilter();
   const navigate = useNavigate();
   const exitFilter = () => navigate("/");
   const [displayedCount, setDisplayedCount] = useState(6);
@@ -117,7 +120,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
 
   // Reset display count when filter changes
   useEffect(() => {
-    setDisplayedCount(6);
+    setDisplayedCount(activeTag ? 10 : 6);
   }, [activeTag]);
 
   const displayedNews = filteredArticles.slice(0, displayedCount);

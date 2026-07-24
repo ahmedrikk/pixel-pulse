@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TriviaWidget } from "@/components/shared/TriviaWidget";
 import { useEsportsMatches } from "@/hooks/useEsportsMatches";
 import { useTrendingTopics } from "@/hooks/useTrendingTopics";
-import { useTagFilter } from "@/contexts/TagFilterContext";
 import type { EsportsMatch as PandaMatch } from "@/lib/pandascore";
 
 // Adapter: convert PandaScore EsportsMatch to the shape PredictionCard expects
@@ -38,14 +37,12 @@ function formatHashtag(tag: string): string {
 export function RightSidebar() {
   const { upcomingMatches } = useEsportsMatches();
   const { topics, isLoading } = useTrendingTopics(5);
-  const { setActiveTag } = useTagFilter();
   const navigate = useNavigate();
   // Show a single match in the sidebar (full list lives on the Esports tab)
   const showUpcoming = upcomingMatches.slice(0, 1).map(toPredictionMatch);
 
   const openTopic = (tag: string) => {
-    setActiveTag(tag);
-    navigate("/");
+    navigate(`/?category=${encodeURIComponent(tag)}`);
   };
 
   return (

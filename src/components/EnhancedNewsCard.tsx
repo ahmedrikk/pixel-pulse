@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Article, GameReview } from "@/types/feed";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { useTagFilter } from "@/contexts/TagFilterContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EnhancedCommentSection } from "./EnhancedCommentSection";
@@ -63,7 +62,7 @@ function formatDate(dateString: string | null | undefined): string {
 
 export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps) {
   const { isAuthenticated, openAuthModal, user } = useAuthGate();
-  const { setActiveTag } = useTagFilter();
+  const navigate = useNavigate();
   // useBookmarks removed for Talus redesign
 
   const [vote, setVote] = useState<ArticleVote>(null);
@@ -405,7 +404,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
               <button
                 key={tag}
                 type="button"
-                onClick={() => setActiveTag(tag)}
+                onClick={() => navigate(`/?category=${encodeURIComponent(tag)}`)}
                 className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
               >
                 #{tag.replace(/^#+/, "")}

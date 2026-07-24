@@ -847,6 +847,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_on_battle_pass_waitlist: {
+        Args: never
+        Returns: boolean
+      }
+      join_battle_pass_waitlist: {
+        Args: never
+        Returns: boolean
+      }
       record_article_share: {
         Args: {
           p_article_id: string
@@ -864,6 +872,18 @@ export type Database = {
           comments: number
           shares: number
           user_vote: number | null
+        }[]
+      }
+      validate_profile_content: {
+        Args: {
+          p_about_me?: string | null
+          p_display_name?: string | null
+          p_username?: string | null
+        }
+        Returns: {
+          field_name: string | null
+          is_safe: boolean
+          message: string | null
         }[]
       }
     }

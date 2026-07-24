@@ -18,8 +18,9 @@ import { getAllCachedArticles, getCachedArticleCount, spotifyShuffle } from "@/l
 
 const MINIMUM_ARTICLE_FLOOR = 10;
 
-export function useGamingNews(options?: { category?: string }) {
+export function useGamingNews(options?: { category?: string; tag?: string }) {
   const category = options?.category;
+  const tag = options?.tag;
   const [news, setNews]               = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading]     = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -27,9 +28,9 @@ export function useGamingNews(options?: { category?: string }) {
   const [error, setError]             = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [hasMore, setHasMore]         = useState(true);
-  const [page, setPage]               = useState(0);
+  const pageRef = useRef(0);
 
-  const PAGE_SIZE = 20;
+  const PAGE_SIZE = tag ? 10 : 20;
 
   // Mirror of news.length so loadFromDB can tell a cold start from a
   // background refresh without adding `news` to its deps.
@@ -39,8 +40,9 @@ export function useGamingNews(options?: { category?: string }) {
   // ── Read from DB ──────────────────────────────────────────────────────────
   const loadFromDB = useCallback(async (isInitial = true): Promise<number> => {
     try {
-      const currentOffset = isInitial ? 0 : (page + 1) * PAGE_SIZE;
-      const articles = await getAllCachedArticles(currentOffset, PAGE_SIZE, category);
+      const nextPage = isInitial ? 0 : pageRef.current + 1;
+      const currentOffset = nextPage * PAGE_SIZE;
+      const articles = await getAllCachedArticles(currentOffset, PAGE_SIZE, category, tag);
       const wasEmpty = newsCountRef.current === 0;
 
       if (articles.length > 0) {
@@ -55,10 +57,10 @@ export function useGamingNews(options?: { category?: string }) {
         });
 
         if (isInitial && wasEmpty) {
-          setPage(0);
+          pageRef.current = 0;
           setHasMore(articles.length === PAGE_SIZE);
         } else if (!isInitial) {
-          setPage(p => p + 1);
+          pageRef.current = nextPage;
           if (articles.length < PAGE_SIZE) setHasMore(false);
         }
 
@@ -73,7 +75,7 @@ export function useGamingNews(options?: { category?: string }) {
       console.error("loadFromDB error:", err);
       return 0;
     }
-  }, [page, category]);
+  }, [category, tag, PAGE_SIZE]);
 
   // ── Load more (exposed to UI) ─────────────────────────────────────────────
   const loadMore = useCallback(async () => {
@@ -123,6 +125,10 @@ export function useGamingNews(options?: { category?: string }) {
     let cancelled = false;
 
     async function init() {
+      newsCountRef.current = 0;
+      pageRef.current = 0;
+      setNews([]);
+      setHasMore(true);
       setIsLoading(true);
       setError(null);
 
@@ -145,7 +151,7 @@ export function useGamingNews(options?: { category?: string }) {
 
     init();
     return () => { cancelled = true; };
-  }, [loadFromDB, triggerFetch, category]);
+  }, [loadFromDB, triggerFetch, category, tag]);
 
   // ── Instant reshuffle (no DB hit) ─────────────────────────────────────────
   const reshuffle = useCallback(() => {
