@@ -811,6 +811,29 @@ export type Database = {
         Returns: undefined
       }
       cleanup_expired_articles: { Args: never; Returns: undefined }
+      get_article_engagement: {
+        Args: { p_article_ids: string[] }
+        Returns: {
+          article_id: string
+          upvotes: number
+          downvotes: number
+          comments: number
+          shares: number
+          user_vote: number | null
+        }[]
+      }
+      get_trending_topics: {
+        Args: { p_limit?: number }
+        Returns: {
+          tag: string
+          article_count: number
+          upvotes: number
+          downvotes: number
+          comments: number
+          shares: number
+          trend_score: number
+        }[]
+      }
       increment_helpful_votes: {
         Args: { review_id: string }
         Returns: undefined
@@ -823,6 +846,25 @@ export type Database = {
           uid: string
         }
         Returns: undefined
+      }
+      record_article_share: {
+        Args: {
+          p_article_id: string
+          p_session_id: string
+          p_share_type: string
+        }
+        Returns: undefined
+      }
+      set_article_vote: {
+        Args: { p_article_id: string; p_vote: number }
+        Returns: {
+          article_id: string
+          upvotes: number
+          downvotes: number
+          comments: number
+          shares: number
+          user_vote: number | null
+        }[]
       }
     }
     Enums: {
