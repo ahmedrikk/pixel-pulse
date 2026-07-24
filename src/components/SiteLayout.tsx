@@ -3,7 +3,6 @@ import { Navbar } from "./Navbar";
 import { LeftSidebar } from "./LeftSidebar";
 import { RightSidebar } from "./RightSidebar";
 import { MobileMenu } from "./MobileMenu";
-import { TagFilterProvider } from "@/contexts/TagFilterContext";
 
 interface SiteLayoutProps {
   children: React.ReactNode;
@@ -13,7 +12,6 @@ export function SiteLayout({ children }: SiteLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <TagFilterProvider>
       <div className="min-h-screen">
         <MobileMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
 
@@ -40,6 +38,5 @@ export function SiteLayout({ children }: SiteLayoutProps) {
             </div>
         </div>
       </div>
-    </TagFilterProvider>
   );
 }

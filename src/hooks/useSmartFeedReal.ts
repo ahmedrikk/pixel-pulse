@@ -31,10 +31,11 @@ function convertToArticle(news: NewsItem): Article {
 interface UseSmartFeedOptions {
   userId?: string;
   pageSize?: number;
+  tag?: string;
 }
 
 export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
-  const { userId, pageSize = 15 } = options;
+  const { userId, pageSize = 15, tag } = options;
   
   // Use the existing gaming news hook for RSS feed data
   const {
@@ -47,7 +48,7 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     reshuffle: reshuffleNews,
     loadMore: loadMoreNews,
     hasMore: hasMoreNews,
-  } = useGamingNews({ category: 'Gaming' });
+  } = useGamingNews({ category: 'Gaming', tag });
   
   const [articles, setArticles] = useState<RankedArticle[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -186,6 +187,11 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
   // Without this, every impression/engagement update reshuffled the whole
   // feed while the user was reading it.
   const orderRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    orderRef.current = [];
+    setArticles([]);
+  }, [tag]);
 
   // Load and rank articles when news changes
   useEffect(() => {

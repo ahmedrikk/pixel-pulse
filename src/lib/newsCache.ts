@@ -369,7 +369,12 @@ export async function getTrendingTags(limit = 12): Promise<TrendingTag[]> {
 /**
  * Get all cached articles (with pagination support)
  */
-export async function getAllCachedArticles(offset = 0, limit = 50, category?: string): Promise<NewsItem[]> {
+export async function getAllCachedArticles(
+  offset = 0,
+  limit = 50,
+  category?: string,
+  tag?: string,
+): Promise<NewsItem[]> {
   // Retry up to 3 times — Supabase auth init can abort in-flight queries
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -386,6 +391,10 @@ export async function getAllCachedArticles(offset = 0, limit = 50, category?: st
       if (category) {
         query = query.eq('category', category);
       }
+      const safeTag = tag?.replace(/[^a-zA-Z0-9]/g, '');
+      if (safeTag) {
+        query = query.or(`tags.cs.{${safeTag}},game_tags.cs.{${safeTag}}`);
+      }
 
       const { data, error } = await query;
 
@@ -400,7 +409,7 @@ export async function getAllCachedArticles(offset = 0, limit = 50, category?: st
       }
 
       let feedRows = data || [];
-      if (windowStart === 0) {
+      if (windowStart === 0 && !safeTag) {
         const priorityResults = await Promise.all(PRIORITY_NEWS_SOURCES.map(async (source) => {
           let priorityQuery = supabase
             .from('cached_articles')

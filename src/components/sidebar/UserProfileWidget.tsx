@@ -1,20 +1,11 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getCurrentUserProfile, type Profile } from "@/lib/profile";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import { User, LogIn } from "lucide-react";
 
 export function UserProfileWidget() {
   const { isAuthenticated, user, openAuthModal } = useAuthGate();
-  const [profile, setProfile] = useState<Profile | null>(null);
-
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      getCurrentUserProfile().then((p) => {
-        if (p) setProfile(p);
-      });
-    }
-  }, [isAuthenticated, user]);
+  const { profile } = useProfile();
 
   if (!isAuthenticated || !user) {
     return (
@@ -89,11 +80,11 @@ export function UserProfileWidget() {
         <div className="pt-8">
           <Link to="/profile" className="block hover:underline">
             <h3 className="font-bold text-sm text-foreground truncate">
-              {profile?.username || "Player One"}
+              {profile?.display_name || profile?.username || user.user_metadata?.display_name || "Player One"}
             </h3>
           </Link>
           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-            {profile?.bio || "No bio set. Update your profile to add a bio!"}
+            {profile?.about_me || "No bio set. Update your profile to add a bio!"}
           </p>
         </div>
       </div>

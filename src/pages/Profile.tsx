@@ -22,7 +22,9 @@ import {
   ChevronRight,
   Settings,
   ArrowLeft,
-  Home
+  Home,
+  AlertCircle,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/Footer";
@@ -71,6 +73,8 @@ import {
 import { CATEGORIES } from "@/data/mockNews";
 import { BANNER_GRADIENTS } from "@/lib/onboardingService";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { PROFILE_AVATARS, PROFILE_BANNERS } from "@/lib/profileAssets";
+import { validateProfileContent } from "@/lib/profileModeration";
 
 const BANNER_LABELS: Record<string, string> = {
   bn1: 'Ember Dawn', bn2: 'Midnight Pulse', bn3: 'Teal Forest',
@@ -102,6 +106,7 @@ export default function Profile() {
   // Edit states
   const [editMode, setEditMode] = useState(false);
   const [editedProfile, setEditedProfile] = useState<Partial<ProfileType>>({});
+  const [moderationError, setModerationError] = useState<string | null>(null);
   const [newGame, setNewGame] = useState("");
   const [showAddGame, setShowAddGame] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -113,6 +118,7 @@ export default function Profile() {
   // Gamification state
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [bannerPickerOpen, setBannerPickerOpen] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [savingBanner, setSavingBanner] = useState(false);
 
   async function handleSelectBannerPreset(presetId: string) {
@@ -126,6 +132,37 @@ export default function Profile() {
       setBannerPickerOpen(false);
     } finally {
       setSavingBanner(false);
+    }
+  }
+
+  async function handleSelectProfileAsset(type: "avatar" | "banner", url: string) {
+    if (!user) return;
+    if (type === "avatar") setUploadingAvatar(true);
+    else setSavingBanner(true);
+    try {
+      const updated = await updateProfile(
+        user.id,
+        type === "avatar" ? { avatar_url: url } : { banner_url: url }
+      );
+      if (!updated) throw new Error("Profile asset update failed");
+      setProfile(updated);
+      setEditedProfile(updated);
+      if (type === "avatar") setAvatarPickerOpen(false);
+      else setBannerPickerOpen(false);
+      toast({
+        title: type === "avatar" ? "Avatar equipped" : "Banner equipped",
+        description: "Your profile customization is now live everywhere.",
+      });
+    } catch (error) {
+      console.error("Unable to equip profile asset:", error);
+      toast({
+        title: "Could not equip image",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      if (type === "avatar") setUploadingAvatar(false);
+      else setSavingBanner(false);
     }
   }
   const [uploadingNameplate, setUploadingNameplate] = useState(false);
@@ -164,11 +201,40 @@ export default function Profile() {
   async function handleSaveProfile() {
     if (!user) return;
     setSaving(true);
-    await updateProfile(user.id, editedProfile);
-    const updated = await getCurrentUserProfile();
-    setProfile(updated);
-    setEditMode(false);
-    setSaving(false);
+    setModerationError(null);
+    try {
+      const validation = await validateProfileContent({
+        username: editedProfile.username,
+        displayName: editedProfile.display_name,
+        aboutMe: editedProfile.about_me,
+      });
+      if (!validation.isSafe) {
+        const message = validation.message || "A harmful or inappropriate word exists. Please retype it to make your profile safer.";
+        setModerationError(message);
+        toast({
+          title: "Please retype your profile",
+          description: message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const updated = await updateProfile(user.id, editedProfile);
+      if (!updated) throw new Error("Profile update failed");
+      setProfile(updated);
+      setEditedProfile(updated);
+      setEditMode(false);
+      toast({ title: "Profile saved", description: "Your changes are visible across Talus." });
+    } catch (error) {
+      console.error("Profile save failed:", error);
+      toast({
+        title: "Profile not saved",
+        description: "Please check your name and bio, then try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleAddGame(gameName: string) {
@@ -456,8 +522,32 @@ export default function Profile() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Choose a banner</DialogTitle>
-              <DialogDescription>Pick a gradient for your profile banner.</DialogDescription>
+              <DialogDescription>Equip a Talus banner, use a gradient, or upload your own.</DialogDescription>
             </DialogHeader>
+            <div className="grid max-h-[42vh] grid-cols-2 gap-2 overflow-y-auto pr-1">
+              {PROFILE_BANNERS.map((asset) => {
+                const selected = profile?.banner_url === asset.url;
+                return (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    onClick={() => handleSelectProfileAsset("banner", asset.url)}
+                    disabled={savingBanner}
+                    className="relative h-20 overflow-hidden rounded-lg border-2 transition-all"
+                    style={{ borderColor: selected ? "#534AB7" : "transparent" }}
+                  >
+                    <img src={asset.url} alt={asset.label} className="h-full w-full object-cover" />
+                    <span className="absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-left text-[10px] font-medium text-white">
+                      {asset.label}
+                    </span>
+                    {selected && (
+                      <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#534AB7] text-[10px] text-white">✓</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs font-semibold text-muted-foreground">Gradient banners</p>
             <div className="grid grid-cols-2 gap-2 mt-2">
               {Object.entries(BANNER_GRADIENTS).map(([id, gradient]) => {
                 const selected = profile?.banner_url === gradient;
@@ -483,6 +573,22 @@ export default function Profile() {
                 );
               })}
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => document.getElementById("banner-upload")?.click()}
+            >
+              <Upload className="h-4 w-4" />
+              Upload your own
+            </Button>
+            <input
+              id="banner-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => handleAvatarUpload(event, "banner")}
+            />
           </DialogContent>
         </Dialog>
 
@@ -498,7 +604,7 @@ export default function Profile() {
                 {/* Avatar Upload overlay */}
                 <div
                   className="absolute inset-0 rounded-xl flex items-center justify-center bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
-                  onClick={() => document.getElementById('avatar-upload')?.click()}
+                  onClick={() => setAvatarPickerOpen(true)}
                 >
                   {uploadingAvatar ? (
                     <Loader2 className="h-8 w-8 text-white animate-spin" />
@@ -513,6 +619,46 @@ export default function Profile() {
                   className="hidden"
                   onChange={(e) => handleAvatarUpload(e, 'avatar')}
                 />
+
+                <Dialog open={avatarPickerOpen} onOpenChange={setAvatarPickerOpen}>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Choose an avatar</DialogTitle>
+                      <DialogDescription>Equip a Talus avatar or upload your own image.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {PROFILE_AVATARS.map((asset) => {
+                        const selected = profile?.avatar_url === asset.url;
+                        return (
+                          <button
+                            key={asset.id}
+                            type="button"
+                            onClick={() => handleSelectProfileAsset("avatar", asset.url)}
+                            disabled={uploadingAvatar}
+                            className="group/preset text-center"
+                          >
+                            <span className={`mx-auto block aspect-square overflow-hidden rounded-xl border-2 ${selected ? "border-primary ring-2 ring-primary/25" : "border-transparent"}`}>
+                              <img src={asset.url} alt={asset.label} className="h-full w-full object-cover transition-transform group-hover/preset:scale-105" />
+                            </span>
+                            <span className="mt-1 block text-[11px] font-medium">{asset.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={() => {
+                        setAvatarPickerOpen(false);
+                        document.getElementById("avatar-upload")?.click();
+                      }}
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload your own
+                    </Button>
+                  </DialogContent>
+                </Dialog>
 
                 {/* Nameplate Upload overlay (Edit Mode Only) */}
                 {editMode && (
@@ -545,23 +691,38 @@ export default function Profile() {
                 <div className="space-y-3 max-w-md">
                   <Input
                     value={editedProfile.display_name || ''}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, display_name: e.target.value })}
+                    onChange={(e) => {
+                      setModerationError(null);
+                      setEditedProfile({ ...editedProfile, display_name: e.target.value });
+                    }}
                     placeholder="Display Name"
                     className="text-xl font-bold bg-background/50 backdrop-blur-sm"
                   />
                   <Input
                     value={editedProfile.username || ''}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, username: e.target.value })}
+                    onChange={(e) => {
+                      setModerationError(null);
+                      setEditedProfile({ ...editedProfile, username: e.target.value });
+                    }}
                     placeholder="Username"
                     className="bg-background/50 backdrop-blur-sm"
                   />
                   <Textarea
                     value={editedProfile.about_me || ''}
-                    onChange={(e) => setEditedProfile({ ...editedProfile, about_me: e.target.value })}
+                    onChange={(e) => {
+                      setModerationError(null);
+                      setEditedProfile({ ...editedProfile, about_me: e.target.value });
+                    }}
                     placeholder="Tell us about yourself..."
                     rows={2}
                     className="bg-background/50 backdrop-blur-sm"
                   />
+                  {moderationError && (
+                    <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-left text-sm text-destructive">
+                      <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
+                      <span>{moderationError}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>

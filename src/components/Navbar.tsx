@@ -7,6 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { TalusLogo } from "@/components/TalusLogo";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { useProfile } from "@/contexts/ProfileContext";
 
 interface NavbarProps {
   onMenuToggle?: () => void;
@@ -16,6 +17,7 @@ interface NavbarProps {
 export function Navbar(_props: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
   const { openSignupPrompt } = useAuthGate();
+  const { profile } = useProfile();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [user, setUser] = useState<any>(null);
 
@@ -59,7 +61,7 @@ export function Navbar(_props: NavbarProps) {
           {user ? (
             <>
               <Link to="/profile">
-                <Avatar src={user.user_metadata?.avatar_url} fallback={user.email} size="md" />
+                <Avatar src={profile?.avatar_url || user.user_metadata?.avatar_url} fallback={profile?.display_name || profile?.username || user.email} size="md" />
               </Link>
               <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleLogout} title="Logout">
                 <LogOut className="h-4 w-4" />
