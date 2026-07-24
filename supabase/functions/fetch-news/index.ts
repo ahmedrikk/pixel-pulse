@@ -460,9 +460,9 @@ async function scrapeArticle(url: string): Promise<ScrapeResult> {
 }
 
 // ---------------------------------------------------------------------------
-// Groq — 100-word summary + named-entity tags
+// AI summary + exactly two content-derived topic hashtags
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are a gaming news editor for "Pixel Pulse" — an Inshorts-style news aggregator.
+const SYSTEM_PROMPT = `You are a gaming news editor for "Talus" — an Inshorts-style news aggregator.
 Your task: Condense gaming news into tight, informative summaries.
 
 WRITING STYLE:
@@ -484,7 +484,7 @@ OUTPUT FORMAT — return ONLY valid JSON with exactly these three keys:
 {
   "summary": "4-sentence summary here",
   "gameTags": ["GameTitle1", "GameTitle2"],
-  "tags": ["GameTitle1", "Studio", "PersonName", "EventName"]
+  "tags": ["PrimaryTopic", "SecondaryTopic"]
 }
 
 gameTags RULES (game titles ONLY — this powers the review-prompt feature):
@@ -494,12 +494,14 @@ gameTags RULES (game titles ONLY — this powers the review-prompt feature):
 - If no specific game is mentioned, use []
 - Max 3 game titles
 
-tags RULES (all named entities, PascalCase, 3-6 total, gameTags entries go here too):
-- Game titles (same as gameTags): "Overwatch2", "GTA6"
-- Studios/publishers: "RockstarGames", "FromSoftware", "Blizzard"
-- Real people: "HideoKojima", "PhilSpencer", "AaronKeller"
-- Events: "GameAwards2025", "EVO2025"
-- Platform ONLY if article is about hardware: "PS5", "Switch2"
+tags RULES (EXACTLY 2 topic hashtags for this specific article):
+- Return exactly two strings, ordered from most important topic to second most important
+- Use only a game, studio/publisher, real person, event, team, league, or hardware platform
+  explicitly central to the title and article
+- Prefer the main game or subject first, then the most relevant related entity
+- PascalCase, no spaces, no # symbol: "GTA6", "RockstarGames", "HideoKojima", "EVO2026"
+- Do not invent, broaden, or infer a topic that is not explicitly supported by the article
+- Do not return two spelling variants of the same topic
 
 BANNED TAGS (never include in either array): Gaming, News, Game, Games, Update, Updates,
 Entertainment, RPG, FPS, Action, Adventure, Horror, Review, Preview, Trailer, Rumor,
@@ -524,6 +526,39 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
 
 function countSentences(text: string): number {
   return text.split(/[.!?]+/).filter(s => s.trim().length > 3).length;
+}
+
+const BANNED_TOPIC_TAGS = new Set([
+  "game", "games", "gaming", "gamer", "gamers", "news", "gamingnews",
+  "videogame", "videogames", "update", "updates", "entertainment",
+  "rpg", "fps", "action", "adventure", "horror", "review", "preview",
+  "trailer", "rumor", "leak", "gameplay", "streaming", "twitch",
+  "youtube", "pcgaming", "mobilegaming", "esports",
+]);
+
+function sanitizeTopicTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const tags: string[] = [];
+  const seen = new Set<string>();
+
+  for (const raw of value) {
+    if (typeof raw !== "string") continue;
+    const clean = raw
+      .replace(/^#+/, "")
+      .trim()
+      .split(/[^a-zA-Z0-9]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join("")
+      .substring(0, 39);
+    const key = clean.toLowerCase();
+    if (clean.length < 2 || BANNED_TOPIC_TAGS.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    tags.push(clean);
+    if (tags.length === 2) break;
+  }
+
+  return tags;
 }
 
 function buildSourceExcerpt(content: string): string {
@@ -583,9 +618,11 @@ function parseSummaryResult(raw: string, provider: string): SummarizeResult | nu
     return null;
   }
 
-  const tags = (Array.isArray(parsed.tags) ? parsed.tags as unknown[] : [])
-    .filter((tag): tag is string => typeof tag === "string" && tag.length > 1 && tag.length < 40)
-    .slice(0, 6);
+  const tags = sanitizeTopicTags(parsed.tags);
+  if (tags.length !== 2) {
+    console.warn(`  ${provider}: rejected (expected exactly 2 specific topic tags, got ${tags.length})`);
+    return null;
+  }
   const gameTags = (Array.isArray(parsed.gameTags) ? parsed.gameTags as unknown[] : [])
     .filter((tag): tag is string => typeof tag === "string" && tag.length > 1 && tag.length < 40)
     .slice(0, 3);
@@ -643,7 +680,7 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
 {
   "summary": "your summary here",
   "gameTags": ["GameTitle1", "GameTitle2"],
-  "tags": ["GameTitle1", "Tag2", "Tag3"]
+  "tags": ["PrimaryTopic", "SecondaryTopic"]
 }`;
 
   let totalRetries = 0;
@@ -744,9 +781,11 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
           continue;
         }
 
-        const tags = (Array.isArray(parsed.tags) ? parsed.tags as unknown[] : [])
-          .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
-          .slice(0, 6);
+        const tags = sanitizeTopicTags(parsed.tags);
+        if (tags.length !== 2) {
+          console.warn(`  [retry ${totalRetries}] ${model}: expected exactly 2 specific topic tags, got ${tags.length}`);
+          continue;
+        }
 
         const gameTags = (Array.isArray(parsed.gameTags) ? parsed.gameTags as unknown[] : [])
           .filter((t): t is string => typeof t === "string" && t.length > 1 && t.length < 40)
@@ -1042,6 +1081,16 @@ serve(async (req) => {
           rateLimited = false;
           console.log(`  using clean source excerpt (${countWords(summary)}w)`);
         }
+      }
+
+      // A publish-ready Talus article must have two specific, content-derived
+      // hashtags. If the AI provider is unavailable or returns generic/invalid
+      // topics, defer the article rather than showing fabricated fallback tags.
+      if (tags.length !== 2) {
+        skip("topic_tags");
+        console.warn(`  Skipping "${item.title}" — exactly two verified topic tags are required`);
+        await new Promise(r => setTimeout(r, 500));
+        continue;
       }
 
       if (!summary || summary.length < 100) {

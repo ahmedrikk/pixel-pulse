@@ -18,6 +18,7 @@ interface EnhancedCommentSectionProps {
   articleId: string;
   initialComments?: Comment[];
   className?: string;
+  onCountChange?: (count: number) => void;
 }
 
 // Wilson score for "hot" sorting
@@ -68,6 +69,7 @@ export function EnhancedCommentSection({
   articleId,
   initialComments = [],
   className,
+  onCountChange,
 }: EnhancedCommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [newComment, setNewComment] = useState("");
@@ -190,6 +192,10 @@ export function EnhancedCommentSection({
   };
 
   const totalComments = comments.length;
+
+  useEffect(() => {
+    onCountChange?.(totalComments);
+  }, [onCountChange, totalComments]);
 
   return (
     <div className={cn("border-t pt-4", className)}>

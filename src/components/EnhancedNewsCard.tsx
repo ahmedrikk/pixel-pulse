@@ -12,12 +12,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Article, GameReview } from "@/types/feed";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { useTagFilter } from "@/contexts/TagFilterContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { EnhancedCommentSection } from "./EnhancedCommentSection";
 import { GameReviewPrompt } from "./GameReviewPrompt";
 import { fetchGameList } from "@/lib/rawg";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchArticleEngagement,
+  recordArticleShare,
+  saveArticleVote,
+  type ArticleEngagement,
+  type ArticleVote,
+} from "@/lib/articleEngagement";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,10 +63,14 @@ function formatDate(dateString: string | null | undefined): string {
 
 export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps) {
   const { isAuthenticated, openAuthModal, user } = useAuthGate();
+  const { setActiveTag } = useTagFilter();
   // useBookmarks removed for Talus redesign
 
-  const [vote, setVote] = useState<"up" | "down" | null>(null);
-  const [voteScore, setVoteScore] = useState(article.likes || 0);
+  const [vote, setVote] = useState<ArticleVote>(null);
+  const [upvotes, setUpvotes] = useState(Math.max(article.likes || 0, 0));
+  const [downvotes, setDownvotes] = useState(0);
+  const [commentCount, setCommentCount] = useState(article.comments || 0);
+  const [isVoting, setIsVoting] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [userReactions, setUserReactions] = useState<Record<string, number>>(article.reactions || {});
   const [myReactions, setMyReactions] = useState<Set<string>>(new Set());
@@ -69,6 +81,23 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const cardRef = useRef<HTMLElement>(null);
   const hasTriggeredViewRef = useRef(false);
   const hasCheckedGameRef = useRef(false);
+
+  const applyEngagement = useCallback((engagement: ArticleEngagement) => {
+    setVote(engagement.userVote);
+    setUpvotes(engagement.upvotes);
+    setDownvotes(engagement.downvotes);
+    setCommentCount(engagement.comments);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchArticleEngagement([article.id])
+      .then(([engagement]) => {
+        if (active && engagement) applyEngagement(engagement);
+      })
+      .catch((error) => console.error("Unable to load article engagement:", error));
+    return () => { active = false; };
+  }, [applyEngagement, article.id, user?.id]);
 
   // Lazy RAWG lookup — only fires once per card, only for authenticated users.
   // Prefers the article's explicit gameTags (real game names), falls back to
@@ -154,15 +183,36 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
   const handleUpvote = useCallback(async () => {
     if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
-    if (vote === "up") {
-      setVote(null);
-      setVoteScore((s) => s - 1);
-    } else {
-      setVote("up");
-      setVoteScore((s) => s + 1 + (vote === "down" ? 1 : 0));
+    if (isVoting) return;
+    const previous = { vote, upvotes, downvotes };
+    const nextVote: ArticleVote = vote === "up" ? null : "up";
+    setVote(nextVote);
+    setUpvotes((count) => count + (vote === "up" ? -1 : 1));
+    if (vote === "down") setDownvotes((count) => Math.max(0, count - 1));
+    setIsVoting(true);
+    try {
+      applyEngagement(await saveArticleVote(article.id, nextVote));
+      if (nextVote === "up") checkGameAndShowReview();
+    } catch (error) {
+      setVote(previous.vote);
+      setUpvotes(previous.upvotes);
+      setDownvotes(previous.downvotes);
+      console.error("Unable to save upvote:", error);
+      toast.error("Couldn't save your vote");
+    } finally {
+      setIsVoting(false);
     }
-    checkGameAndShowReview();
-  }, [isAuthenticated, vote, article.id, openAuthModal, checkGameAndShowReview]);
+  }, [
+    applyEngagement,
+    article.id,
+    checkGameAndShowReview,
+    downvotes,
+    isAuthenticated,
+    isVoting,
+    openAuthModal,
+    upvotes,
+    vote,
+  ]);
 
   const handleReaction = useCallback(async (emoji: string) => {
     if (!isAuthenticated) { openAuthModal("react", { articleId: article.id }); return; }
@@ -181,14 +231,34 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
   const handleDownvote = useCallback(async () => {
     if (!isAuthenticated) { openAuthModal("like", { articleId: article.id }); return; }
-    if (vote === "down") {
-      setVote(null);
-      setVoteScore((s) => s + 1);
-    } else {
-      setVote("down");
-      setVoteScore((s) => s - 1 - (vote === "up" ? 1 : 0));
+    if (isVoting) return;
+    const previous = { vote, upvotes, downvotes };
+    const nextVote: ArticleVote = vote === "down" ? null : "down";
+    setVote(nextVote);
+    setDownvotes((count) => count + (vote === "down" ? -1 : 1));
+    if (vote === "up") setUpvotes((count) => Math.max(0, count - 1));
+    setIsVoting(true);
+    try {
+      applyEngagement(await saveArticleVote(article.id, nextVote));
+    } catch (error) {
+      setVote(previous.vote);
+      setUpvotes(previous.upvotes);
+      setDownvotes(previous.downvotes);
+      console.error("Unable to save downvote:", error);
+      toast.error("Couldn't save your vote");
+    } finally {
+      setIsVoting(false);
     }
-  }, [isAuthenticated, vote, article.id, openAuthModal]);
+  }, [
+    applyEngagement,
+    article.id,
+    downvotes,
+    isAuthenticated,
+    isVoting,
+    openAuthModal,
+    upvotes,
+    vote,
+  ]);
 
   const handleReviewSubmit = useCallback(async (review: Omit<GameReview, "id" | "userId" | "createdAt">) => {
     if (!reviewGame || !user) return;
@@ -252,6 +322,8 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, "_blank");
         break;
     }
+    recordArticleShare(article.id, type)
+      .catch((error) => console.error("Unable to record article share:", error));
   }, [article]);
 
   useEffect(() => {
@@ -276,6 +348,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
   const summaryText = article.summary || "";
   const showImage = !imgError && !!article.heroImageUrl;
+  const voteScore = upvotes - downvotes;
 
   return (
     <article
@@ -325,6 +398,22 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
           </p>
         </div>
 
+        {/* Two content-derived topic hashtags */}
+        {article.topicTags.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {article.topicTags.slice(0, 2).map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => setActiveTag(tag)}
+                className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                #{tag.replace(/^#+/, "")}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Action Bar */}
         <div className="flex items-center justify-between pt-4 border-t">
           <div className="flex items-center gap-0.5">
@@ -337,6 +426,8 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
                 vote === "up" ? "text-primary" : "text-muted-foreground hover:text-primary"
               )}
               onClick={handleUpvote}
+              disabled={isVoting}
+              aria-label={vote === "up" ? "Remove upvote" : "Upvote article"}
             >
               <ArrowBigUp className={cn("h-5 w-5", vote === "up" && "fill-current")} />
             </Button>
@@ -358,6 +449,8 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
                 vote === "down" ? "text-destructive" : "text-muted-foreground hover:text-destructive"
               )}
               onClick={handleDownvote}
+              disabled={isVoting}
+              aria-label={vote === "down" ? "Remove downvote" : "Downvote article"}
             >
               <ArrowBigDown className={cn("h-5 w-5", vote === "down" && "fill-current")} />
             </Button>
@@ -370,7 +463,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
               onClick={() => setShowComments(!showComments)}
             >
               <MessageCircle className="h-4 w-4" />
-              <span className="text-xs">{article.comments}</span>
+              <span className="text-xs">{commentCount}</span>
             </Button>
 
             {/* Share */}
@@ -408,7 +501,11 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
         {/* Comments Section */}
         {showComments && (
-          <EnhancedCommentSection articleId={article.id} className="mt-4" />
+          <EnhancedCommentSection
+            articleId={article.id}
+            className="mt-4"
+            onCountChange={setCommentCount}
+          />
         )}
 
         {/* Game Review Prompt — only when RAWG confirmed the game exists */}

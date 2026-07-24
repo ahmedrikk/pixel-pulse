@@ -190,10 +190,10 @@ async function processArticleWithOpenRouter(article: ArticleInput): Promise<Proc
    - Count every word. Must be exactly 100 words — not 60, not 80, not 120. 100.
    - Lead with the most important fact: who, what, when, why it matters.
    - News-wire style: dense, direct, no filler phrases ("In this article…", "According to…").
-   - If the content is thin, draw on your knowledge of the game/studio/franchise to fill it out.
+   - Use only facts present in the supplied article. Never invent missing context.
    - One tight paragraph. No bullet points. No quotes.
 
-3. TAGS — named entities only:
+3. TAGS — exactly two named topics:
    - Game titles → "ResidentEvil2", "GTA6", "Minecraft"
    - Characters → "Mario", "MasterChief", "Kratos"
    - Studios/publishers → "Capcom", "Nintendo", "RockstarGames"
@@ -208,7 +208,9 @@ async function processArticleWithOpenRouter(article: ArticleInput): Promise<Proc
    Multiplayer, SinglePlayer, CoOp, Streaming, Twitch, YouTube, PCGaming,
    MobileGaming, NewRelease, Gameplay, Review, Preview, Trailer, Rumor, Leak, Delay
 
-   FORMAT: PascalCase, no # symbol, 4–7 tags.
+   Return exactly two tags, ordered by importance. Both must be explicitly
+   supported by the supplied article; never invent or broaden a topic.
+   FORMAT: PascalCase, no # symbol.
 
 Respond ONLY with valid JSON, no markdown:
 {"title": "...", "summary": "...", "tags": ["Tag1", "Tag2"]}`;
@@ -221,8 +223,8 @@ ${contentForAI.substring(0, 7000)}
 
 ---
 TASK:
-1. Write the SUMMARY. Count every word — it MUST be exactly 100 words. Thin content is not an excuse for a short summary; expand with relevant context from your knowledge.
-2. Extract TAGS — proper nouns only. No generic words.`;
+1. Write the SUMMARY. Count every word — it MUST be exactly 100 words and use only the supplied facts.
+2. Extract exactly TWO TAGS — specific proper-noun topics only. No generic words.`;
 
   if (!GROQ_API_KEY) {
     throw new Error("GROQ_API_KEY secret is not set in Supabase");
@@ -290,8 +292,19 @@ TASK:
       }
 
       const tags: string[] = Array.isArray(parsedResult.tags)
-        ? parsedResult.tags.filter((t: unknown) => typeof t === "string" && t.length > 0).slice(0, 8)
+        ? parsedResult.tags
+          .filter((t: unknown) => typeof t === "string" && t.length > 1 && t.length < 40)
+          .map((t: string) => t.replace(/^#+/, "").replace(/[^a-zA-Z0-9]/g, ""))
+          .filter((t: string, index: number, all: string[]) =>
+            t.length > 1 && all.findIndex((other) => other.toLowerCase() === t.toLowerCase()) === index
+          )
+          .slice(0, 2)
         : [];
+
+      if (tags.length !== 2) {
+        console.warn(`Model ${model} returned ${tags.length} valid topic tags; expected exactly 2`);
+        continue;
+      }
 
       console.log(`✓ Processed with ${model}: "${parsedResult.title}" (${summary.length} chars)`);
       console.log(`  Tags: ${JSON.stringify(tags)}`);
