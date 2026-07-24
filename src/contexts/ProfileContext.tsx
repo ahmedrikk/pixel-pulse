@@ -108,12 +108,18 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     user?.id,
   ]);
 
+  const visibleProfile = useMemo(() => {
+    if (!user?.id) return null;
+    if (profile?.id === user.id) return profile;
+    return readCachedProfile(user.id);
+  }, [profile, user?.id]);
+
   const value = useMemo(() => ({
-    profile,
+    profile: visibleProfile,
     isLoading,
     refreshProfile,
     setCachedProfile,
-  }), [isLoading, profile, refreshProfile, setCachedProfile]);
+  }), [isLoading, refreshProfile, setCachedProfile, visibleProfile]);
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 }
@@ -123,4 +129,3 @@ export function useProfile() {
   if (!context) throw new Error("useProfile must be used within ProfileProvider");
   return context;
 }
-
