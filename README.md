@@ -88,3 +88,16 @@ gaming feed is intentionally excluded.
   exposes, configure the Supabase Edge Function secret `YOUTUBE_API_KEY`.
 - The worker records playlist quota usage and polls each channel according to
   its database-configured interval and freshness window.
+
+## AI generation
+
+Talus uses Gemini first for news cards, video cards, article processing, and
+daily trivia. Groq is the automatic continuity fallback; Kimi is disabled.
+All providers receive the same server-side, versioned Talus editorial style
+lock from `supabase/functions/_shared/talus-ai.ts`.
+
+Required Supabase Edge Function secrets:
+
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL` (production default: `gemini-3.5-flash-lite`)
+- `GROQ_API_KEY`

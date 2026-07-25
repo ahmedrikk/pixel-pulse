@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { generateGeminiJson, talusSystemPrompt } from "../_shared/talus-ai.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,15 @@ const JSON_HEADERS = { ...corsHeaders, "Content-Type": "application/json" };
 const TRIVIA_QUESTION_COUNT = 5;
 // Fetch a larger pool before shuffling so selection is random, not insertion-order biased
 const POOL_FETCH_MULTIPLIER = 3;
+const TRIVIA_SYSTEM_PROMPT = talusSystemPrompt(`
+Create evergreen, factual gaming trivia for Talus.
+- Cover video games, development history, hardware, esports, and gaming culture.
+- Every question must have one unambiguously correct answer.
+- Use concise, natural wording suitable for a compact mobile card.
+- Distractors must be plausible but clearly incorrect.
+- Avoid rumors, opinions, trick questions, disputed claims, and facts that can quickly become outdated.
+- Do not repeat a question or test the same fact twice in one batch.
+`);
 
 interface TriviaQuestion {
   id?: string;
@@ -115,34 +125,13 @@ function parseGeneratedQuestions(
 
 // `needed` tells the generator how many questions are required so validation is accurate
 // when the pool already has some questions (e.g. 3 pool + 2 generated = 5 total).
-async function generateQuestionsFromKimi(needed: number): Promise<TriviaQuestion[]> {
-  const apiKey = Deno.env.get("KIMI_API_KEY");
-  if (!apiKey) throw new Error("KIMI_API_KEY is not configured");
-
-  const resp = await fetch("https://api.moonshot.ai/v1/chat/completions", {
-    method: "POST",
-    signal: AbortSignal.timeout(90_000),
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: Deno.env.get("KIMI_TRIVIA_MODEL") ?? "kimi-k3",
-      temperature: 0.7,
-      max_completion_tokens: 4000,
-      response_format: { type: "json_object" },
-      messages: [{ role: "user", content: buildTriviaPrompt(needed) }],
-    }),
-  });
-
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`Kimi request failed (${resp.status}): ${errText}`);
-  }
-
-  const data = await resp.json();
-  const content: string = data?.choices?.[0]?.message?.content ?? "";
-  return parseGeneratedQuestions("Kimi", content, needed);
+async function generateQuestionsFromGemini(needed: number): Promise<TriviaQuestion[]> {
+  const content = await generateGeminiJson(
+    TRIVIA_SYSTEM_PROMPT,
+    buildTriviaPrompt(needed),
+    { maxOutputTokens: 3000, timeoutMs: 75_000 },
+  );
+  return parseGeneratedQuestions("Gemini", content, needed);
 }
 
 async function generateQuestionsFromGroq(needed: number): Promise<TriviaQuestion[]> {
@@ -161,7 +150,10 @@ async function generateQuestionsFromGroq(needed: number): Promise<TriviaQuestion
       temperature: 0.7,
       max_tokens: 2500,
       response_format: { type: "json_object" },
-      messages: [{ role: "user", content: buildTriviaPrompt(needed) }],
+      messages: [
+        { role: "system", content: TRIVIA_SYSTEM_PROMPT },
+        { role: "user", content: buildTriviaPrompt(needed) },
+      ],
     }),
   });
 
@@ -175,54 +167,14 @@ async function generateQuestionsFromGroq(needed: number): Promise<TriviaQuestion
   return parseGeneratedQuestions("Groq", content, needed);
 }
 
-async function generateQuestionsFromOpenRouter(needed: number): Promise<TriviaQuestion[]> {
-  const apiKey = Deno.env.get("OPENROUTER_API_KEY");
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
-
-  const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    signal: AbortSignal.timeout(60_000),
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://pixel-pulse-roan.vercel.app",
-      "X-Title": "Talus Daily Trivia",
-    },
-    body: JSON.stringify({
-      model: Deno.env.get("OPENROUTER_TRIVIA_MODEL") ?? "openrouter/free",
-      temperature: 0.7,
-      max_tokens: 2500,
-      response_format: { type: "json_object" },
-      messages: [{ role: "user", content: buildTriviaPrompt(needed) }],
-    }),
-  });
-
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`OpenRouter request failed (${resp.status}): ${errText}`);
-  }
-
-  const data = await resp.json();
-  const content: string = data?.choices?.[0]?.message?.content ?? "";
-  return parseGeneratedQuestions("OpenRouter", content, needed);
-}
-
 async function generateQuestions(needed: number): Promise<TriviaQuestion[]> {
   try {
-    return await generateQuestionsFromKimi(needed);
-  } catch (kimiError) {
-    console.error("Kimi generation failed; trying Groq:", kimiError);
+    return await generateQuestionsFromGemini(needed);
+  } catch (geminiError) {
+    console.error("Gemini generation failed; trying Groq:", geminiError);
   }
 
-  try {
-    return await generateQuestionsFromGroq(needed);
-  } catch (groqError) {
-    // OpenRouter remains the final continuity fallback so the daily experience
-    // does not disappear if both primary providers are unavailable.
-    console.error("Groq generation failed; trying OpenRouter:", groqError);
-  }
-
-  return await generateQuestionsFromOpenRouter(needed);
+  return await generateQuestionsFromGroq(needed);
 }
 
 serve(async (req) => {
@@ -312,7 +264,7 @@ serve(async (req) => {
 
     let availableQuestions: TriviaQuestion[] = shuffleArray(pool ?? []).slice(0, TRIVIA_QUESTION_COUNT);
 
-    // Step 3: If the pool is short, generate the missing questions with Kimi.
+    // Step 3: If the pool is short, generate the missing questions with Gemini.
     if (availableQuestions.length < TRIVIA_QUESTION_COUNT) {
       const needed = TRIVIA_QUESTION_COUNT - availableQuestions.length;
       let aiQuestions: TriviaQuestion[];
