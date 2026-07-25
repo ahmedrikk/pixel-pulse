@@ -18,14 +18,13 @@ const KIMI_MODEL = Deno.env.get("KIMI_NEWS_MODEL") ?? "kimi-k3";
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY") ?? "";
 const PROCESS_LIMIT = 20;
 const SCRAPE_LIMIT = 30;
-const REMOVED_SOURCES = ["Sportskeeda"];
+const REMOVED_SOURCES = ["Sportskeeda", "Dexerto"];
 
 const RSS_FEEDS = [
   { url: "https://www.ign.com/rss/articles/feed?tags=news", source: "IGN" },
   { url: "https://www.gamespot.com/feeds/news/",            source: "GameSpot" },
   { url: "https://kotaku.com/feed",                         source: "Kotaku" },
   { url: "https://www.polygon.com/rss/index.xml",           source: "Polygon" },
-  { url: "https://www.dexerto.com/gaming/feed/",            source: "Dexerto" },
   { url: "https://www.dexerto.com/twitch/feed/",            source: "Dexerto Twitch" },
   { url: "https://www.gamedeveloper.com/rss.xml",           source: "Game Developer" },
   { url: "https://www.pcgamer.com/rss/",                    source: "PCGamer" },
@@ -84,6 +83,11 @@ interface YouTubeFetchResult {
 function isTrailerCandidate(title: string): boolean {
   return /\b(trailer|teaser|gameplay|dlc|expansion|reveal|announcement|launch|release date|cinematic)\b/i.test(title)
     && !/\b(live stream|day \d|full show|coverage)\b/i.test(title);
+}
+
+function isYouTubeCandidate(source: YouTubeSource, title: string): boolean {
+  if (source.id === "gametrailers") return isTrailerCandidate(title);
+  return !/\b(live stream|livestream|stream replay|full stream)\b|#shorts?\b/i.test(title);
 }
 
 interface FeedFetchResult {
@@ -267,7 +271,7 @@ function parseYouTubeAtom(xml: string, source: YouTubeSource): RssItem[] {
     const published = extractCDATA(block, "published");
     if (!videoId || !title || !published) continue;
     if (new Date(published).getTime() < cutoff) break;
-    if (!isTrailerCandidate(title)) continue;
+    if (!isYouTubeCandidate(source, title)) continue;
     const description = extractCDATA(block, "media:description");
     const author = extractCDATA(block, "name") || source.source_name;
     const thumbnail = decodeHtmlEntities(
@@ -332,8 +336,8 @@ async function fetchYouTubeUploads(source: YouTubeSource): Promise<YouTubeFetchR
           reachedCutoff = true;
           break;
         }
-        const title = snippet.title || "New game trailer";
-        if (!isTrailerCandidate(title)) continue;
+        const title = snippet.title || "New gaming video";
+        if (!isYouTubeCandidate(source, title)) continue;
         items.push({
           title,
           link: `https://www.youtube.com/watch?v=${videoId}`,
@@ -983,17 +987,17 @@ async function summarizeArticle(title: string, content: string): Promise<Summari
   return await summarizeWithGroq(title, content);
 }
 
-const VIDEO_SYSTEM_PROMPT = `You write compact Talus cards for newly released game trailers.
+const VIDEO_SYSTEM_PROMPT = `You write compact Talus news cards for newly released gaming videos, including trailers, reviews, technical analysis, news roundups, and commentary.
 Return ONLY valid JSON with exactly these keys:
 {"headline":"A clean, factual headline","summary":"2 or 3 concise sentences","gameTags":["GameTitle"],"tags":["PrimaryTopic","SecondaryEntity"]}
 
 Rules:
-- Preserve the actual game name and announcement type. Do not invent features, dates, platforms, or claims.
-- Headline: 6-14 words. Remove repetitive words such as "official trailer" when the context is already clear.
-- Summary: 25-70 words and 2-3 complete sentences. Explain what the trailer reveals and any explicit release/platform context.
+- Preserve the actual game name and content type. Do not invent features, dates, platforms, verdicts, or claims.
+- Headline: 6-14 words. State the video's main newsworthy point, not merely that a creator uploaded a video.
+- Summary: 25-70 words and 2-3 complete sentences. Attribute opinions or recommendations to the creator and separate them from verified facts.
 - gameTags: game titles only, PascalCase, maximum 3.
 - tags: exactly 2 specific named entities supported by the source.
-- The first tag MUST be the primary game title and match gameTags[0].
+- The first tag MUST be the primary game title or gaming topic and match gameTags[0].
 - The second tag must be a named character, studio/publisher, platform, collaboration, or event explicitly present in the title/source.
 - Never use a genre, mood, mechanic, or broad description as a tag (examples to avoid: Roguelike, Historical, ActionAdventure, CardGame, SurvivalHorror).`;
 
@@ -1062,7 +1066,7 @@ async function summarizeVideo(
   source: string,
 ): Promise<SummarizeResult> {
   const sourceText = (transcript || description || title).slice(0, 5000);
-  const userPrompt = `Video title: ${title}\n\nSource text:\n${sourceText}\n\nCreate the compact trailer card JSON.`;
+  const userPrompt = `Channel: ${source}\nVideo title: ${title}\n\nSource text:\n${sourceText}\n\nCreate the compact gaming news card JSON.`;
 
   if (KIMI_API_KEY) {
     try {

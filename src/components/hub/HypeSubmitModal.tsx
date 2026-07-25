@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { SearchResult } from "@/hooks/useHypeMeter";
+import { GameArtwork } from "@/components/shared/GameArtwork";
 
 interface HypeSubmitModalProps {
   game: SearchResult | null;
@@ -23,9 +24,7 @@ export function HypeSubmitModal({ game, isOpen, onClose, onSubmit, isSubmitting 
         
         <div className="py-4">
           <div className="flex items-center gap-4 bg-secondary/50 p-4 rounded-lg border border-border/50 mb-4">
-            <div className="w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center text-2xl" style={{ backgroundColor: game.coverColor }}>
-              {game.coverEmoji}
-            </div>
+            <GameArtwork name={game.name} src={game.coverUrl} className="h-12 w-12" />
             <div>
               <h4 className="font-semibold text-foreground">{game.name}</h4>
               <p className="text-sm text-muted-foreground">{game.releaseDate}</p>

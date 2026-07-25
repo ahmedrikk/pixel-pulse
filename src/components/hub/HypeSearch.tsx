@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Search } from "lucide-react";
 import { useHypeMeter, type SearchResult } from "@/hooks/useHypeMeter";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { GameArtwork } from "@/components/shared/GameArtwork";
 
 interface HypeSearchProps {
   onSelectGame: (game: SearchResult) => void;
@@ -118,12 +119,7 @@ export function HypeSearch({ onSelectGame, onSubmitNewGame }: HypeSearchProps) {
                 onClick={() => handleSelect(game)}
                 className="flex items-center gap-2.5 p-[10px_13px] border-b-[0.5px] border-border/40 cursor-pointer transition-colors hover:bg-secondary last:border-b-0"
               >
-                <div 
-                  className="w-8 h-8 rounded-[7px] flex-shrink-0 flex items-center justify-center text-sm" 
-                  style={{ backgroundColor: game.coverColor }}
-                >
-                  {game.coverEmoji}
-                </div>
+                <GameArtwork name={game.name} src={game.coverUrl} className="h-8 w-8 rounded-[7px]" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium text-foreground whitespace-nowrap overflow-hidden text-ellipsis">
                     {game.name}

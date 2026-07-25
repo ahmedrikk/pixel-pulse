@@ -4,10 +4,11 @@ import { BarChart3, ChevronLeft, ChevronRight, Clock3, Radio, RotateCcw, Share2,
 import { toast } from "sonner";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useHigherLower, useHigherLowerLeaderboard, useSentiment, useTodayInGamingHistory, type HLRound, type SentimentQuestion } from "@/hooks/useHubEngagement";
+import { GameArtwork } from "@/components/shared/GameArtwork";
 
 function SectionHeader({ icon, title, context, action }: { icon: React.ReactNode; title: string; context: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 sm:px-5">
+    <div className="flex flex-wrap items-center gap-2 border-b border-border/50 bg-gradient-to-r from-accent/10 to-transparent px-4 py-3.5 sm:px-5">
       <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">{icon}</span>
       <h2 className="text-sm font-bold text-foreground">{title}</h2>
       <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-medium text-muted-foreground">{context}</span>
@@ -37,7 +38,7 @@ function Comparison({ round, revealedValue }: { round: HLRound; revealedValue?: 
         <div key={`${item.name}-${index}`} className="contents">
           {index === 1 && <div className="flex items-center text-[10px] font-black text-muted-foreground">VS</div>}
           <div className={`min-w-0 rounded-xl border p-3 text-center transition-colors sm:p-4 ${item.active ? "border-[1.5px] border-primary bg-primary/10" : "border-border bg-card"}`}>
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl text-2xl" style={{ background: item.coverColor }}>{item.coverEmoji}</div>
+            <GameArtwork name={item.name} className="mx-auto mb-2 h-14 w-14 rounded-xl" />
             <p className="truncate text-xs font-bold text-foreground sm:text-sm">{item.name}</p>
             <p className="mt-1 text-[10px] text-muted-foreground">{round.categoryLabel}</p>
             <p className={`mt-1 text-base font-black ${item.active ? "text-primary" : "text-foreground"}`}>{formatValue(round.category, item.value)}</p>
