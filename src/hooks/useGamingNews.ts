@@ -38,7 +38,10 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
   useEffect(() => { newsCountRef.current = news.length; }, [news]);
 
   // ── Read from DB ──────────────────────────────────────────────────────────
-  const loadFromDB = useCallback(async (isInitial = true): Promise<number> => {
+  const loadFromDB = useCallback(async (
+    isInitial = true,
+    replaceExisting = false,
+  ): Promise<number> => {
     try {
       const nextPage = isInitial ? 0 : pageRef.current + 1;
       const currentOffset = nextPage * PAGE_SIZE;
@@ -47,7 +50,7 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
 
       if (articles.length > 0) {
         setNews(prev => {
-          if (prev.length === 0) return articles;
+          if (prev.length === 0 || replaceExisting) return articles;
           // Merge — never replace a list the user is already reading.
           // New articles from a background refresh go to the front;
           // paginated (older) articles go to the back.
@@ -163,11 +166,13 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
     setIsRefreshing(true);
     setError(null);
     try {
-      await triggerFetch();
+      // Refresh the ranked view immediately. Ingestion runs independently on
+      // its cron, so a user refresh never spends AI tokens.
+      await loadFromDB(true, true);
     } finally {
       setIsRefreshing(false);
     }
-  }, [triggerFetch]);
+  }, [loadFromDB]);
 
   return {
     news,

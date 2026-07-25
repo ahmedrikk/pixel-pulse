@@ -1,18 +1,16 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { useGamingNews } from "./useGamingNews";
-import { NewsItem } from "@/data/mockNews";
-import { supabase } from "@/integrations/supabase/client";
-import { Article, RankedArticle, FeedPriority, UserImpression, FeedSession } from "@/types/feed";
-import { getEngagementWeights, weightedShuffle } from "@/lib/newsCache";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useGamingNews } from "./useGamingNews";
+import type { NewsItem } from "@/data/mockNews";
+import type { Article, RankedArticle, UserImpression } from "@/types/feed";
+import { recordArticleDwell, recordFeedEngagement } from "@/lib/feedTracking";
 
-// Convert NewsItem to Article format
-function convertToArticle(news: NewsItem): Article {
+function convertToArticle(news: NewsItem): RankedArticle {
   return {
     id: news.id,
     title: news.title,
     summary: news.summary,
-    summaryWordCount: news.summary.split(" ").length,
+    summaryWordCount: news.summary.split(/\s+/).filter(Boolean).length,
     sourceName: news.source,
     sourceUrl: news.sourceUrl,
     author: news.author,
@@ -21,13 +19,16 @@ function convertToArticle(news: NewsItem): Article {
     topicTags: news.tags || [],
     publishedAt: news.timestamp,
     fetchedAt: news.fetchedAt || new Date().toISOString(),
-    engagementScore: (news.likes || 0) + ((news.comments || 0) * 2),
+    engagementScore: news.rankScore || 0,
     likes: news.likes || 0,
     comments: news.comments || 0,
     reactions: {},
+    mediaType: news.mediaType || "article",
+    videoId: news.videoId,
+    priority: news.rankReason || "unseen",
+    priorityScore: news.rankScore || 0,
   };
 }
-
 interface UseSmartFeedOptions {
   userId?: string;
   pageSize?: number;
@@ -35,9 +36,7 @@ interface UseSmartFeedOptions {
 }
 
 export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
-  const { userId, pageSize = 15, tag } = options;
-  
-  // Use the existing gaming news hook for RSS feed data
+  const { tag } = options;
   const {
     news,
     isLoading,
@@ -45,297 +44,68 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     isLoadingMore,
     error,
     refresh,
-    reshuffle: reshuffleNews,
     loadMore: loadMoreNews,
     hasMore: hasMoreNews,
-  } = useGamingNews({ category: 'Gaming', tag });
-  
-  const [articles, setArticles] = useState<RankedArticle[]>([]);
-  const [hasMore, setHasMore] = useState(true);
+  } = useGamingNews({ category: "Gaming", tag });
+
+  const articles = useMemo(() => news.map(convertToArticle), [news]);
   const [newArticlesCount, setNewArticlesCount] = useState(0);
-  const [userFavGames, setUserFavGames] = useState<string[]>([]);
   const [seenArticleIds, setSeenArticleIds] = useState<Set<string>>(new Set());
-  const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
-  const [engagementWeights, setEngagementWeights] = useState<Map<string, number>>(new Map());
-
-  const impressionsRef = useRef<Map<string, UserImpression>>(new Map());
-  const lastLoadTimeRef = useRef<Date>(new Date());
-  const initialLoadComplete = useRef(false);
-
-  // Convert news to articles
-  const allArticles = useMemo(() => {
-    return news.map(convertToArticle);
-  }, [news]);
-
-  // Fetch engagement weights whenever the article list changes
-  useEffect(() => {
-    if (allArticles.length === 0) return;
-    const urls = allArticles.map(a => a.sourceUrl);
-    getEngagementWeights(urls, userId).then(setEngagementWeights);
-  }, [allArticles, userId]);
-
-  // Fetch user preferences (favorite games)
-  const fetchUserPreferences = useCallback(async () => {
-    if (!userId) {
-      setIsLoadingPrefs(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("user_games")
-        .select("game_name")
-        .eq("user_id", userId)
-        .eq("is_favorite", true);
-
-      if (error) throw error;
-
-      const favGames = data?.map(g => g.game_name) || [];
-      setUserFavGames(favGames);
-    } catch (err) {
-      console.error("Failed to fetch user preferences:", err);
-    } finally {
-      setIsLoadingPrefs(false);
-    }
-  }, [userId]);
-
-  // Fetch user's seen articles from Supabase
-  const fetchUserImpressions = useCallback(async () => {
-    if (!userId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("article_reads")
-        .select("article_url")
-        .eq("user_id", userId)
-        .gte("read_date", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-
-      if (error) throw error;
-
-      const seenIds = new Set(data?.map(r => r.article_url) || []);
-      setSeenArticleIds(seenIds);
-    } catch (err) {
-      console.error("Failed to fetch impressions:", err);
-    }
-  }, [userId]);
-
-  // Calculate priority score for ranking
-  const calculatePriority = useCallback((article: Article): { priority: FeedPriority; score: number } => {
-    const isSeen = seenArticleIds.has(article.sourceUrl);
-    const isFavGameMatch = userFavGames.some(game =>
-      article.gameTags.some(tag => tag.toLowerCase().includes(game.toLowerCase()))
-    );
-
-    // Priority 0: Fresh — fetched within the last 5 minutes, always on top
-    const minsOldFetched = (Date.now() - new Date(article.fetchedAt).getTime()) / (1000 * 60);
-    if (minsOldFetched < 5) {
-      return { priority: "fresh", score: 200 };
-    }
-
-    // Priority 1: Personalized (fav game match + unseen)
-    if (isFavGameMatch && !isSeen) {
-      return { priority: "personalized", score: 100 + article.engagementScore };
-    }
-
-    // Priority 2: Unseen articles by recency
-    if (!isSeen) {
-      const hoursOld = (Date.now() - new Date(article.publishedAt).getTime()) / (1000 * 60 * 60);
-      return { priority: "unseen", score: 80 - Math.min(hoursOld * 2, 40) };
-    }
-
-    // Priority 3: Trending (high engagement, seen but recent)
-    const hoursOld = (Date.now() - new Date(article.publishedAt).getTime()) / (1000 * 60 * 60);
-    if (hoursOld < 24 && article.engagementScore > 100) {
-      return { priority: "trending", score: 50 + article.engagementScore / 10 };
-    }
-
-    // Priority 4: Fallback (seen, older articles)
-    return { priority: "fallback", score: 10 };
-  }, [userFavGames, seenArticleIds]);
-
-  // Rank articles then apply weighted shuffle within each priority tier.
-  // High-engagement articles bias toward the top of their tier but every
-  // article keeps a chance to appear anywhere (Efraimidis-Spirakis).
-  const rankArticles = useCallback((articlesToRank: Article[]): RankedArticle[] => {
-    const ranked = articlesToRank.map(article => {
-      const { priority, score } = calculatePriority(article);
-      return { ...article, priority, priorityScore: score };
-    });
-
-    // Group by priority tier
-    const tiers: Record<string, RankedArticle[]> = {};
-    for (const a of ranked) {
-      if (!tiers[a.priority]) tiers[a.priority] = [];
-      tiers[a.priority].push(a);
-    }
-
-    // Weighted shuffle within each tier using live engagement data
-    const ws = (arr: RankedArticle[]) => weightedShuffle(arr, engagementWeights);
-
-    // Reassemble: fresh → personalized → unseen → trending → fallback
-    return [
-      ...ws(tiers["fresh"] || []),
-      ...ws(tiers["personalized"] || []),
-      ...ws(tiers["unseen"] || []),
-      ...ws(tiers["trending"] || []),
-      ...ws(tiers["fallback"] || []),
-    ];
-  }, [calculatePriority, engagementWeights]);
-
-  // Stable order of article ids for the session. Once an article is placed,
-  // it never moves on its own — re-ranking only positions NEW articles.
-  // Without this, every impression/engagement update reshuffled the whole
-  // feed while the user was reading it.
-  const orderRef = useRef<string[]>([]);
+  const lastLoadTimeRef = useRef(new Date());
 
   useEffect(() => {
-    orderRef.current = [];
-    setArticles([]);
+    setSeenArticleIds(new Set());
   }, [tag]);
 
-  // Load and rank articles when news changes
-  useEffect(() => {
-    if (allArticles.length === 0) return;
-
-    const byId = new Map(allArticles.map(a => [a.id, a]));
-    const kept = orderRef.current.filter(id => byId.has(id));
-    const known = new Set(kept);
-    const newcomers = allArticles.filter(a => !known.has(a.id));
-    const rankedNew = rankArticles(newcomers);
-
-    let order: string[];
-    if (kept.length === 0) {
-      // First load — full ranking
-      order = rankedNew.map(a => a.id);
-    } else {
-      // Freshly fetched articles surface on top; paginated (older) ones append.
-      // Everything already on screen keeps its position.
-      const prepend = rankedNew.filter(a => a.priority === "fresh").map(a => a.id);
-      const append = rankedNew.filter(a => a.priority !== "fresh").map(a => a.id);
-      order = [...prepend, ...kept, ...append];
-    }
-    orderRef.current = order;
-
-    setArticles(order.map(id => {
-      const a = byId.get(id)!;
-      const { priority, score } = calculatePriority(a);
-      return { ...a, priority, priorityScore: score };
-    }));
-    initialLoadComplete.current = true;
-    lastLoadTimeRef.current = new Date();
-  }, [allArticles, rankArticles, calculatePriority]);
-
-  // Load user data on mount
-  useEffect(() => {
-    fetchUserPreferences();
-    fetchUserImpressions();
-  }, [fetchUserPreferences, fetchUserImpressions]);
-
-  // Track impression
-  const trackImpression = useCallback(async (articleId: string, dwellSeconds: number, readFull: boolean = false) => {
-    if (!userId) return;
-
+  const trackImpression = useCallback(async (
+    articleId: string,
+    dwellSeconds: number,
+    readFull = false,
+  ) => {
+    const impression: UserImpression = {
+      id: `imp-${Date.now()}`,
+      userId: options.userId || "guest",
+      articleId,
+      seenAt: new Date().toISOString(),
+      readFull,
+      dwellSeconds,
+    };
+    void impression;
+    setSeenArticleIds((previous) => new Set(previous).add(articleId));
     try {
-      const impression: UserImpression = {
-        id: `imp-${Date.now()}`,
-        userId,
-        articleId,
-        seenAt: new Date().toISOString(),
-        readFull,
-        dwellSeconds,
-      };
-
-      impressionsRef.current.set(articleId, impression);
-
-      // Save to Supabase
-      await supabase.from("article_reads").upsert({
-        user_id: userId,
-        article_url: articleId,
-        action_type: readFull ? "read_full" : "viewed",
-        read_date: new Date().toISOString(),
-      });
-
-      // Update local seen set
-      setSeenArticleIds(prev => new Set([...prev, articleId]));
-    } catch (err) {
-      console.error("Failed to track impression:", err);
+      if (dwellSeconds >= 1) await recordArticleDwell(articleId, dwellSeconds);
+      if (readFull) await recordFeedEngagement(articleId, "read_full");
+    } catch (trackingError) {
+      console.error("Failed to record feed interaction:", trackingError);
     }
-  }, [userId]);
+  }, [options.userId]);
 
-  // Check for new articles
   const checkForNewArticles = useCallback(async () => {
     await refresh();
-    
-    // Find articles published after last load
-    const newArticles = allArticles.filter(article => {
-      const pubDate = new Date(article.publishedAt);
-      return pubDate > lastLoadTimeRef.current && !seenArticleIds.has(article.sourceUrl);
-    });
-
-    if (newArticles.length > 0) {
-      setNewArticlesCount(newArticles.length);
-      toast.success(`${newArticles.length} new articles available`, {
-        action: {
-          label: "View",
-          onClick: () => window.scrollTo({ top: 0, behavior: "smooth" }),
-        },
-      });
-    } else {
-      toast.info("You're all caught up!");
-    }
-
+    const count = articles.filter(
+      (article) => new Date(article.publishedAt) > lastLoadTimeRef.current,
+    ).length;
+    setNewArticlesCount(count);
+    if (count > 0) toast.success(`${count} new article${count === 1 ? "" : "s"} available`);
+    else toast.info("You're all caught up!");
     lastLoadTimeRef.current = new Date();
-  }, [refresh, allArticles, seenArticleIds]);
+  }, [articles, refresh]);
 
-  // Dismiss new badge
-  const dismissNewBadge = useCallback(() => {
-    setNewArticlesCount(0);
-    setArticles(prev => prev.map(a => ({ ...a, isNew: false })));
-  }, []);
-
-  // Load more (pagination)
+  const dismissNewBadge = useCallback(() => setNewArticlesCount(0), []);
   const loadMore = useCallback(async () => {
-    if (!hasMoreNews) return;
-    await loadMoreNews();
+    if (hasMoreNews) await loadMoreNews();
   }, [hasMoreNews, loadMoreNews]);
 
-  // Get feed stats
-  const feedStats = useMemo(() => {
-    const total = articles.length;
-    const personalized = articles.filter(a => a.priority === "personalized").length;
-    const unseen = articles.filter(a => a.priority === "unseen").length;
-    const trending = articles.filter(a => a.priority === "trending").length;
-    
-    return { total, personalized, unseen, trending };
-  }, [articles]);
-
-  // Instant reshuffle of current articles (no DB hit) using weighted shuffle
-  const reshuffle = useCallback(() => {
-    reshuffleNews();
-    setArticles(prev => {
-      const tiers: Record<string, RankedArticle[]> = {};
-      for (const a of prev) {
-        if (!tiers[a.priority]) tiers[a.priority] = [];
-        tiers[a.priority].push(a);
-      }
-      const ws = (arr: RankedArticle[]) => weightedShuffle(arr, engagementWeights);
-      const next = [
-        ...ws(tiers["fresh"] || []),
-        ...ws(tiers["personalized"] || []),
-        ...ws(tiers["unseen"] || []),
-        ...ws(tiers["trending"] || []),
-        ...ws(tiers["fallback"] || []),
-      ];
-      // Keep the stable-order ref in sync so the ranking effect
-      // doesn't snap the feed back to the pre-shuffle order.
-      orderRef.current = next.map(a => a.id);
-      return next;
-    });
-  }, [reshuffleNews, engagementWeights]);
+  const feedStats = useMemo(() => ({
+    total: articles.length,
+    personalized: articles.filter((article) => article.priority === "personalized").length,
+    unseen: articles.filter((article) => article.priority === "unseen").length,
+    trending: articles.filter((article) => article.priority === "trending").length,
+  }), [articles]);
 
   return {
     articles,
-    isLoading: isLoading || isLoadingPrefs,
+    isLoading,
     isRefreshing,
     isLoadingMore,
     error,
@@ -347,7 +117,7 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     checkForNewArticles,
     dismissNewBadge,
     trackImpression,
-    reshuffle,
+    reshuffle: refresh,
     seenCount: seenArticleIds.size,
   };
 }

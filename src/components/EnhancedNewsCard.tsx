@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { recordArticleDwell, recordFeedEngagement } from "@/lib/feedTracking";
 import {
   ExternalLink,
   Share2,
@@ -81,6 +82,20 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const cardRef = useRef<HTMLElement>(null);
   const hasTriggeredViewRef = useRef(false);
   const hasCheckedGameRef = useRef(false);
+  const visibleSinceRef = useRef<number | null>(null);
+
+  const markEngaged = useCallback((eventType: "read_full" | "vote" | "comment" | "share") => {
+    recordFeedEngagement(article.id, eventType)
+      .catch((error) => console.error("Unable to record feed engagement:", error));
+  }, [article.id]);
+
+  const flushDwell = useCallback(() => {
+    if (visibleSinceRef.current === null) return;
+    const seconds = (Date.now() - visibleSinceRef.current) / 1000;
+    visibleSinceRef.current = null;
+    recordArticleDwell(article.id, seconds)
+      .catch((error) => console.error("Unable to record dwell time:", error));
+  }, [article.id]);
 
   const applyEngagement = useCallback((engagement: ArticleEngagement) => {
     setVote(engagement.userVote);
@@ -192,6 +207,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     setIsVoting(true);
     try {
       applyEngagement(await saveArticleVote(article.id, nextVote));
+      if (nextVote) markEngaged("vote");
       if (nextVote === "up") checkGameAndShowReview();
     } catch (error) {
       setVote(previous.vote);
@@ -212,6 +228,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     openAuthModal,
     upvotes,
     vote,
+    markEngaged,
   ]);
 
   const handleReaction = useCallback(async (emoji: string) => {
@@ -240,6 +257,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     setIsVoting(true);
     try {
       applyEngagement(await saveArticleVote(article.id, nextVote));
+      if (nextVote) markEngaged("vote");
     } catch (error) {
       setVote(previous.vote);
       setUpvotes(previous.upvotes);
@@ -258,6 +276,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     openAuthModal,
     upvotes,
     vote,
+    markEngaged,
   ]);
 
   const handleReviewSubmit = useCallback(async (review: Omit<GameReview, "id" | "userId" | "createdAt">) => {
@@ -324,7 +343,8 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     }
     recordArticleShare(article.id, type)
       .catch((error) => console.error("Unable to record article share:", error));
-  }, [article]);
+    markEngaged("share");
+  }, [article, markEngaged]);
 
   useEffect(() => {
     const card = cardRef.current;
@@ -332,9 +352,14 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && onCardView && !hasTriggeredViewRef.current) {
-            onCardView(article.id);
-            hasTriggeredViewRef.current = true;
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            if (visibleSinceRef.current === null) visibleSinceRef.current = Date.now();
+            if (onCardView && !hasTriggeredViewRef.current) {
+              onCardView(article.id);
+              hasTriggeredViewRef.current = true;
+            }
+          } else {
+            flushDwell();
           }
         });
       },
@@ -342,12 +367,14 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
     );
     observer.observe(card);
     return () => {
+      flushDwell();
       observer.disconnect();
     };
-  }, [article.id, onCardView]);
+  }, [article.id, flushDwell, onCardView]);
 
   const summaryText = article.summary || "";
   const showImage = !imgError && !!article.heroImageUrl;
+  const showVideo = article.mediaType === "youtube" && !!article.videoId;
   const voteScore = upvotes - downvotes;
 
   return (
@@ -356,7 +383,18 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       className="group overflow-hidden rounded-xl border bg-card transition-colors duration-200 hover:border-primary/25"
     >
       {/* Hero Image — only shown when URL exists and loads successfully */}
-      {showImage && (
+      {showVideo ? (
+        <div className="relative aspect-video overflow-hidden bg-black">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${article.videoId}`}
+            title={`${article.title} video`}
+            className="h-full w-full"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
+      ) : showImage && (
         <div className="relative aspect-video overflow-hidden">
           <img
             src={article.heroImageUrl}
@@ -385,6 +423,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             href={article.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => markEngaged("read_full")}
             className="hover:text-primary transition-colors cursor-pointer"
           >
             {article.title}
@@ -492,8 +531,9 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
               href={article.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => markEngaged("read_full")}
             >
-              Read Full Article
+              {showVideo ? "Watch on YouTube" : "Read Full Article"}
               <ExternalLink className="h-3 w-3" />
             </a>
           </Button>
@@ -505,6 +545,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             articleId={article.id}
             className="mt-4"
             onCountChange={setCommentCount}
+            onEngage={() => markEngaged("comment")}
           />
         )}
 

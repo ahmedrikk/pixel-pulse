@@ -71,3 +71,13 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## YouTube ingestion
+
+Talus polls configured YouTube upload playlists without using the expensive
+YouTube Search API. `GameTrailers` is seeded in `youtube_content_sources`.
+
+- Production can run immediately through YouTube's official Atom uploads feed.
+- For complete pagination when a channel publishes more than the Atom feed
+  exposes, configure the Supabase Edge Function secret `YOUTUBE_API_KEY`.
+- The worker records playlist quota usage and polls each channel according to
+  its database-configured interval and freshness window.

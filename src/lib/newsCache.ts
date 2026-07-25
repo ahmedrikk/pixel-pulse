@@ -8,6 +8,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { NewsItem } from "@/data/mockNews";
+import { getFeedTrackingId } from "@/lib/feedTracking";
 
 export interface CachedArticle {
   id: string;
@@ -28,6 +29,10 @@ export interface CachedArticle {
   article_date: string;
   fetched_at: string;
   expires_at: string;
+  media_type?: "article" | "youtube";
+  video_id?: string | null;
+  rank_score?: number | string;
+  rank_reason?: NewsItem["rankReason"];
 }
 
 // News is permanent; expiry is set to a far-future date.
@@ -82,6 +87,10 @@ function toNewsItem(article: CachedArticle): NewsItem {
     gameTags: article.game_tags || [],
     likes: article.likes,
     fetchedAt: article.fetched_at,
+    mediaType: article.media_type || "article",
+    videoId: article.video_id || undefined,
+    rankScore: Number(article.rank_score) || 0,
+    rankReason: article.rank_reason,
   };
 }
 
@@ -378,6 +387,19 @@ export async function getAllCachedArticles(
   // Retry up to 3 times — Supabase auth init can abort in-flight queries
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      const { data: rankedData, error: rankedError } = await supabase.rpc("get_ranked_feed", {
+        p_tracking_id: getFeedTrackingId(),
+        p_offset: offset,
+        p_limit: limit,
+        p_category: category ?? null,
+        p_tag: tag ?? null,
+      });
+
+      if (!rankedError) {
+        return ((rankedData ?? []) as CachedArticle[]).map(toNewsItem);
+      }
+      console.warn("Ranked feed unavailable, using recency fallback:", rankedError.message);
+
       // Balance within a stable 100-row window so each page contains a mix of
       // publishers without random pagination duplicates.
       const windowSize = Math.max(100, limit);
