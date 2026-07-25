@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink, Calendar, X, Tv2 } from "lucide-react";
+import { TrendingUp, ArrowLeft, Radio, Clock, Trophy, ChevronRight, ExternalLink, Calendar, X, Tv2, Gamepad2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,23 +15,24 @@ import { InlinePrediction } from "@/components/esports/InlinePrediction";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { WatchLiveButton } from "@/components/esports/WatchLiveButton";
 import { SiteLayout } from "@/components/SiteLayout";
+import { GameArtwork } from "@/components/shared/GameArtwork";
 
 type TabType = "live" | "upcoming" | "results";
 
 // ── Static metadata for known games ─────────────────────────────────────────
-const GAME_META: Record<string, { label: string; icon: string }> = {
-  "valorant":  { label: "Valorant",           icon: "🔫" },
-  "cs2":       { label: "CS2",                icon: "💣" },
-  "lol":       { label: "League of Legends",  icon: "👑" },
-  "dota2":     { label: "Dota 2",             icon: "🛡️" },
-  "overwatch": { label: "Overwatch 2",        icon: "🦸" },
-  "r6":        { label: "Rainbow Six",        icon: "🔒" },
-  "pubg":      { label: "PUBG",               icon: "🪖" },
-  "cod":       { label: "Call of Duty",       icon: "🎯" },
-  "apex":      { label: "Apex Legends",       icon: "🚀" },
-  "rocket-league": { label: "Rocket League",  icon: "🚗" },
-  "starcraft-2":   { label: "StarCraft II",   icon: "👾" },
-  "hearthstone":   { label: "Hearthstone",    icon: "🃏" },
+const GAME_META: Record<string, { label: string }> = {
+  "valorant":  { label: "Valorant" },
+  "cs2":       { label: "CS2" },
+  "lol":       { label: "League of Legends" },
+  "dota2":     { label: "Dota 2" },
+  "overwatch": { label: "Overwatch 2" },
+  "r6":        { label: "Rainbow Six Siege" },
+  "pubg":      { label: "PUBG" },
+  "cod":       { label: "Call of Duty" },
+  "apex":      { label: "Apex Legends" },
+  "rocket-league": { label: "Rocket League" },
+  "starcraft-2":   { label: "StarCraft II" },
+  "hearthstone":   { label: "Hearthstone" },
 };
 
 // Map PandaScore videogame names/slugs → normalized game id
@@ -268,7 +269,7 @@ function MatchCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-lg flex-shrink-0">{gameFilter?.icon || "🎮"}</span>
+          <GameArtwork name={gameFilter?.label ?? match.game} className="h-7 w-7 rounded-md" />
           <span className="text-xs font-medium text-muted-foreground truncate">
             {match.league} · {match.numberOfGames ? `Bo${match.numberOfGames}` : "Match"}
           </span>
@@ -380,7 +381,6 @@ function MatchCard({
 interface GameFilter {
   id: string;
   label: string;
-  icon: string;
 }
 
 /* ═══════════════════════════════════════════════
@@ -500,7 +500,7 @@ function AllGamesView({ liveMatches, upcomingMatches, pastMatches, isLoading, ga
             <div key={game.id}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{game.icon}</span>
+                  <GameArtwork name={game.label} className="h-9 w-9" />
                   <h2 className="text-xl font-bold text-foreground">{game.label}</h2>
                 </div>
                 <button
@@ -582,7 +582,7 @@ function GameView({ gameId, liveMatches, upcomingMatches, pastMatches, gameFilte
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <span className="text-2xl">{game?.icon ?? "🎮"}</span>
+        <GameArtwork name={game?.label ?? gameId} className="h-10 w-10" />
         <h2 className="text-xl font-bold text-foreground">{game?.label ?? gameId}</h2>
       </div>
 
@@ -679,12 +679,11 @@ export default function Esports() {
         seen.set(id, {
           id,
           label: meta?.label ?? m.game,
-          icon: meta?.icon ?? "🎮",
         });
       }
     }
     return [
-      { id: "all", label: "All Games", icon: "🎮" },
+      { id: "all", label: "All Games" },
       ...Array.from(seen.values()),
     ];
   }, [liveMatches, upcomingMatches, pastMatches]);
@@ -729,7 +728,11 @@ export default function Esports() {
                   : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
               }`}
             >
-              <span>{game.icon}</span>
+              {game.id === "all" ? (
+                <Gamepad2 className="h-4 w-4" />
+              ) : (
+                <GameArtwork name={game.label} className="h-6 w-6 rounded-md border-0" />
+              )}
               <span>{game.label}</span>
             </motion.button>
           ))}

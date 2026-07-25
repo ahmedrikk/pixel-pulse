@@ -8,6 +8,7 @@ import { submitPrediction } from "@/lib/xpService";
 import { toast } from "sonner";
 import { differenceInMinutes, parseISO } from "date-fns";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { GameArtwork } from "@/components/shared/GameArtwork";
 
 interface EsportsTeam {
   name: string;
@@ -38,14 +39,17 @@ interface PredictionCardProps {
   compact?: boolean;
 }
 
-const GAME_ICONS: Record<string, string> = {
-  valorant: "🔫",
-  cs2: "💣",
-  lol: "⚔️",
-  dota2: "🛡️",
-  overwatch: "🦸",
-  r6: "🔒",
-};
+function TeamLogo({ logo, name, compact = false }: { logo: string; name: string; compact?: boolean }) {
+  const size = compact ? "h-6 w-6" : "h-12 w-12";
+  if (/^https?:\/\//i.test(logo)) {
+    return <img src={logo} alt={`${name} logo`} className={`${size} rounded-lg bg-secondary object-contain`} />;
+  }
+  return (
+    <span className={`${size} inline-flex items-center justify-center rounded-lg bg-secondary text-base font-bold`}>
+      {logo || name.slice(0, 2).toUpperCase()}
+    </span>
+  );
+}
 
 export function PredictionCard({
   match,
@@ -100,7 +104,7 @@ export function PredictionCard({
           {/* Header: tournament name */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>{GAME_ICONS[match.gameTitle] || "🎮"}</span>
+              <GameArtwork name={match.gameTitle} className="h-5 w-5 rounded" />
               <span className="truncate max-w-[140px]">{match.leagueName}</span>
             </div>
             {match.status === "live" && (
@@ -118,7 +122,7 @@ export function PredictionCard({
           <div className="space-y-2">
             <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-base">{match.teamA.logo}</span>
+                <TeamLogo logo={match.teamA.logo} name={match.teamA.name} compact />
                 <span className="text-xs font-medium truncate">
                   {match.teamA.name}
                 </span>
@@ -130,7 +134,7 @@ export function PredictionCard({
 
             <div className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-base">{match.teamB.logo}</span>
+                <TeamLogo logo={match.teamB.logo} name={match.teamB.name} compact />
                 <span className="text-xs font-medium truncate">
                   {match.teamB.name}
                 </span>
@@ -152,7 +156,7 @@ export function PredictionCard({
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{GAME_ICONS[match.gameTitle] || "🎮"}</span>
+            <GameArtwork name={match.gameTitle} className="h-8 w-8" />
             <div>
               <p className="text-sm font-medium">{match.leagueName}</p>
               <p className="text-xs text-muted-foreground">{match.format}</p>
@@ -170,7 +174,7 @@ export function PredictionCard({
         <div className="flex items-center justify-between gap-4 mb-4">
           {/* Team A */}
           <div className="flex-1 text-center">
-            <div className="text-3xl mb-1">{match.teamA.logo}</div>
+            <div className="mb-1"><TeamLogo logo={match.teamA.logo} name={match.teamA.name} /></div>
             <p className="font-bold">{match.teamA.shortName}</p>
             <p className="text-xs text-muted-foreground">{match.teamA.probability}%</p>
           </div>
@@ -180,7 +184,7 @@ export function PredictionCard({
 
           {/* Team B */}
           <div className="flex-1 text-center">
-            <div className="text-3xl mb-1">{match.teamB.logo}</div>
+            <div className="mb-1"><TeamLogo logo={match.teamB.logo} name={match.teamB.name} /></div>
             <p className="font-bold">{match.teamB.shortName}</p>
             <p className="text-xs text-muted-foreground">{match.teamB.probability}%</p>
           </div>

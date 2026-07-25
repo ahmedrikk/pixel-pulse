@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { MoreHorizontal, Target, TrendingUp } from "lucide-react";
+import { Target, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PredictionCard } from "./PredictionCard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,8 +15,8 @@ function toPredictionMatch(m: PandaMatch) {
     gameTitle: m.game,
     leagueName: m.league,
     format: m.numberOfGames ? `Bo${m.numberOfGames}` : "Match",
-    teamA: { name: m.team1, logo: "🎮", shortName: m.team1.slice(0, 3).toUpperCase(), flag: "", probability: 50 },
-    teamB: { name: m.team2, logo: "🎮", shortName: m.team2.slice(0, 3).toUpperCase(), flag: "", probability: 50 },
+    teamA: { name: m.team1, logo: m.team1Image ?? "", shortName: m.team1.slice(0, 3).toUpperCase(), flag: "", probability: 50 },
+    teamB: { name: m.team2, logo: m.team2Image ?? "", shortName: m.team2.slice(0, 3).toUpperCase(), flag: "", probability: 50 },
     scoreA: m.score1,
     scoreB: m.score2,
     timestamp: m.begin_at ?? new Date().toISOString(),
@@ -47,16 +47,16 @@ export function RightSidebar() {
 
   return (
     <aside className="w-full space-y-3">
-      <Card className="rounded-xl shadow-none">
-        <CardContent className="p-4">
-          <div className="mb-3 flex items-center justify-between">
+      <Card className="overflow-hidden rounded-xl border-border/50 shadow-none">
+        <div className="flex items-center justify-between border-b border-border/50 bg-gradient-to-r from-accent/10 to-transparent p-3.5">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
               Trending
             </h3>
-            <MoreHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          </div>
+            <span className="text-[10px] text-muted-foreground">Refreshes every 12h</span>
+        </div>
 
+        <CardContent className="p-3.5 pt-4">
           <ol className="space-y-1.5" aria-label="Top five trending news topics">
             {isLoading
               ? Array.from({ length: 5 }).map((_, index) => (
@@ -91,9 +91,8 @@ export function RightSidebar() {
       </Card>
 
       {/* Predictions Widget — pure live score card */}
-      <Card className="rounded-xl shadow-none">
-        <CardContent className="p-3.5">
-          <div className="flex items-center justify-between mb-3">
+      <Card className="overflow-hidden rounded-xl border-border/50 shadow-none">
+        <div className="flex items-center justify-between border-b border-border/50 bg-gradient-to-r from-accent/10 to-transparent p-3.5">
             <h3 className="font-semibold flex items-center gap-2">
               <Target className="h-4 w-4 text-primary" />
               Match Center
@@ -103,8 +102,9 @@ export function RightSidebar() {
                 View All
               </Button>
             </Link>
-          </div>
+        </div>
 
+        <CardContent className="p-3.5 pt-4">
           {showUpcoming.length > 0 ? (
             <div className="space-y-3">
               {showUpcoming.map((match) => (

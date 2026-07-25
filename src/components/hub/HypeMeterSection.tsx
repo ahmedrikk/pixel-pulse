@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useHypeMeter, type HypeGame, type SearchResult } from "@/hooks/useHypeMeter";
 import { HypeSearch } from "./HypeSearch";
 import { HypeSubmitModal } from "./HypeSubmitModal";
+import { GameArtwork } from "@/components/shared/GameArtwork";
 
 function formatVoteCount(count: number): string {
   if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M votes`;
@@ -50,14 +51,7 @@ function HypeCard({ game }: { game: HypeGame }) {
       </span>
 
       {/* Cover */}
-      <div style={{
-        width: 42, height: 42, borderRadius: 10, flexShrink: 0,
-        background: game.coverColor,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 22,
-      }}>
-        {game.coverEmoji}
-      </div>
+      <GameArtwork name={game.name} src={game.coverUrl} className="h-[46px] w-[46px] rounded-[10px]" />
 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -134,9 +128,9 @@ export function HypeMeterSection() {
   };
 
   return (
-    <section style={{ padding: "18px 20px", paddingBottom: 32 }}>
+    <section className="border-b border-border bg-card">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 13 }}>
+      <div className="flex items-center justify-between border-b border-border/50 bg-gradient-to-r from-accent/10 to-transparent px-4 py-3.5 sm:px-5">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 20, height: 20, borderRadius: 6, background: "#FAEEDA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <span style={{ fontSize: 11, color: "#D97706" }}>⚡</span>
@@ -151,22 +145,24 @@ export function HypeMeterSection() {
         </button>
       </div>
 
-      <HypeSearch 
-        onSelectGame={handleSelectGame} 
-        onSubmitNewGame={handleOpenSubmit} 
-      />
+      <div className="px-4 py-4 sm:px-5">
+        <HypeSearch
+          onSelectGame={handleSelectGame}
+          onSubmitNewGame={handleOpenSubmit}
+        />
 
-      {/* Game list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {isLoading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} style={{ height: 68, background: "hsl(var(--secondary))", borderRadius: 11, animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
-          ))
-        ) : (
-          topGames.map(game => (
-            <HypeCard key={game.id} game={game} />
-          ))
-        )}
+        {/* Game list */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} style={{ height: 68, background: "hsl(var(--secondary))", borderRadius: 11, animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }} />
+            ))
+          ) : (
+            topGames.map(game => (
+              <HypeCard key={game.id} game={game} />
+            ))
+          )}
+        </div>
       </div>
 
       <HypeSubmitModal 

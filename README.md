@@ -71,10 +71,17 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
 ## YouTube ingestion
 
 Talus polls configured YouTube upload playlists without using the expensive
-YouTube Search API. `GameTrailers` is seeded in `youtube_content_sources`.
+YouTube Search API. `GameTrailers`, `Skill Up`, `Digital Foundry`,
+`LevelCapGaming`, `videogamedunkey`, `Top5Gaming`, `Mortismal Gaming`, and
+`LegacyKillaHD` are seeded in `youtube_content_sources`. Each channel is polled
+once per day and only uploads from the preceding 24 hours are eligible.
+
+Dexerto ingestion uses the dedicated Twitch RSS feed only. The broader Dexerto
+gaming feed is intentionally excluded.
 
 - Production can run immediately through YouTube's official Atom uploads feed.
 - For complete pagination when a channel publishes more than the Atom feed

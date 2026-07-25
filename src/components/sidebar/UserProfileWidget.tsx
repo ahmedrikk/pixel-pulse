@@ -11,18 +11,18 @@ export function UserProfileWidget() {
     return (
       <div className="group relative overflow-hidden rounded-xl border bg-card">
         {/* Banner Image */}
-        <div className="h-16 w-full bg-secondary overflow-hidden relative">
+        <div className="h-20 w-full bg-secondary overflow-hidden relative">
           <div className="w-full h-full bg-gradient-to-r from-primary/20 to-accent/20" />
         </div>
 
         <div className="px-4 pb-4 relative">
           {/* Profile Avatar */}
-          <div className="absolute -top-6 left-4 border-2 border-card rounded-full overflow-hidden w-12 h-12 bg-secondary flex items-center justify-center">
-            <User className="w-6 h-6 text-muted-foreground" />
+          <div className="absolute -top-8 left-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-[3px] border-card bg-secondary shadow-sm">
+            <User className="h-8 w-8 text-muted-foreground" />
           </div>
 
           {/* Content */}
-          <div className="pt-8">
+          <div className="pt-10">
             <button 
               onClick={() => openAuthModal('signup_prompt')}
               className="text-left hover:underline cursor-pointer"
@@ -44,7 +44,7 @@ export function UserProfileWidget() {
   return (
     <div className="group relative overflow-hidden rounded-xl border bg-card">
       {/* Banner Image */}
-      <div className="h-16 w-full bg-secondary overflow-hidden relative">
+      <div className="h-20 w-full bg-secondary overflow-hidden relative">
         {profile?.banner_url ? (
           profile.banner_url.startsWith('linear-gradient') || profile.banner_url.startsWith('radial-gradient') ? (
             <div className="w-full h-full opacity-80" style={{ background: profile.banner_url }} />
@@ -62,7 +62,7 @@ export function UserProfileWidget() {
 
       <div className="px-4 pb-4 relative">
         {/* Profile Avatar */}
-        <div className="absolute -top-6 left-4 border-2 border-card rounded-full overflow-hidden w-12 h-12 bg-secondary">
+        <div className="absolute -top-8 left-4 h-16 w-16 overflow-hidden rounded-full border-[3px] border-card bg-secondary shadow-sm">
           {profile?.avatar_url ? (
             <img 
               src={profile.avatar_url} 
@@ -77,7 +77,7 @@ export function UserProfileWidget() {
         </div>
 
         {/* Content */}
-        <div className="pt-8">
+        <div className="pt-10">
           <Link to="/profile" className="block hover:underline">
             <h3 className="font-bold text-sm text-foreground truncate">
               {profile?.display_name || profile?.username || user.user_metadata?.display_name || "Player One"}
