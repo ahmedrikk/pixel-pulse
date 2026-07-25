@@ -19,6 +19,7 @@ interface EnhancedCommentSectionProps {
   initialComments?: Comment[];
   className?: string;
   onCountChange?: (count: number) => void;
+  onEngage?: () => void;
 }
 
 // Wilson score for "hot" sorting
@@ -70,6 +71,7 @@ export function EnhancedCommentSection({
   initialComments = [],
   className,
   onCountChange,
+  onEngage,
 }: EnhancedCommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [newComment, setNewComment] = useState("");
@@ -150,9 +152,9 @@ export function EnhancedCommentSection({
       return;
     }
     const ok = await insertComment(articleId, user.id, body, parentId);
-    if (ok) { await reload(); toast.success("Reply posted!"); }
+    if (ok) { await reload(); onEngage?.(); toast.success("Reply posted!"); }
     else toast.error("Couldn't post reply");
-  }, [articleId, isAuthenticated, user, openAuthModal, reload]);
+  }, [articleId, isAuthenticated, user, openAuthModal, reload, onEngage]);
 
   // Handle edit — persisted
   const handleEdit = useCallback(async (commentId: string, body: string) => {
@@ -185,6 +187,7 @@ export function EnhancedCommentSection({
     if (ok) {
       setNewComment("");
       await reload();
+      onEngage?.();
       toast.success("Comment posted");
     } else {
       toast.error("Couldn't post comment");

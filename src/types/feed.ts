@@ -18,6 +18,8 @@ export interface Article {
   likes: number;
   comments: number;
   reactions: Record<string, number>;
+  mediaType: "article" | "youtube";
+  videoId?: string;
 }
 
 export interface UserImpression {

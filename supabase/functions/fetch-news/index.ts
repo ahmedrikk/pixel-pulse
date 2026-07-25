@@ -15,6 +15,7 @@ const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 const KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions";
 const KIMI_API_KEY = Deno.env.get("KIMI_API_KEY") ?? "";
 const KIMI_MODEL = Deno.env.get("KIMI_NEWS_MODEL") ?? "kimi-k3";
+const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY") ?? "";
 const PROCESS_LIMIT = 20;
 const SCRAPE_LIMIT = 30;
 const REMOVED_SOURCES = ["Sportskeeda"];
@@ -56,6 +57,33 @@ interface RssItem {
   description: string;
   enclosureUrl: string | null;
   source: string;
+  mediaType?: "article" | "youtube";
+  videoId?: string;
+}
+
+interface YouTubeSource {
+  id: string;
+  source_name: string;
+  channel_id: string;
+  uploads_playlist_id: string;
+  channel_url: string;
+  freshness_hours: number;
+  poll_interval_minutes: number;
+  last_polled_at: string | null;
+  quota_units_used_today: number;
+  quota_date: string;
+}
+
+interface YouTubeFetchResult {
+  items: RssItem[];
+  quotaUnits: number;
+  mode: "data_api" | "atom_fallback";
+  error: string | null;
+}
+
+function isTrailerCandidate(title: string): boolean {
+  return /\b(trailer|teaser|gameplay|dlc|expansion|reveal|announcement|launch|release date|cinematic)\b/i.test(title)
+    && !/\b(live stream|day \d|full show|coverage)\b/i.test(title);
 }
 
 interface FeedFetchResult {
@@ -227,6 +255,146 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
     if (items.length >= maxItems) break;
   }
   return items;
+}
+
+function parseYouTubeAtom(xml: string, source: YouTubeSource): RssItem[] {
+  const cutoff = Date.now() - source.freshness_hours * 60 * 60 * 1000;
+  const items: RssItem[] = [];
+  for (const match of xml.matchAll(/<entry>([\s\S]*?)<\/entry>/gi)) {
+    const block = match[1];
+    const videoId = extractCDATA(block, "yt:videoId");
+    const title = extractCDATA(block, "title");
+    const published = extractCDATA(block, "published");
+    if (!videoId || !title || !published) continue;
+    if (new Date(published).getTime() < cutoff) break;
+    if (!isTrailerCandidate(title)) continue;
+    const description = extractCDATA(block, "media:description");
+    const author = extractCDATA(block, "name") || source.source_name;
+    const thumbnail = decodeHtmlEntities(
+      block.match(/<media:thumbnail[^>]+url="([^"]+)"/i)?.[1] || ""
+    );
+    items.push({
+      title,
+      link: `https://www.youtube.com/watch?v=${videoId}`,
+      pubDate: published,
+      author,
+      description,
+      enclosureUrl: thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      source: source.source_name,
+      mediaType: "youtube",
+      videoId,
+    });
+  }
+  return items;
+}
+
+async function fetchYouTubeUploads(source: YouTubeSource): Promise<YouTubeFetchResult> {
+  const cutoff = Date.now() - source.freshness_hours * 60 * 60 * 1000;
+  if (!YOUTUBE_API_KEY) {
+    try {
+      const feedUrl = `https://www.youtube.com/feeds/videos.xml?playlist_id=${encodeURIComponent(source.uploads_playlist_id)}`;
+      const response = await fetch(feedUrl, {
+        headers: { "User-Agent": "Talus/1.0 (+https://pixel-pulse-roan.vercel.app)" },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) throw new Error(`YouTube Atom HTTP ${response.status}`);
+      const items = parseYouTubeAtom(await response.text(), source);
+      console.log(`  ${source.source_name}: ${items.length} fresh videos (official Atom fallback; 0 quota units)`);
+      return { items, quotaUnits: 0, mode: "atom_fallback", error: null };
+    } catch (error) {
+      return { items: [], quotaUnits: 0, mode: "atom_fallback", error: String(error) };
+    }
+  }
+
+  const items: RssItem[] = [];
+  let pageToken = "";
+  let quotaUnits = 0;
+  try {
+    for (let page = 0; page < 5; page++) {
+      const url = new URL("https://www.googleapis.com/youtube/v3/playlistItems");
+      url.searchParams.set("part", "snippet,contentDetails");
+      url.searchParams.set("playlistId", source.uploads_playlist_id);
+      url.searchParams.set("maxResults", "50");
+      url.searchParams.set("key", YOUTUBE_API_KEY);
+      if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+      const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      quotaUnits += 1;
+      if (!response.ok) throw new Error(`YouTube Data API HTTP ${response.status}: ${(await response.text()).slice(0, 160)}`);
+      const payload = await response.json();
+      let reachedCutoff = false;
+      for (const row of payload.items ?? []) {
+        const snippet = row.snippet ?? {};
+        const videoId = row.contentDetails?.videoId || snippet.resourceId?.videoId;
+        const published = row.contentDetails?.videoPublishedAt || snippet.publishedAt;
+        if (!videoId || !published) continue;
+        if (new Date(published).getTime() < cutoff) {
+          reachedCutoff = true;
+          break;
+        }
+        const title = snippet.title || "New game trailer";
+        if (!isTrailerCandidate(title)) continue;
+        items.push({
+          title,
+          link: `https://www.youtube.com/watch?v=${videoId}`,
+          pubDate: published,
+          author: snippet.videoOwnerChannelTitle || source.source_name,
+          description: snippet.description || "",
+          enclosureUrl: snippet.thumbnails?.maxres?.url
+            || snippet.thumbnails?.high?.url
+            || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          source: source.source_name,
+          mediaType: "youtube",
+          videoId,
+        });
+      }
+      if (reachedCutoff || !payload.nextPageToken) break;
+      pageToken = payload.nextPageToken;
+    }
+    console.log(`  ${source.source_name}: ${items.length} fresh videos (${quotaUnits} quota units)`);
+    return { items, quotaUnits, mode: "data_api", error: null };
+  } catch (error) {
+    return { items: [], quotaUnits, mode: "data_api", error: String(error) };
+  }
+}
+
+async function fetchYouTubeTranscript(videoId: string): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://www.youtube.com/api/timedtext?v=${encodeURIComponent(videoId)}&lang=en&fmt=json3`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (!response.ok) return "";
+    const payload = await response.json();
+    const transcript = (payload.events ?? [])
+      .flatMap((event: { segs?: { utf8?: string }[] }) => event.segs ?? [])
+      .map((segment: { utf8?: string }) => segment.utf8 ?? "")
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return transcript.length >= 80 ? transcript : "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizedTitleTokens(title: string): Set<string> {
+  const ignored = new Set(["official", "trailer", "gameplay", "video", "new", "the", "a", "an", "for", "of", "and"]);
+  return new Set(
+    title.toLowerCase().replace(/[^a-z0-9]+/g, " ").split(/\s+/)
+      .filter((token) => token.length > 2 && !ignored.has(token))
+  );
+}
+
+function isNearDuplicateTitle(title: string, existingTitles: string[]): boolean {
+  const candidate = normalizedTitleTokens(title);
+  if (candidate.size < 2) return false;
+  return existingTitles.some((existingTitle) => {
+    const existing = normalizedTitleTokens(existingTitle);
+    const intersection = [...candidate].filter((token) => existing.has(token)).length;
+    const union = new Set([...candidate, ...existing]).size;
+    return union > 0 && intersection / union >= 0.75;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -508,6 +676,7 @@ Entertainment, RPG, FPS, Action, Adventure, Horror, Review, Preview, Trailer, Ru
 Leak, Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming, Esports`;
 
 interface SummarizeResult {
+  headline?: string;
   summary: string;
   gameTags: string[];
   tags: string[];
@@ -814,6 +983,144 @@ async function summarizeArticle(title: string, content: string): Promise<Summari
   return await summarizeWithGroq(title, content);
 }
 
+const VIDEO_SYSTEM_PROMPT = `You write compact Talus cards for newly released game trailers.
+Return ONLY valid JSON with exactly these keys:
+{"headline":"A clean, factual headline","summary":"2 or 3 concise sentences","gameTags":["GameTitle"],"tags":["PrimaryTopic","SecondaryEntity"]}
+
+Rules:
+- Preserve the actual game name and announcement type. Do not invent features, dates, platforms, or claims.
+- Headline: 6-14 words. Remove repetitive words such as "official trailer" when the context is already clear.
+- Summary: 25-70 words and 2-3 complete sentences. Explain what the trailer reveals and any explicit release/platform context.
+- gameTags: game titles only, PascalCase, maximum 3.
+- tags: exactly 2 specific named entities supported by the source.
+- The first tag MUST be the primary game title and match gameTags[0].
+- The second tag must be a named character, studio/publisher, platform, collaboration, or event explicitly present in the title/source.
+- Never use a genre, mood, mechanic, or broad description as a tag (examples to avoid: Roguelike, Historical, ActionAdventure, CardGame, SurvivalHorror).`;
+
+const VIDEO_GENERIC_TAGS = new Set([
+  ...BANNED_TOPIC_TAGS,
+  "actionadventure", "historical", "retrofuturistic", "cardgame", "roguelike",
+  "survivalhorror", "retromode", "narrativesimulator", "crimegame",
+  "spacesimulation", "battleroyale", "mobilegame", "cinematic", "officialtrailer",
+]);
+
+function toPascalEntity(value: string): string {
+  return value
+    .replace(/^#+/, "")
+    .trim()
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("")
+    .slice(0, 39);
+}
+
+function parseVideoSummary(
+  raw: string,
+  fallbackTitle: string,
+  fallbackSource: string,
+  provider: string,
+): SummarizeResult | null {
+  const parsed = extractJsonObject(raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim());
+  if (!parsed) return null;
+  const headline = String(parsed.headline ?? fallbackTitle).replace(/\s+/g, " ").trim().slice(0, 140);
+  const summary = String(parsed.summary ?? "").replace(/\s+/g, " ").trim();
+  const gameTags = (Array.isArray(parsed.gameTags) ? parsed.gameTags : [])
+    .filter((tag): tag is string => typeof tag === "string")
+    .map(toPascalEntity)
+    .filter((tag, index, values) => tag.length > 1 && values.indexOf(tag) === index)
+    .slice(0, 3);
+  if (gameTags.length === 0) return null;
+  const primaryTag = gameTags[0];
+  const primaryKey = primaryTag.toLowerCase();
+  const suggestedTags = (Array.isArray(parsed.tags) ? parsed.tags : [])
+    .filter((tag): tag is string => typeof tag === "string")
+    .map(toPascalEntity)
+    .filter((tag) =>
+      tag.length > 1
+      && tag.toLowerCase() !== primaryKey
+      && !primaryKey.includes(tag.toLowerCase())
+      && !tag.toLowerCase().includes(primaryKey)
+      && !VIDEO_GENERIC_TAGS.has(tag.toLowerCase())
+    );
+  const secondaryTag = gameTags.find((tag) => tag !== primaryTag)
+    || suggestedTags[0]
+    || toPascalEntity(fallbackSource);
+  const tags = [primaryTag, secondaryTag];
+  const words = countWords(summary);
+  if (!headline || words < 20 || words > 75 || countSentences(summary) < 2) {
+    console.warn(`  ${provider} video result rejected (${words}w, ${tags.length} tags)`);
+    return null;
+  }
+  return { headline, summary, tags, gameTags };
+}
+
+async function summarizeVideo(
+  title: string,
+  description: string,
+  transcript: string,
+  source: string,
+): Promise<SummarizeResult> {
+  const sourceText = (transcript || description || title).slice(0, 5000);
+  const userPrompt = `Video title: ${title}\n\nSource text:\n${sourceText}\n\nCreate the compact trailer card JSON.`;
+
+  if (KIMI_API_KEY) {
+    try {
+      const response = await fetch(KIMI_API_URL, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${KIMI_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: KIMI_MODEL,
+          messages: [
+            { role: "system", content: VIDEO_SYSTEM_PROMPT },
+            { role: "user", content: userPrompt },
+          ],
+          max_completion_tokens: 1400,
+          response_format: { type: "json_object" },
+        }),
+        signal: AbortSignal.timeout(60_000),
+      });
+      if (response.ok) {
+        const payload = await response.json();
+        const parsed = parseVideoSummary(payload.choices?.[0]?.message?.content ?? "", title, source, `Kimi ${KIMI_MODEL}`);
+        if (parsed) return parsed;
+      }
+    } catch (error) {
+      console.warn("  Kimi video summary error:", error);
+    }
+  }
+
+  if (GROQ_API_KEY) {
+    for (const model of MODELS) {
+      try {
+        const response = await fetch(GROQ_API_URL, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: VIDEO_SYSTEM_PROMPT },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0.2,
+            max_tokens: 500,
+            response_format: { type: "json_object" },
+          }),
+          signal: AbortSignal.timeout(45_000),
+        });
+        if (!response.ok) continue;
+        const payload = await response.json();
+        const parsed = parseVideoSummary(payload.choices?.[0]?.message?.content ?? "", title, source, `Groq ${model}`);
+        if (parsed) return parsed;
+      } catch (error) {
+        console.warn(`  Groq video summary error (${model}):`, error);
+      }
+    }
+  }
+
+  return { headline: title, summary: "", gameTags: [], tags: [] };
+}
+
 // ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
@@ -866,6 +1173,19 @@ serve(async (req) => {
   const selectedFeeds = requestedSources.length
     ? RSS_FEEDS.filter((feed) => requestedSources.includes(feed.source))
     : RSS_FEEDS;
+  const { data: youtubeSourceRows, error: youtubeSourceError } = await supabase
+    .from("youtube_content_sources")
+    .select("*")
+    .eq("active", true);
+  if (youtubeSourceError) console.warn(`  YouTube source config error: ${youtubeSourceError.message}`);
+
+  const now = Date.now();
+  const selectedYouTubeSources = ((youtubeSourceRows ?? []) as YouTubeSource[]).filter((source) => {
+    if (requestedSources.length && !requestedSources.includes(source.source_name)) return false;
+    if (requestedSources.includes(source.source_name)) return true;
+    if (!source.last_polled_at) return true;
+    return now - new Date(source.last_polled_at).getTime() >= source.poll_interval_minutes * 60_000;
+  });
 
   // Step 0: Delete cached articles with bad summaries so they get re-fetched
   const { data: badArticles } = await supabase
@@ -955,10 +1275,30 @@ serve(async (req) => {
       }
     })
   );
-  const allItems: RssItem[] = feedResults.flatMap((r) =>
+  const rssItems: RssItem[] = feedResults.flatMap((r) =>
     r.status === "fulfilled" ? r.value.items : []
   );
-  const feedStats = feedResults.map((result, index) => ({
+  const youtubeResults = await Promise.all(
+    selectedYouTubeSources.map(async (source) => {
+      const result = await fetchYouTubeUploads(source);
+      const today = new Date().toISOString().slice(0, 10);
+      const previousUnits = source.quota_date === today ? source.quota_units_used_today : 0;
+      const { error: updateError } = await supabase
+        .from("youtube_content_sources")
+        .update({
+          last_polled_at: new Date().toISOString(),
+          quota_date: today,
+          quota_units_used_today: previousUnits + result.quotaUnits,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", source.id);
+      if (updateError) console.warn(`  YouTube source-state update failed: ${updateError.message}`);
+      return { source, result };
+    })
+  );
+  const youtubeItems = youtubeResults.flatMap(({ result }) => result.items);
+  const allItems: RssItem[] = [...rssItems, ...youtubeItems];
+  const feedStats = [...feedResults.map((result, index) => ({
     source: selectedFeeds[index].source,
     url: selectedFeeds[index].url,
     items: result.status === "fulfilled" ? result.value.items.length : 0,
@@ -968,7 +1308,19 @@ serve(async (req) => {
     rawItemTags: result.status === "fulfilled" ? result.value.rawItemTags : 0,
     preview: result.status === "fulfilled" ? result.value.preview : "",
     error: result.status === "fulfilled" ? result.value.error : String(result.reason),
-  }));
+    type: "rss",
+  })), ...youtubeResults.map(({ source, result }) => ({
+    source: source.source_name,
+    url: source.channel_url,
+    items: result.items.length,
+    status: result.error ? null : 200,
+    contentType: result.mode,
+    bytes: 0,
+    rawItemTags: result.items.length,
+    preview: `${result.quotaUnits} quota units`,
+    error: result.error,
+    type: "youtube",
+  }))];
 
   if (diagnosticOnly) {
     return new Response(JSON.stringify({ total: allItems.length, feeds: feedStats }), {
@@ -998,7 +1350,19 @@ serve(async (req) => {
     .in("source_url", urls);
 
   const existingUrls = new Set((existing ?? []).map(e => e.source_url));
-  const newItems = interleaveBySource(allItems.filter(item => !existingUrls.has(item.link)));
+  const { data: recentTitles } = await supabase
+    .from("cached_articles")
+    .select("title, ai_title")
+    .gte("article_date", new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString());
+  const dedupTitles = (recentTitles ?? []).flatMap((row) =>
+    [row.ai_title, row.title].filter((value): value is string => typeof value === "string" && value.length > 0)
+  );
+  const uniqueCandidates = allItems.filter((item) =>
+    !existingUrls.has(item.link) && !isNearDuplicateTitle(item.title, dedupTitles)
+  );
+  const duplicateCount = allItems.length - existingUrls.size - uniqueCandidates.length;
+  const newItems = interleaveBySource(uniqueCandidates);
+  if (duplicateCount > 0) console.log(`  Quality gate removed ${duplicateCount} near-duplicate candidates`);
   console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
   // Step 3: Scrape all new articles in parallel
   interface EnrichedItem extends RssItem {
@@ -1019,7 +1383,13 @@ serve(async (req) => {
       let scrapedImage: string | null = null;
       let scrapeMethod = "rss";
 
-      if (rssWords >= 120) {
+      if (item.mediaType === "youtube" && item.videoId) {
+        const transcript = await fetchYouTubeTranscript(item.videoId);
+        content = transcript || rssDesc || item.title;
+        scrapedImage = item.enclosureUrl;
+        scrapeMethod = transcript ? "youtube-transcript" : "youtube-metadata";
+        console.log(`  [${item.source}] transcript ${transcript ? "available" : "unavailable; using title/description"}`);
+      } else if (rssWords >= 120) {
         content = rssDesc;
       } else {
         const scraped = await scrapeArticle(item.link);
@@ -1070,7 +1440,9 @@ serve(async (req) => {
       break;
     }
     try {
-      let { summary, gameTags, tags, rateLimited } = await summarizeArticle(item.title, item.content);
+      let { headline, summary, gameTags, tags, rateLimited } = item.mediaType === "youtube"
+        ? await summarizeVideo(item.title, item.description, item.content, item.source)
+        : await summarizeArticle(item.title, item.content);
 
       if (!summary) {
         const sourceExcerpt = buildSourceExcerpt(item.content);
@@ -1093,7 +1465,8 @@ serve(async (req) => {
         continue;
       }
 
-      if (!summary || summary.length < 100) {
+      const minimumSummaryLength = item.mediaType === "youtube" ? 60 : 100;
+      if (!summary || summary.length < minimumSummaryLength) {
         if (rateLimited) {
           consecutiveRateLimits++;
           skip("rate_limited");
@@ -1111,7 +1484,9 @@ serve(async (req) => {
       consecutiveRateLimits = 0;
 
       const { error } = await supabase.from("cached_articles").upsert({
-        original_id:  `${item.source}-${item.link.substring(item.link.length - 60)}`,
+        original_id:  item.mediaType === "youtube" && item.videoId
+          ? `youtube-${item.videoId}`
+          : `${item.source}-${item.link.substring(item.link.length - 60)}`,
         title:        item.title,
         summary,
         source_url:   item.link,
@@ -1120,11 +1495,15 @@ serve(async (req) => {
         category:     "Gaming",
         source:       item.source,
         author:       item.author,
-        ai_title:     item.title,
+        ai_title:     headline || item.title,
         ai_summary:   summary,
         game_tags:    gameTags,
         tags,
         likes:        0,
+        media_type:   item.mediaType || "article",
+        video_id:     item.videoId || null,
+        duplicate_flag: false,
+        report_count: 0,
         article_date: (() => { try { return new Date(item.pubDate).toISOString(); } catch { return new Date().toISOString(); } })(),
         expires_at:   expiresAt.toISOString(),
       }, { onConflict: "source_url" });
@@ -1151,6 +1530,14 @@ serve(async (req) => {
     processed,
     processedBySource,
     feeds: feedStats,
+    youtube: youtubeResults.map(({ source, result }) => ({
+      source: source.source_name,
+      items: result.items.length,
+      mode: result.mode,
+      quotaUnits: result.quotaUnits,
+      error: result.error,
+    })),
+    duplicatesFiltered: Math.max(duplicateCount, 0),
     skipped:   skipReasons,
     elapsedMs: Date.now() - pipelineStart,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

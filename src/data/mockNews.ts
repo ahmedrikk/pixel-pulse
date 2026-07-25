@@ -13,6 +13,10 @@ export interface NewsItem {
   likes?: number;
   comments?: number;
   fetchedAt?: string;
+  mediaType?: "article" | "youtube";
+  videoId?: string;
+  rankScore?: number;
+  rankReason?: "fresh" | "personalized" | "unseen" | "trending" | "fallback";
 }
 
 // Genre/category labels used by the onboarding + preference pickers.

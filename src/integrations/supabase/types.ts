@@ -113,17 +113,23 @@ export type Database = {
           article_date: string
           author: string
           category: string
+          duplicate_flag: boolean
           expires_at: string
           fetched_at: string | null
+          game_tags: string[] | null
           id: string
           image_url: string
           likes: number | null
+          media_type: string
+          og_image_url: string | null
           original_id: string
+          report_count: number
           source: string
           source_url: string
           summary: string
           tags: string[] | null
           title: string
+          video_id: string | null
         }
         Insert: {
           ai_summary?: string | null
@@ -131,17 +137,23 @@ export type Database = {
           article_date: string
           author?: string
           category: string
+          duplicate_flag?: boolean
           expires_at: string
           fetched_at?: string | null
+          game_tags?: string[] | null
           id?: string
           image_url: string
           likes?: number | null
+          media_type?: string
+          og_image_url?: string | null
           original_id: string
+          report_count?: number
           source: string
           source_url: string
           summary: string
           tags?: string[] | null
           title: string
+          video_id?: string | null
         }
         Update: {
           ai_summary?: string | null
@@ -149,17 +161,23 @@ export type Database = {
           article_date?: string
           author?: string
           category?: string
+          duplicate_flag?: boolean
           expires_at?: string
           fetched_at?: string | null
+          game_tags?: string[] | null
           id?: string
           image_url?: string
           likes?: number | null
+          media_type?: string
+          og_image_url?: string | null
           original_id?: string
+          report_count?: number
           source?: string
           source_url?: string
           summary?: string
           tags?: string[] | null
           title?: string
+          video_id?: string | null
         }
         Relationships: []
       }
@@ -860,6 +878,55 @@ export type Database = {
           p_article_id: string
           p_session_id: string
           p_share_type: string
+        }
+        Returns: undefined
+      }
+      get_ranked_feed: {
+        Args: {
+          p_category?: string | null
+          p_limit?: number
+          p_offset?: number
+          p_tag?: string | null
+          p_tracking_id: string
+        }
+        Returns: {
+          ai_summary: string | null
+          ai_title: string | null
+          article_date: string
+          author: string
+          category: string
+          expires_at: string
+          fetched_at: string | null
+          game_tags: string[] | null
+          id: string
+          image_url: string
+          likes: number | null
+          media_type: string
+          og_image_url: string | null
+          original_id: string
+          rank_reason: string
+          rank_score: number
+          source: string
+          source_url: string
+          summary: string
+          tags: string[] | null
+          title: string
+          video_id: string | null
+        }[]
+      }
+      record_article_dwell: {
+        Args: {
+          p_article_id: string
+          p_seconds: number
+          p_tracking_id: string
+        }
+        Returns: undefined
+      }
+      record_feed_engagement: {
+        Args: {
+          p_article_id: string
+          p_event_type: string
+          p_tracking_id: string
         }
         Returns: undefined
       }
