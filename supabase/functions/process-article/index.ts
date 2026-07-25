@@ -1,11 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { generateGeminiJson, talusSystemPrompt } from "../_shared/talus-ai.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Groq API configuration
+// Groq is the continuity fallback when Gemini is unavailable.
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 
@@ -155,12 +156,12 @@ interface ProcessedArticle {
 }
 
 /**
- * Process a single article with Groq.
+ * Process a single article with Gemini, falling back to Groq.
  * Fetches full article content first (Readability); falls back to RSS snippet.
  * Extracts OG image alongside.
  * Tries multiple models if one fails.
  */
-async function processArticleWithOpenRouter(article: ArticleInput): Promise<ProcessedArticle> {
+async function processArticleWithProviders(article: ArticleInput): Promise<ProcessedArticle> {
   // --- Step 1: Fetch full article body + OG image ---
   let richContent: string | null = null;
   let ogImage: string | null = null;
@@ -182,7 +183,7 @@ async function processArticleWithOpenRouter(article: ArticleInput): Promise<Proc
     ? `Full article text (${richContent.length} chars, Readability-extracted):`
     : `RSS snippet (${article.content.length} chars — thin; expand with your knowledge):`;
 
-  const systemPrompt = `You are a gaming news editor and named-entity extractor. Given an article, produce three things:
+  const systemPrompt = talusSystemPrompt(`Given an article, produce three things:
 
 1. TITLE (under 60 chars): Sharp, factual headline. No clickbait.
 
@@ -213,7 +214,7 @@ async function processArticleWithOpenRouter(article: ArticleInput): Promise<Proc
    FORMAT: PascalCase, no # symbol.
 
 Respond ONLY with valid JSON, no markdown:
-{"title": "...", "summary": "...", "tags": ["Tag1", "Tag2"]}`;
+{"title": "...", "summary": "...", "tags": ["Tag1", "Tag2"]}`);
 
   const userPrompt = `Article Title: ${article.title}
 Source: ${article.source}
@@ -226,14 +227,77 @@ TASK:
 1. Write the SUMMARY. Count every word — it MUST be exactly 100 words and use only the supplied facts.
 2. Extract exactly TWO TAGS — specific proper-noun topics only. No generic words.`;
 
-  if (!GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY secret is not set in Supabase");
+  const parseProviderResult = (
+    aiContent: string,
+    provider: string,
+  ): ProcessedArticle | null => {
+    let parsedResult;
+    try {
+      const withoutThinking = aiContent.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+      const cleanJson = withoutThinking.replace(/```json\n?|\n?```/g, "").trim();
+      parsedResult = JSON.parse(cleanJson);
+    } catch {
+      console.warn(`${provider} returned invalid JSON:`, aiContent.substring(0, 200));
+      return null;
+    }
+
+    let summary: string = parsedResult.summary || article.content;
+    const words = summary.trim().split(/\s+/);
+    if (words.length > 110) {
+      summary = words.slice(0, 100).join(" ") + "…";
+    }
+    const wordCount = summary.trim().split(/\s+/).length;
+    if (wordCount < 80) {
+      console.warn(`${provider} returned a short summary (${wordCount} words)`);
+      return null;
+    }
+
+    const tags: string[] = Array.isArray(parsedResult.tags)
+      ? parsedResult.tags
+        .filter((tag: unknown) => typeof tag === "string" && tag.length > 1 && tag.length < 40)
+        .map((tag: string) => tag.replace(/^#+/, "").replace(/[^a-zA-Z0-9]/g, ""))
+        .filter((tag: string, index: number, all: string[]) =>
+          tag.length > 1 && all.findIndex((other) => other.toLowerCase() === tag.toLowerCase()) === index
+        )
+        .slice(0, 2)
+      : [];
+
+    if (tags.length !== 2) {
+      console.warn(`${provider} returned ${tags.length} valid topic tags; expected exactly 2`);
+      return null;
+    }
+
+    console.log(`✓ Processed with ${provider}: "${parsedResult.title}"`);
+    return {
+      processedTitle: parsedResult.title || article.title,
+      processedSummary: summary,
+      processedTags: tags,
+      ogImage,
+    };
+  };
+
+  try {
+    console.log(`Trying Gemini for article: ${article.title.substring(0, 50)}...`);
+    const geminiContent = await generateGeminiJson(
+      systemPrompt,
+      userPrompt,
+      { maxOutputTokens: 1200, timeoutMs: 60_000 },
+    );
+    const geminiResult = parseProviderResult(geminiContent, "Gemini");
+    if (geminiResult) return geminiResult;
+  } catch (error) {
+    console.warn("Gemini failed; trying Groq:", error);
   }
 
-  // Try each model in order
+  if (!GROQ_API_KEY) {
+    console.error("Groq fallback is not configured");
+  }
+
+  // Try each Groq fallback model in order.
   for (const model of MODELS) {
+    if (!GROQ_API_KEY) break;
     try {
-      console.log(`Trying model: ${model} for article: ${article.title.substring(0, 50)}...`);
+      console.log(`Trying Groq ${model} for article: ${article.title.substring(0, 50)}...`);
 
       const response = await fetch(GROQ_API_URL, {
         method: "POST",
@@ -266,55 +330,8 @@ TASK:
         continue;
       }
 
-      let parsedResult;
-      try {
-        // Strip Qwen QwQ reasoning blocks (<think>...</think>) before parsing JSON
-        const withoutThinking = aiContent.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-        // Strip markdown code fences
-        const cleanJson = withoutThinking.replace(/```json\n?|\n?```/g, "").trim();
-        parsedResult = JSON.parse(cleanJson);
-      } catch {
-        console.warn(`Model ${model} returned invalid JSON:`, aiContent.substring(0, 200));
-        continue;
-      }
-
-      // Hard cap at 110 words (trim if AI overshoots)
-      let summary: string = parsedResult.summary || article.content;
-      const words = summary.trim().split(/\s+/);
-      if (words.length > 110) {
-        summary = words.slice(0, 100).join(" ") + "…";
-      }
-      const wordCount = summary.trim().split(/\s+/).length;
-      if (wordCount < 80) {
-        console.warn(`Short summary (${wordCount} words) for: ${article.title.substring(0, 50)}`);
-      } else {
-        console.log(`  Summary: ${wordCount} words`);
-      }
-
-      const tags: string[] = Array.isArray(parsedResult.tags)
-        ? parsedResult.tags
-          .filter((t: unknown) => typeof t === "string" && t.length > 1 && t.length < 40)
-          .map((t: string) => t.replace(/^#+/, "").replace(/[^a-zA-Z0-9]/g, ""))
-          .filter((t: string, index: number, all: string[]) =>
-            t.length > 1 && all.findIndex((other) => other.toLowerCase() === t.toLowerCase()) === index
-          )
-          .slice(0, 2)
-        : [];
-
-      if (tags.length !== 2) {
-        console.warn(`Model ${model} returned ${tags.length} valid topic tags; expected exactly 2`);
-        continue;
-      }
-
-      console.log(`✓ Processed with ${model}: "${parsedResult.title}" (${summary.length} chars)`);
-      console.log(`  Tags: ${JSON.stringify(tags)}`);
-
-      return {
-        processedTitle: parsedResult.title || article.title,
-        processedSummary: summary,
-        processedTags: tags,
-        ogImage,
-      };
+      const groqResult = parseProviderResult(aiContent, `Groq ${model}`);
+      if (groqResult) return groqResult;
 
     } catch (error) {
       console.warn(`Error with model ${model}:`, error);
@@ -359,7 +376,7 @@ serve(async (req) => {
       const batchResults = await Promise.all(
         batch.map(async (article) => {
           try {
-            return await processArticleWithOpenRouter(article);
+            return await processArticleWithProviders(article);
           } catch (error) {
             console.error(`Error processing article "${article.title}":`, error);
             return {

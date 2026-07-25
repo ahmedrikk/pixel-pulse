@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { generateGeminiJson, talusSystemPrompt } from "../_shared/talus-ai.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,9 +13,6 @@ const corsHeaders = {
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
-const KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions";
-const KIMI_API_KEY = Deno.env.get("KIMI_API_KEY") ?? "";
-const KIMI_MODEL = Deno.env.get("KIMI_NEWS_MODEL") ?? "kimi-k3";
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY") ?? "";
 const PROCESS_LIMIT = 20;
 const SCRAPE_LIMIT = 30;
@@ -648,8 +646,7 @@ async function scrapeArticle(url: string): Promise<ScrapeResult> {
 // ---------------------------------------------------------------------------
 // AI summary + exactly two content-derived topic hashtags
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are a gaming news editor for "Talus" — an Inshorts-style news aggregator.
-Your task: Condense gaming news into tight, informative summaries.
+const SYSTEM_PROMPT = talusSystemPrompt(`Condense gaming news into tight, informative summaries.
 
 WRITING STYLE:
 - Confident and specific — like a knowledgeable friend telling you what happened
@@ -691,7 +688,7 @@ tags RULES (EXACTLY 2 topic hashtags for this specific article):
 
 BANNED TAGS (never include in either array): Gaming, News, Game, Games, Update, Updates,
 Entertainment, RPG, FPS, Action, Adventure, Horror, Review, Preview, Trailer, Rumor,
-Leak, Gameplay, Streaming, YouTube, PCGaming, MobileGaming, Esports`;
+Leak, Gameplay, Streaming, YouTube, PCGaming, MobileGaming, Esports`);
 
 interface SummarizeResult {
   headline?: string;
@@ -818,37 +815,18 @@ function parseSummaryResult(raw: string, provider: string): SummarizeResult | nu
   return { summary, gameTags, tags };
 }
 
-async function summarizeWithKimi(title: string, content: string): Promise<SummarizeResult> {
-  if (!KIMI_API_KEY || countWords(content) < 15) return { summary: "", gameTags: [], tags: [] };
+async function summarizeWithGemini(title: string, content: string): Promise<SummarizeResult> {
+  if (countWords(content) < 15) return { summary: "", gameTags: [], tags: [] };
   try {
-    const res = await fetch(KIMI_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${KIMI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: KIMI_MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `Article Title: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nWrite a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with summary, gameTags, and tags.` },
-        ],
-        // Kimi K3 always reasons and does not accept the K2.x `thinking`
-        // parameter. Keep enough completion room for reasoning + final JSON.
-        max_completion_tokens: 2000,
-        response_format: { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(60_000),
-    });
-    if (!res.ok) {
-      console.warn(`  Kimi ${res.status}: ${(await res.text()).substring(0, 200)}`);
-      return { summary: "", gameTags: [], tags: [], rateLimited: res.status === 429 };
-    }
-    const data = await res.json();
-    return parseSummaryResult(data.choices?.[0]?.message?.content ?? "", `Kimi ${KIMI_MODEL}`)
+    const contentJson = await generateGeminiJson(
+      SYSTEM_PROMPT,
+      `Article Title: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nWrite a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with summary, gameTags, and tags.`,
+      { maxOutputTokens: 1200, timeoutMs: 60_000 },
+    );
+    return parseSummaryResult(contentJson, "Gemini")
       ?? { summary: "", gameTags: [], tags: [] };
   } catch (error) {
-    console.warn("  Kimi error:", error);
+    console.warn("  Gemini error:", error);
     return { summary: "", gameTags: [], tags: [] };
   }
 }
@@ -993,15 +971,13 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
 }
 
 async function summarizeArticle(title: string, content: string): Promise<SummarizeResult> {
-  if (KIMI_API_KEY) {
-    const kimiResult = await summarizeWithKimi(title, content);
-    if (kimiResult.summary) return kimiResult;
-    console.warn("  Kimi did not return a usable summary — trying Groq backup");
-  }
+  const geminiResult = await summarizeWithGemini(title, content);
+  if (geminiResult.summary) return geminiResult;
+  console.warn("  Gemini did not return a usable summary — trying Groq backup");
   return await summarizeWithGroq(title, content);
 }
 
-const VIDEO_SYSTEM_PROMPT = `You write compact Talus news cards for newly released gaming videos, including trailers, reviews, technical analysis, news roundups, and commentary.
+const VIDEO_SYSTEM_PROMPT = talusSystemPrompt(`Write compact Talus news cards for newly released gaming videos, including trailers, reviews, technical analysis, news roundups, and commentary.
 Return ONLY valid JSON with exactly these keys:
 {"headline":"A clean, factual headline","summary":"2 or 3 concise sentences","gameTags":["GameTitle"],"tags":["PrimaryTopic","SecondaryEntity"]}
 
@@ -1013,7 +989,7 @@ Rules:
 - tags: exactly 2 specific named entities supported by the source.
 - The first tag MUST be the primary game title or gaming topic and match gameTags[0].
 - The second tag must be a named character, studio/publisher, platform, collaboration, or event explicitly present in the title/source.
-- Never use a genre, mood, mechanic, or broad description as a tag (examples to avoid: Roguelike, Historical, ActionAdventure, CardGame, SurvivalHorror).`;
+- Never use a genre, mood, mechanic, or broad description as a tag (examples to avoid: Roguelike, Historical, ActionAdventure, CardGame, SurvivalHorror).`);
 
 const VIDEO_GENERIC_TAGS = new Set([
   ...BANNED_TOPIC_TAGS,
@@ -1082,30 +1058,16 @@ async function summarizeVideo(
   const sourceText = (transcript || description || title).slice(0, 5000);
   const userPrompt = `Channel: ${source}\nVideo title: ${title}\n\nSource text:\n${sourceText}\n\nCreate the compact gaming news card JSON.`;
 
-  if (KIMI_API_KEY) {
-    try {
-      const response = await fetch(KIMI_API_URL, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${KIMI_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: KIMI_MODEL,
-          messages: [
-            { role: "system", content: VIDEO_SYSTEM_PROMPT },
-            { role: "user", content: userPrompt },
-          ],
-          max_completion_tokens: 1400,
-          response_format: { type: "json_object" },
-        }),
-        signal: AbortSignal.timeout(60_000),
-      });
-      if (response.ok) {
-        const payload = await response.json();
-        const parsed = parseVideoSummary(payload.choices?.[0]?.message?.content ?? "", title, source, `Kimi ${KIMI_MODEL}`);
-        if (parsed) return parsed;
-      }
-    } catch (error) {
-      console.warn("  Kimi video summary error:", error);
-    }
+  try {
+    const contentJson = await generateGeminiJson(
+      VIDEO_SYSTEM_PROMPT,
+      userPrompt,
+      { maxOutputTokens: 900, timeoutMs: 60_000 },
+    );
+    const parsed = parseVideoSummary(contentJson, title, source, "Gemini");
+    if (parsed) return parsed;
+  } catch (error) {
+    console.warn("  Gemini video summary error:", error);
   }
 
   if (GROQ_API_KEY) {
