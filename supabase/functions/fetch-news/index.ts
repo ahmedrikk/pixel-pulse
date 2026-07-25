@@ -234,6 +234,20 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
                   );
     if (!title || !link) continue;
 
+    // Dexerto's /twitch/feed/ occasionally includes Entertainment and YouTube
+    // posts. Keep this source strictly scoped to its Twitch publication path.
+    if (source === "Dexerto Twitch") {
+      try {
+        const articleUrl = new URL(link);
+        if (!articleUrl.hostname.endsWith("dexerto.com") || !articleUrl.pathname.startsWith("/twitch/")) {
+          console.log(`  [SKIP] Non-Twitch Dexerto URL: ${link}`);
+          continue;
+        }
+      } catch {
+        continue;
+      }
+    }
+
     const pubDate     = extractCDATA(block, "pubDate") || new Date().toISOString();
     const author      = extractCDATA(block, "dc:creator") || extractCDATA(block, "author") || "Staff Writer";
     // Prefer content:encoded if it's significantly longer than description
@@ -677,7 +691,7 @@ tags RULES (EXACTLY 2 topic hashtags for this specific article):
 
 BANNED TAGS (never include in either array): Gaming, News, Game, Games, Update, Updates,
 Entertainment, RPG, FPS, Action, Adventure, Horror, Review, Preview, Trailer, Rumor,
-Leak, Gameplay, Streaming, Twitch, YouTube, PCGaming, MobileGaming, Esports`;
+Leak, Gameplay, Streaming, YouTube, PCGaming, MobileGaming, Esports`;
 
 interface SummarizeResult {
   headline?: string;
@@ -705,7 +719,7 @@ const BANNED_TOPIC_TAGS = new Set([
   "game", "games", "gaming", "gamer", "gamers", "news", "gamingnews",
   "videogame", "videogames", "update", "updates", "entertainment",
   "rpg", "fps", "action", "adventure", "horror", "review", "preview",
-  "trailer", "rumor", "leak", "gameplay", "streaming", "twitch",
+  "trailer", "rumor", "leak", "gameplay", "streaming",
   "youtube", "pcgaming", "mobilegaming", "esports",
 ]);
 
@@ -1330,20 +1344,6 @@ serve(async (req) => {
     return new Response(JSON.stringify({ total: allItems.length, feeds: feedStats }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  }
-
-  // The gaming and Twitch feeds historically shared the generic "Dexerto"
-  // label. Correct current Twitch rows so source-balanced feeds can surface
-  // the requested Twitch publisher independently.
-  const dexertoTwitchUrls = allItems
-    .filter((item) => item.source === "Dexerto Twitch")
-    .map((item) => item.link);
-  if (dexertoTwitchUrls.length > 0) {
-    const { error: relabelError } = await supabase
-      .from("cached_articles")
-      .update({ source: "Dexerto Twitch" })
-      .in("source_url", dexertoTwitchUrls);
-    if (relabelError) console.warn(`  Dexerto Twitch relabel error: ${relabelError.message}`);
   }
 
   // Step 2: Filter out already-cached articles (news is permanent)

@@ -13,7 +13,6 @@ const ESPORTS_NEWS_SOURCES = [
   { name: 'Esports Insider', rssFeed: 'https://esportsinsider.com/feed', displayName: 'Esports Insider' },
   { name: 'Sheep Esports', rssFeed: 'https://www.sheepesports.com/feed', displayName: 'Sheep Esports' },
   { name: 'Dot Esports', rssFeed: 'https://dotesports.com/feed', displayName: 'Dot Esports' },
-  { name: 'Dexerto', rssFeed: 'https://www.dexerto.com/feed/', displayName: 'Dexerto' },
   { name: 'HLTV', rssFeed: 'https://www.hltv.org/rss/news', displayName: 'HLTV' },
   { name: 'VLR', rssFeed: 'https://www.vlr.gg/rss', displayName: 'VLR' },
 ];
