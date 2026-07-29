@@ -1,7 +1,7 @@
 /**
  * useGamingNews
  *
- * All RSS fetching, full-article scraping (Jina AI), and AI processing (Groq)
+ * All RSS/YouTube fetching, article scraping, and Gemini-first AI processing
  * happens server-side in the `fetch-news` Supabase Edge Function.
  *
  * This hook's only job is:

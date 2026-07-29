@@ -1266,7 +1266,6 @@ serve(async (req) => {
       const { error: updateError } = await supabase
         .from("youtube_content_sources")
         .update({
-          last_polled_at: new Date().toISOString(),
           quota_date: today,
           quota_units_used_today: previousUnits + result.quotaUnits,
           updated_at: new Date().toISOString(),
@@ -1327,7 +1326,13 @@ serve(async (req) => {
     !existingUrls.has(item.link) && !isNearDuplicateTitle(item.title, dedupTitles)
   );
   const duplicateCount = allItems.length - existingUrls.size - uniqueCandidates.length;
-  const newItems = interleaveBySource(uniqueCandidates);
+  // YouTube has naturally low volume and no daily publishing quota. Drain all
+  // fresh video candidates before the high-volume RSS pool; anything beyond
+  // the per-run processing budget remains eligible on the next cron run.
+  const newItems = [
+    ...interleaveBySource(uniqueCandidates.filter((item) => item.mediaType === "youtube")),
+    ...interleaveBySource(uniqueCandidates.filter((item) => item.mediaType !== "youtube")),
+  ];
   if (duplicateCount > 0) console.log(`  Quality gate removed ${duplicateCount} near-duplicate candidates`);
   console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
   // Step 3: Scrape all new articles in parallel
@@ -1483,6 +1488,41 @@ serve(async (req) => {
       await new Promise(r => setTimeout(r, 2000));
     } catch (err) {
       console.error(`Error processing "${item.title}":`, err);
+    }
+  }
+
+  // Mark a YouTube source fully polled only when every candidate still inside
+  // its 24-hour window has reached cached_articles. If the edge-function time
+  // budget deferred any videos, leaving last_polled_at unchanged makes the
+  // next 30-minute cron pick the source up again instead of discarding them.
+  for (const { source, result } of youtubeResults) {
+    if (result.error) continue;
+    const candidateUrls = [...new Set(result.items.map((item) => item.link))];
+    let drained = candidateUrls.length === 0;
+    if (candidateUrls.length > 0) {
+      const { count, error: drainCheckError } = await supabase
+        .from("cached_articles")
+        .select("source_url", { count: "exact", head: true })
+        .in("source_url", candidateUrls);
+      if (drainCheckError) {
+        console.warn(`  ${source.source_name} drain check failed: ${drainCheckError.message}`);
+      } else {
+        drained = (count ?? 0) === candidateUrls.length;
+      }
+    }
+    if (!drained) {
+      console.log(`  ${source.source_name}: fresh-video queue not drained; retrying next cron`);
+      continue;
+    }
+    const { error: pollStateError } = await supabase
+      .from("youtube_content_sources")
+      .update({
+        last_polled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", source.id);
+    if (pollStateError) {
+      console.warn(`  ${source.source_name} poll-state update failed: ${pollStateError.message}`);
     }
   }
 

@@ -25,16 +25,35 @@ type FeedEntry =
 function buildFeedEntries(articles: RankedArticle[], isAuthenticated: boolean): FeedEntry[] {
   const entries: FeedEntry[] = [];
   let pendingWidget: "higher-lower" | "sentiment" | null = null;
+  const deferredVideos: Array<{ article: RankedArticle; index: number }> = [];
+  let articlePosition = 0;
+  let previousGapOccupied = false;
+
   articles.forEach((article, index) => {
-    const position = index + 1;
+    if (article.mediaType === "youtube") {
+      if (previousGapOccupied) deferredVideos.push({ article, index });
+      else {
+        entries.push({ type: "article", article, index });
+        previousGapOccupied = true;
+      }
+      return;
+    }
+
+    articlePosition += 1;
+    const position = articlePosition;
     entries.push({ type: "article", article, index });
 
     const showSignup = !isAuthenticated && position % 3 === 0;
-    if (showSignup) entries.push({ type: "signup", key: `signup-${position}` });
+    let gapOccupied = false;
+    if (showSignup) {
+      entries.push({ type: "signup", key: `signup-${position}` });
+      gapOccupied = true;
+    }
 
     if (pendingWidget && !showSignup) {
       entries.push({ type: pendingWidget, key: `${pendingWidget}-deferred-${position}` });
       pendingWidget = null;
+      gapOccupied = true;
     }
 
     const scheduledWidget = position % 10 === 5
@@ -43,9 +62,26 @@ function buildFeedEntries(articles: RankedArticle[], isAuthenticated: boolean): 
         ? "sentiment"
         : null;
     if (scheduledWidget) {
-      if (showSignup) pendingWidget = scheduledWidget;
-      else entries.push({ type: scheduledWidget, key: `${scheduledWidget}-${position}` });
+      if (gapOccupied) pendingWidget = scheduledWidget;
+      else {
+        entries.push({ type: scheduledWidget, key: `${scheduledWidget}-${position}` });
+        gapOccupied = true;
+      }
     }
+
+    // If a signup or Hub widget occupied the intended YouTube gap, move that
+    // video to the next clear article gap instead of stacking two widgets.
+    if (!gapOccupied && deferredVideos.length > 0) {
+      const deferred = deferredVideos.shift()!;
+      entries.push({
+        type: "article",
+        article: deferred.article,
+        index: deferred.index,
+      });
+      gapOccupied = true;
+    }
+
+    previousGapOccupied = gapOccupied;
   });
   return entries;
 }

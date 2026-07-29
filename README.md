@@ -77,8 +77,16 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/c
 Talus polls configured YouTube upload playlists without using the expensive
 YouTube Search API. `GameTrailers`, `Skill Up`, `Digital Foundry`,
 `LevelCapGaming`, `videogamedunkey`, `Top5Gaming`, `Mortismal Gaming`, and
-`LegacyKillaHD` are seeded in `youtube_content_sources`. Each channel is polled
-once per day and only uploads from the preceding 24 hours are eligible.
+`LegacyKillaHD` are joined by `Inside Gaming`, `ClemmyGames`, `IndieHub01`,
+`Best Indie Game Trailers`, `GamingBolt`, `SwitchUp`, and `Bellular News`.
+Only uploads from the preceding 24 hours are eligible.
+
+YouTube has no per-channel fetch or publish quota. Fresh videos are processed
+before the high-volume RSS queue, and a channel remains eligible for the next
+30-minute worker run until all of its current candidates are cached. The home
+feed inserts one YouTube card after every four article cards; signup and Hub
+widgets keep their existing cadence and take priority when two placements would
+otherwise occupy the same gap.
 
 Dexerto ingestion uses the dedicated Twitch RSS feed only. The broader Dexerto
 gaming feed is intentionally excluded.
