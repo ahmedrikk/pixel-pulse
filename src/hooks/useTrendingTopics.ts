@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const TRENDING_REFRESH_MS = 12 * 60 * 60 * 1000;
-const TRENDING_CACHE_KEY = "talus:trending-topics:v1";
+const TRENDING_CACHE_KEY = "talus:trending-topics:v2";
+
+function millisecondsUntilNextWindow(): number {
+  const now = new Date();
+  const next = new Date(now);
+  if (now.getUTCHours() < 12) {
+    next.setUTCHours(12, 0, 5, 0);
+  } else {
+    next.setUTCDate(next.getUTCDate() + 1);
+    next.setUTCHours(0, 0, 5, 0);
+  }
+  return Math.max(60_000, next.getTime() - now.getTime());
+}
 
 export interface TrendingTopic {
   tag: string;
@@ -28,27 +39,28 @@ export function useTrendingTopics(limit = 5) {
   const [topics, setTopics] = useState<TrendingTopic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const load = useCallback(async (force = false) => {
-    if (!force) {
+  const load = useCallback(async (showCached = true) => {
+    if (showCached) {
       try {
         const cached = JSON.parse(localStorage.getItem(TRENDING_CACHE_KEY) ?? "null") as {
           savedAt?: number;
           topics?: TrendingTopic[];
         } | null;
+        const cachedTopics = cached?.topics;
         if (
-          cached?.savedAt
-          && Date.now() - cached.savedAt < TRENDING_REFRESH_MS
-          && Array.isArray(cached.topics)
+          Array.isArray(cachedTopics)
+          && cachedTopics.length > 0
         ) {
-          setTopics(cached.topics.slice(0, limit));
+          setTopics(cachedTopics.slice(0, limit));
           setIsLoading(false);
-          return;
         }
       } catch {
         localStorage.removeItem(TRENDING_CACHE_KEY);
       }
     }
 
+    // The cached list is paint-only. Always ask the server for the active
+    // 12-hour window so an old browser cache can never freeze Trending.
     const { data, error } = await supabase.rpc("get_trending_topics", {
       p_limit: limit,
     });
@@ -76,9 +88,23 @@ export function useTrendingTopics(limit = 5) {
 
   useEffect(() => {
     load();
-    const timer = window.setInterval(() => load(true), TRENDING_REFRESH_MS);
-    return () => window.clearInterval(timer);
+    let timer: number | undefined;
+    const scheduleNextWindow = () => {
+      timer = window.setTimeout(async () => {
+        await load(false);
+        scheduleNextWindow();
+      }, millisecondsUntilNextWindow());
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void load(false);
+    };
+    scheduleNextWindow();
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [load]);
 
-  return { topics, isLoading, refresh: () => load(true) };
+  return { topics, isLoading, refresh: () => load(false) };
 }

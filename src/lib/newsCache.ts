@@ -9,6 +9,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { NewsItem } from "@/data/mockNews";
 import { getFeedTrackingId } from "@/lib/feedTracking";
+import { interleaveVideoCards } from "@/lib/feedCadence";
 
 export interface CachedArticle {
   id: string;
@@ -387,16 +388,57 @@ export async function getAllCachedArticles(
   // Retry up to 3 times — Supabase auth init can abort in-flight queries
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      const useVideoCadence =
+        !tag
+        && limit >= 5
+        && (!category || category.toLowerCase() === "gaming");
+      const videoSlots = useVideoCadence ? Math.floor(limit / 5) : 0;
+      const articleSlots = limit - videoSlots;
+      const pageIndex = Math.floor(offset / limit);
+      const rankedOffset = useVideoCadence ? pageIndex * articleSlots : offset;
+
       const { data: rankedData, error: rankedError } = await supabase.rpc("get_ranked_feed", {
         p_tracking_id: getFeedTrackingId(),
-        p_offset: offset,
+        p_offset: rankedOffset,
         p_limit: limit,
         p_category: category ?? null,
         p_tag: tag ?? null,
       });
 
       if (!rankedError) {
-        return ((rankedData ?? []) as CachedArticle[]).map(toNewsItem);
+        const rankedItems = ((rankedData ?? []) as CachedArticle[]).map(toNewsItem);
+        if (!useVideoCadence || videoSlots === 0) return rankedItems.slice(0, limit);
+
+        const videoOffset = pageIndex * videoSlots;
+        const freshnessCutoff = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+        const { data: videoRows, error: videoError } = await supabase
+          .from("cached_articles")
+          .select("*")
+          .eq("category", category ?? "Gaming")
+          .eq("media_type", "youtube")
+          .eq("duplicate_flag", false)
+          .lt("report_count", 3)
+          .gte("article_date", freshnessCutoff)
+          .order("article_date", { ascending: false })
+          .range(videoOffset, videoOffset + videoSlots - 1);
+
+        if (videoError) {
+          console.warn("YouTube cadence query unavailable:", videoError.message);
+          return rankedItems.slice(0, limit);
+        }
+
+        const rankedVideos = rankedItems.filter((item) => item.mediaType === "youtube");
+        const selectedVideos = [
+          ...rankedVideos,
+          ...((videoRows ?? []) as CachedArticle[]).map(toNewsItem),
+        ].slice(0, videoSlots);
+
+        return interleaveVideoCards(
+          rankedItems,
+          selectedVideos,
+          4,
+          limit,
+        );
       }
       console.warn("Ranked feed unavailable, using recency fallback:", rankedError.message);
 
