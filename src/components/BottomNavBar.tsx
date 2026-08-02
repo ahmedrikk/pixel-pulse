@@ -1,10 +1,11 @@
-import { Home, Trophy, Swords, Users, Star } from "lucide-react";
+import { Home, Trophy, Swords, Users, Star, ScrollText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const BOTTOM_NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Trophy, label: "Esports", href: "/esports" },
   { icon: Users, label: "Hub", href: "/hub" },
+  { icon: ScrollText, label: "Game Patch", href: "/game-patch" },
   { icon: Swords, label: "Battle Pass", href: "/battle-pass" },
   { icon: Star, label: "Reviews", href: "/reviews" },
 ];
@@ -21,7 +22,7 @@ export function BottomNavBar() {
             activeClassName="text-primary"
           >
             <item.icon className="h-5 w-5" />
-            <span className="text-[10px] font-medium">{item.label}</span>
+            <span className="text-[9px] font-medium leading-tight">{item.label}</span>
           </NavLink>
         ))}
       </div>

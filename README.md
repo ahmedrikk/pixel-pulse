@@ -97,6 +97,18 @@ gaming feed is intentionally excluded.
 - The worker records playlist quota usage and polls each channel according to
   its database-configured interval and freshness window.
 
+## Game Patch archive
+
+`/game-patch` is Talus's permanent patch archive. It currently tracks 24 games
+from their official Steam Community announcement feeds, displays the newest
+updates in an image-led catalog, and keeps every matched historical patch on a
+dedicated game page at `/game-patch/:gameId`.
+
+The public `fetch-game-patches` Edge Function refreshes recent releases hourly
+and advances older-history backfills until each source is complete. Commerce,
+community, preview, and roadmap posts are excluded so the archive remains
+focused on shipped patches, hotfixes, balance changes, and release notes.
+
 ## AI generation
 
 Talus uses Gemini first for news cards, video cards, article processing, and

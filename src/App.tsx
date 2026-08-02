@@ -29,6 +29,8 @@ const DailyTrivia    = lazy(() => import("./pages/DailyTrivia"));
 const Esports        = lazy(() => import("./pages/Esports"));
 const GameCatalog    = lazy(() => import("./pages/GameCatalog"));
 const GameReview     = lazy(() => import("./pages/GameReview"));
+const GamePatchCatalog = lazy(() => import("./pages/GamePatchCatalog"));
+const GamePatchHistory = lazy(() => import("./pages/GamePatchHistory"));
 const Hub            = lazy(() => import("./pages/Hub"));
 const NotFound       = lazy(() => import("./pages/NotFound"));
 const ComingSoon     = lazy(() => import("./pages/ComingSoon"));
@@ -73,6 +75,8 @@ const App = () => (
                     <Route path="/esports/:gameId" element={<OnboardingGuard><Esports /></OnboardingGuard>} />
                     <Route path="/reviews" element={<OnboardingGuard><GameCatalog /></OnboardingGuard>} />
                     <Route path="/reviews/:gameId" element={<OnboardingGuard><GameReview /></OnboardingGuard>} />
+                    <Route path="/game-patch" element={<OnboardingGuard><GamePatchCatalog /></OnboardingGuard>} />
+                    <Route path="/game-patch/:gameId" element={<OnboardingGuard><GamePatchHistory /></OnboardingGuard>} />
                     <Route path="/battle-pass" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                     <Route path="/hub" element={<OnboardingGuard><Hub /></OnboardingGuard>} />
                     <Route path="/notifications" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
