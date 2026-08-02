@@ -181,6 +181,78 @@ export type Database = {
         }
         Relationships: []
       }
+      free_game_offers: {
+        Row: {
+          created_at: string
+          description: string
+          ends_at: string | null
+          external_id: string
+          id: string
+          image_url: string | null
+          instructions: string
+          last_seen_at: string
+          offer_kind: string
+          offer_url: string
+          platforms: string[]
+          published_at: string | null
+          source_name: string
+          source_url: string
+          status: string
+          store_name: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          users_count: number
+          worth_text: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          ends_at?: string | null
+          external_id: string
+          id?: string
+          image_url?: string | null
+          instructions?: string
+          last_seen_at?: string
+          offer_kind?: string
+          offer_url: string
+          platforms?: string[]
+          published_at?: string | null
+          source_name?: string
+          source_url: string
+          status?: string
+          store_name?: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          users_count?: number
+          worth_text?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          ends_at?: string | null
+          external_id?: string
+          id?: string
+          image_url?: string | null
+          instructions?: string
+          last_seen_at?: string
+          offer_kind?: string
+          offer_url?: string
+          platforms?: string[]
+          published_at?: string | null
+          source_name?: string
+          source_url?: string
+          status?: string
+          store_name?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          users_count?: number
+          worth_text?: string | null
+        }
+        Relationships: []
+      }
       game_patch_sources: {
         Row: {
           active: boolean
