@@ -24,6 +24,13 @@ function endingLabel(endsAt: string | null) {
   return `Ends in ${formatDistanceToNowStrict(end)}`;
 }
 
+function timingLabel(offer: FreeGameOffer) {
+  if (offer.status === "upcoming" && offer.startsAt) {
+    return `Starts in ${formatDistanceToNowStrict(new Date(offer.startsAt))}`;
+  }
+  return endingLabel(offer.endsAt);
+}
+
 function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
   return (
     <motion.article
@@ -51,7 +58,7 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
             {offer.storeName}
           </span>
           <span className="absolute bottom-3 left-3 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">
-            {kindLabel[offer.offerKind]}
+            {offer.status === "upcoming" ? "Coming soon" : kindLabel[offer.offerKind]}
           </span>
         </div>
       </a>
@@ -80,7 +87,7 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
             </div>
             <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
               <Clock3 className="h-3.5 w-3.5" />
-              {endingLabel(offer.endsAt)}
+              {timingLabel(offer)}
             </p>
           </div>
           <a
@@ -89,7 +96,7 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Claim
+            {offer.status === "upcoming" ? "View" : "Claim"}
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -114,6 +121,10 @@ export default function FreeGames() {
     });
   }, [filter, offers, search]);
 
+  const activeOffers = filteredOffers.filter((offer) => offer.status === "active");
+  const upcomingOffers = filteredOffers.filter((offer) => offer.status === "upcoming");
+  const liveOfferCount = offers.filter((offer) => offer.status === "active").length;
+  const upcomingOfferCount = offers.filter((offer) => offer.status === "upcoming").length;
   const totalClaims = offers.reduce((sum, offer) => sum + offer.usersCount, 0);
 
   return (
@@ -135,13 +146,18 @@ export default function FreeGames() {
                 <span className="text-gradient">Free Games</span>
               </h1>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Legitimate game giveaways from trusted storefronts, collected in one place before they disappear.
+                Live and upcoming game giveaways across trusted storefronts, collected in one place before they disappear.
               </p>
               {!isLoading && (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground">
-                    {offers.length} live {offers.length === 1 ? "offer" : "offers"}
+                    {liveOfferCount} live {liveOfferCount === 1 ? "offer" : "offers"}
                   </span>
+                  {upcomingOfferCount > 0 && (
+                    <span className="rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground">
+                      {upcomingOfferCount} upcoming
+                    </span>
+                  )}
                   {totalClaims > 0 && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs text-muted-foreground">
                       <Users className="h-3.5 w-3.5" />
@@ -155,8 +171,8 @@ export default function FreeGames() {
 
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
-              { icon: Sparkles, title: "Found automatically", text: "Fresh offers are checked every 30 minutes." },
-              { icon: ShieldCheck, title: "Curated sources", text: "No random keys, surveys, or unsafe downloads." },
+              { icon: Sparkles, title: "Multi-store tracking", text: "Broad discovery plus direct storefront checks every 30 minutes." },
+              { icon: ShieldCheck, title: "Normalized and verified", text: "Duplicates merge while official storefront data takes priority." },
               { icon: ExternalLink, title: "Claim at the store", text: "Every button takes you to the official offer path." },
             ].map((item) => (
               <div key={item.title} className="rounded-2xl border bg-card p-4">
@@ -195,13 +211,25 @@ export default function FreeGames() {
             </div>
           </div>
 
+          {upcomingOffers.length > 0 && !isLoading && !error && (
+            <section>
+              <div className="mb-4">
+                <h2 className="text-xl font-bold text-foreground">Coming next</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Upcoming giveaways already announced by a storefront.</p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {upcomingOffers.map((offer, index) => <OfferCard key={offer.id} offer={offer} index={index} />)}
+              </div>
+            </section>
+          )}
+
           <section>
             <div className="mb-4 flex items-end justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold text-foreground">Available now</h2>
                 <p className="mt-1 text-sm text-muted-foreground">Claim through the storefront before the timer ends.</p>
               </div>
-              {!isLoading && <span className="shrink-0 text-sm text-muted-foreground">{filteredOffers.length} shown</span>}
+              {!isLoading && <span className="shrink-0 text-sm text-muted-foreground">{activeOffers.length} shown</span>}
             </div>
 
             {isLoading ? (
@@ -213,9 +241,9 @@ export default function FreeGames() {
                 <p className="font-semibold text-foreground">Free-game offers are temporarily unavailable.</p>
                 <p className="mt-1 text-sm text-muted-foreground">Please try again shortly.</p>
               </div>
-            ) : filteredOffers.length > 0 ? (
+            ) : activeOffers.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {filteredOffers.map((offer, index) => <OfferCard key={offer.id} offer={offer} index={index} />)}
+                {activeOffers.map((offer, index) => <OfferCard key={offer.id} offer={offer} index={index} />)}
               </div>
             ) : (
               <div className="rounded-2xl border bg-card p-10 text-center">
@@ -227,7 +255,11 @@ export default function FreeGames() {
           </section>
 
           <p className="text-center text-[11px] text-muted-foreground">
-            Giveaway data provided by{" "}
+            Giveaway data from the{" "}
+            <a href="https://store.epicgames.com/en-US/free-games" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
+              Epic Games Store
+            </a>{" "}
+            and{" "}
             <a href="https://www.gamerpower.com/" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
               GamerPower
             </a>. Discovery experience inspired by{" "}

@@ -7,7 +7,12 @@ const corsHeaders = {
 };
 
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
-const GIVEAWAYS_URL = "https://www.gamerpower.com/api/giveaways?type=game&sort-by=date";
+const GAMERPOWER_URL = "https://www.gamerpower.com/api/giveaways?type=game&sort-by=date";
+const EPIC_PROMOTIONS_URL =
+  "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions?locale=en-US&country=US&allowCountries=US";
+
+type SupabaseClient = ReturnType<typeof createClient>;
+type OfferStatus = "active" | "upcoming";
 
 interface GamerPowerGiveaway {
   id: number;
@@ -26,6 +31,54 @@ interface GamerPowerGiveaway {
   end_date?: string;
   users?: number;
   status?: string;
+}
+
+interface EpicPromotion {
+  startDate?: string;
+  endDate?: string;
+  discountSetting?: { discountPercentage?: number };
+}
+
+interface EpicElement {
+  id: string;
+  title: string;
+  description?: string;
+  effectiveDate?: string;
+  productSlug?: string | null;
+  catalogNs?: { mappings?: Array<{ pageSlug?: string }> };
+  keyImages?: Array<{ type?: string; url?: string }>;
+  price?: { totalPrice?: { fmtPrice?: { originalPrice?: string } } };
+  promotions?: {
+    promotionalOffers?: Array<{ promotionalOffers?: EpicPromotion[] }>;
+    upcomingPromotionalOffers?: Array<{ promotionalOffers?: EpicPromotion[] }>;
+  } | null;
+}
+
+interface EpicResponse {
+  data?: { Catalog?: { searchStore?: { elements?: EpicElement[] } } };
+}
+
+interface OfferRow {
+  source_name: string;
+  external_id: string;
+  title: string;
+  description: string;
+  instructions: string;
+  image_url: string | null;
+  thumbnail_url: string | null;
+  offer_url: string;
+  source_url: string;
+  store_name: string;
+  platforms: string[];
+  offer_kind: "keep" | "timed" | "other";
+  worth_text: string | null;
+  users_count: number;
+  published_at: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  status: OfferStatus;
+  last_seen_at: string;
+  updated_at: string;
 }
 
 function parseDate(value?: string): string | null {
@@ -69,9 +122,163 @@ function detectKind(item: GamerPowerGiveaway): "keep" | "timed" | "other" {
   return "keep";
 }
 
-function isLowFrictionGameOffer(item: GamerPowerGiveaway): boolean {
-  const content = `${item.title} ${item.instructions ?? ""}`.toLowerCase();
-  return !/\bkey\b|gleam|survey|newsletter|whitelist|join (?:our|the) discord|follow (?:us|the)/i.test(content);
+function getEpicSlug(item: EpicElement): string | null {
+  const mapping = item.catalogNs?.mappings?.find((entry) => entry.pageSlug)?.pageSlug;
+  if (mapping) return mapping;
+  const productSlug = item.productSlug?.split("/")[0];
+  return productSlug && productSlug !== "[]" ? productSlug : null;
+}
+
+function getEpicImage(item: EpicElement): string | null {
+  const preferredTypes = ["OfferImageWide", "DieselStoreFrontWide", "DieselGameBoxWide"];
+  for (const type of preferredTypes) {
+    const match = item.keyImages?.find((image) => image.type === type && image.url);
+    if (match?.url) return match.url;
+  }
+  return item.keyImages?.find((image) => image.url)?.url ?? null;
+}
+
+function getEpicPeriods(item: EpicElement): EpicPromotion[] {
+  const current = item.promotions?.promotionalOffers?.flatMap((group) => group.promotionalOffers ?? []) ?? [];
+  const upcoming = item.promotions?.upcomingPromotionalOffers?.flatMap((group) => group.promotionalOffers ?? []) ?? [];
+  return [...current, ...upcoming];
+}
+
+async function syncRows(supabase: SupabaseClient, sourceName: string, rows: OfferRow[], now: string) {
+  if (rows.length === 0) throw new Error(`${sourceName} returned no valid game offers`);
+
+  const { error: upsertError } = await supabase
+    .from("free_game_offers")
+    .upsert(rows, { onConflict: "source_name,external_id" });
+  if (upsertError) throw upsertError;
+
+  const { data: existing, error: existingError } = await supabase
+    .from("free_game_offers")
+    .select("external_id")
+    .eq("source_name", sourceName)
+    .in("status", ["active", "upcoming"]);
+  if (existingError) throw existingError;
+
+  const currentIds = new Set(rows.map((row) => row.external_id));
+  const staleIds = (existing ?? [])
+    .map((row) => row.external_id as string)
+    .filter((externalId) => !currentIds.has(externalId));
+
+  if (staleIds.length > 0) {
+    const { error: expireError } = await supabase
+      .from("free_game_offers")
+      .update({ status: "expired", updated_at: now })
+      .eq("source_name", sourceName)
+      .in("external_id", staleIds);
+    if (expireError) throw expireError;
+  }
+
+  return { source: sourceName, active: rows.filter((row) => row.status === "active").length, upcoming: rows.filter((row) => row.status === "upcoming").length };
+}
+
+async function syncGamerPower(supabase: SupabaseClient, now: string) {
+  const response = await fetch(GAMERPOWER_URL, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "Talus/1.0 (https://pixel-pulse-roan.vercel.app)",
+    },
+  });
+  if (!response.ok) throw new Error(`GamerPower returned ${response.status}`);
+
+  const payload = await response.json();
+  if (!Array.isArray(payload)) throw new Error("Unexpected GamerPower response");
+
+  const active = (payload as GamerPowerGiveaway[]).filter((item) =>
+    item.id && item.title && item.status?.toLowerCase() === "active"
+  );
+  const rows: OfferRow[] = active.map((item) => {
+    const platforms = splitPlatforms(item.platforms);
+    return {
+      source_name: "GamerPower",
+      external_id: String(item.id),
+      title: normalizeTitle(item.title),
+      description: (item.description ?? "").trim(),
+      instructions: (item.instructions ?? "").trim(),
+      image_url: item.image || item.thumbnail || null,
+      thumbnail_url: item.thumbnail || item.image || null,
+      offer_url: item.open_giveaway_url || item.open_giveaway || item.gamerpower_url || "https://www.gamerpower.com/giveaways",
+      source_url: item.gamerpower_url || "https://www.gamerpower.com/giveaways",
+      store_name: detectStore(platforms),
+      platforms,
+      offer_kind: detectKind(item),
+      worth_text: item.worth && item.worth !== "N/A" ? item.worth : null,
+      users_count: Math.max(0, Number(item.users ?? 0)),
+      published_at: parseDate(item.published_date),
+      starts_at: null,
+      ends_at: parseDate(item.end_date),
+      status: "active",
+      last_seen_at: now,
+      updated_at: now,
+    };
+  });
+
+  return syncRows(supabase, "GamerPower", rows, now);
+}
+
+async function syncEpicGames(supabase: SupabaseClient, now: string) {
+  const response = await fetch(EPIC_PROMOTIONS_URL, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "Talus/1.0 (https://pixel-pulse-roan.vercel.app)",
+    },
+  });
+  if (!response.ok) throw new Error(`Epic Games Store returned ${response.status}`);
+
+  const payload = await response.json() as EpicResponse;
+  const elements = payload.data?.Catalog?.searchStore?.elements;
+  if (!Array.isArray(elements)) throw new Error("Unexpected Epic Games Store response");
+
+  const nowDate = new Date(now);
+  const rows: OfferRow[] = [];
+  const seenPeriods = new Set<string>();
+
+  for (const item of elements) {
+    const slug = getEpicSlug(item);
+    if (!item.id || !item.title || !slug) continue;
+
+    for (const promotion of getEpicPeriods(item)) {
+      if (promotion.discountSetting?.discountPercentage !== 0) continue;
+      const startsAt = parseDate(promotion.startDate);
+      const endsAt = parseDate(promotion.endDate);
+      if (!startsAt || !endsAt || new Date(endsAt) <= nowDate) continue;
+
+      const externalId = `${item.id}:${startsAt}`;
+      if (seenPeriods.has(externalId)) continue;
+      seenPeriods.add(externalId);
+
+      const offerUrl = `https://store.epicgames.com/en-US/p/${slug}`;
+      const imageUrl = getEpicImage(item);
+      rows.push({
+        source_name: "Epic Games Store",
+        external_id: externalId,
+        title: item.title.trim(),
+        description: (item.description ?? "").trim(),
+        instructions: "",
+        image_url: imageUrl,
+        thumbnail_url: imageUrl,
+        offer_url: offerUrl,
+        source_url: offerUrl,
+        store_name: "Epic Games",
+        platforms: ["PC", "Epic Games Store"],
+        offer_kind: "keep",
+        worth_text: item.price?.totalPrice?.fmtPrice?.originalPrice || null,
+        users_count: 0,
+        published_at: parseDate(item.effectiveDate),
+        starts_at: startsAt,
+        ends_at: endsAt,
+        status: new Date(startsAt) > nowDate ? "upcoming" : "active",
+        last_seen_at: now,
+        updated_at: now,
+      });
+    }
+  }
+
+  return syncRows(supabase, "Epic Games Store", rows, now);
 }
 
 serve(async (req) => {
@@ -85,65 +292,24 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseUrl || !serviceRoleKey) throw new Error("Supabase environment is incomplete");
 
-    const response = await fetch(GIVEAWAYS_URL, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Talus/1.0 (https://pixel-pulse-roan.vercel.app)",
-      },
-    });
-    if (!response.ok) throw new Error(`GamerPower returned ${response.status}`);
-
-    const payload = await response.json();
-    if (!Array.isArray(payload)) throw new Error("Unexpected GamerPower response");
-
-    const now = new Date().toISOString();
-    const active = (payload as GamerPowerGiveaway[]).filter((item) =>
-      item.id && item.title && item.status?.toLowerCase() === "active" && isLowFrictionGameOffer(item)
-    );
-    const rows = active.map((item) => {
-      const platforms = splitPlatforms(item.platforms);
-      return {
-        source_name: "GamerPower",
-        external_id: String(item.id),
-        title: normalizeTitle(item.title),
-        description: (item.description ?? "").trim(),
-        instructions: (item.instructions ?? "").trim(),
-        image_url: item.image || item.thumbnail || null,
-        thumbnail_url: item.thumbnail || item.image || null,
-        offer_url: item.open_giveaway_url || item.open_giveaway || item.gamerpower_url || "https://www.gamerpower.com/giveaways",
-        source_url: item.gamerpower_url || "https://www.gamerpower.com/giveaways",
-        store_name: detectStore(platforms),
-        platforms,
-        offer_kind: detectKind(item),
-        worth_text: item.worth && item.worth !== "N/A" ? item.worth : null,
-        users_count: Math.max(0, Number(item.users ?? 0)),
-        published_at: parseDate(item.published_date),
-        ends_at: parseDate(item.end_date),
-        status: "active",
-        last_seen_at: now,
-        updated_at: now,
-      };
-    });
-
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-    if (rows.length > 0) {
-      const { error: upsertError } = await supabase
-        .from("free_game_offers")
-        .upsert(rows, { onConflict: "source_name,external_id" });
-      if (upsertError) throw upsertError;
-    }
+    const now = new Date().toISOString();
+    const settled = await Promise.allSettled([
+      syncGamerPower(supabase, now),
+      syncEpicGames(supabase, now),
+    ]);
+    const results = settled.map((result, index) => {
+      if (result.status === "fulfilled") return { ok: true, ...result.value };
+      const source = index === 0 ? "GamerPower" : "Epic Games Store";
+      console.error(`${source} sync failed`, result.reason);
+      return { ok: false, source, error: result.reason instanceof Error ? result.reason.message : String(result.reason) };
+    });
+    const successfulSources = results.filter((result) => result.ok).length;
 
-    const activeIds = rows.map((row) => row.external_id);
-    let expireQuery = supabase
-      .from("free_game_offers")
-      .update({ status: "expired", updated_at: now })
-      .eq("source_name", "GamerPower")
-      .eq("status", "active");
-    if (activeIds.length > 0) expireQuery = expireQuery.not("external_id", "in", `(${activeIds.join(",")})`);
-    const { error: expireError } = await expireQuery;
-    if (expireError) throw expireError;
-
-    return new Response(JSON.stringify({ ok: true, fetched: payload.length, active: rows.length }), { headers: jsonHeaders });
+    return new Response(
+      JSON.stringify({ ok: successfulSources > 0, partial: successfulSources !== results.length, results }),
+      { status: successfulSources > 0 ? 200 : 500, headers: jsonHeaders },
+    );
   } catch (error) {
     console.error("Free Games sync failed", error);
     return new Response(

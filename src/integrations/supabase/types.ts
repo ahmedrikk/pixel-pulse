@@ -197,6 +197,7 @@ export type Database = {
           published_at: string | null
           source_name: string
           source_url: string
+          starts_at: string | null
           status: string
           store_name: string
           thumbnail_url: string | null
@@ -220,6 +221,7 @@ export type Database = {
           published_at?: string | null
           source_name?: string
           source_url: string
+          starts_at?: string | null
           status?: string
           store_name?: string
           thumbnail_url?: string | null
@@ -243,6 +245,7 @@ export type Database = {
           published_at?: string | null
           source_name?: string
           source_url?: string
+          starts_at?: string | null
           status?: string
           store_name?: string
           thumbnail_url?: string | null
