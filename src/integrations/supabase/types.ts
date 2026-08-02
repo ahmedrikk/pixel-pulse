@@ -181,6 +181,131 @@ export type Database = {
         }
         Relationships: []
       }
+      game_patch_sources: {
+        Row: {
+          active: boolean
+          backfill_complete: boolean
+          backfill_cursor: number | null
+          created_at: string
+          game_id: string
+          id: string
+          last_polled_at: string | null
+          oldest_synced_at: string | null
+          poll_interval_minutes: number
+          source_name: string
+          steam_appid: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          backfill_complete?: boolean
+          backfill_cursor?: number | null
+          created_at?: string
+          game_id: string
+          id: string
+          last_polled_at?: string | null
+          oldest_synced_at?: string | null
+          poll_interval_minutes?: number
+          source_name?: string
+          steam_appid: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          backfill_complete?: boolean
+          backfill_cursor?: number | null
+          created_at?: string
+          game_id?: string
+          id?: string
+          last_polled_at?: string | null
+          oldest_synced_at?: string | null
+          poll_interval_minutes?: number
+          source_name?: string
+          steam_appid?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_patch_sources_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_patches: {
+        Row: {
+          content_text: string
+          created_at: string
+          external_id: string
+          fetched_at: string
+          game_id: string
+          id: string
+          image_url: string | null
+          patch_type: string
+          published_at: string
+          source_id: string
+          source_name: string
+          source_url: string
+          summary: string
+          title: string
+          updated_at: string
+          version_label: string | null
+        }
+        Insert: {
+          content_text?: string
+          created_at?: string
+          external_id: string
+          fetched_at?: string
+          game_id: string
+          id?: string
+          image_url?: string | null
+          patch_type?: string
+          published_at: string
+          source_id: string
+          source_name?: string
+          source_url: string
+          summary?: string
+          title: string
+          updated_at?: string
+          version_label?: string | null
+        }
+        Update: {
+          content_text?: string
+          created_at?: string
+          external_id?: string
+          fetched_at?: string
+          game_id?: string
+          id?: string
+          image_url?: string | null
+          patch_type?: string
+          published_at?: string
+          source_id?: string
+          source_name?: string
+          source_url?: string
+          summary?: string
+          title?: string
+          updated_at?: string
+          version_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_patches_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_patches_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "game_patch_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
           cover_image: string | null
@@ -198,6 +323,7 @@ export type Database = {
           slug: string
           steam_appid: number | null
           trending: boolean | null
+          updated_at: string | null
         }
         Insert: {
           cover_image?: string | null
@@ -215,6 +341,7 @@ export type Database = {
           slug: string
           steam_appid?: number | null
           trending?: boolean | null
+          updated_at?: string | null
         }
         Update: {
           cover_image?: string | null
@@ -232,6 +359,7 @@ export type Database = {
           slug?: string
           steam_appid?: number | null
           trending?: boolean | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -838,6 +966,21 @@ export type Database = {
           comments: number
           shares: number
           user_vote: number | null
+        }[]
+      }
+      get_patch_game_catalog: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cover_image: string | null
+          game_id: string
+          genres: string[]
+          latest_patch_at: string | null
+          latest_patch_title: string | null
+          latest_patch_type: string | null
+          name: string
+          patch_count: number
+          platforms: string[]
+          steam_appid: number
         }[]
       }
       get_trending_topics: {

@@ -1,4 +1,4 @@
-import { Home, Trophy, Users, Swords, Star } from "lucide-react";
+import { Home, Trophy, Users, Swords, Star, ScrollText } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { UserProfileWidget } from "@/components/sidebar/UserProfileWidget";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Trophy, label: "Esports", href: "/esports" },
   { icon: Users, label: "Hub", href: "/hub" },
+  { icon: ScrollText, label: "Game Patch", href: "/game-patch" },
   { icon: Swords, label: "Battle Pass", href: "/battle-pass" },
   { icon: Star, label: "Reviews", href: "/reviews" },
 ];
