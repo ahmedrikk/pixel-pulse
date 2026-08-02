@@ -1,10 +1,11 @@
-import { Home, Star, Trophy, BookOpen, Cpu, ScrollText, X } from "lucide-react";
+import { Gift, Home, Star, Trophy, BookOpen, Cpu, ScrollText, X } from "lucide-react";
 import { CATEGORIES } from "@/data/mockNews";
 import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Star, label: "Reviews", href: "/reviews" },
+  { icon: Gift, label: "Free Games", href: "/free-games" },
   { icon: ScrollText, label: "Game Patch", href: "/game-patch" },
   { icon: Trophy, label: "Esports", href: "/esports" },
   { icon: BookOpen, label: "Guides", href: "/guides" },

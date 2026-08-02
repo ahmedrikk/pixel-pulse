@@ -31,6 +31,7 @@ const GameCatalog    = lazy(() => import("./pages/GameCatalog"));
 const GameReview     = lazy(() => import("./pages/GameReview"));
 const GamePatchCatalog = lazy(() => import("./pages/GamePatchCatalog"));
 const GamePatchHistory = lazy(() => import("./pages/GamePatchHistory"));
+const FreeGames       = lazy(() => import("./pages/FreeGames"));
 const Hub            = lazy(() => import("./pages/Hub"));
 const NotFound       = lazy(() => import("./pages/NotFound"));
 const ComingSoon     = lazy(() => import("./pages/ComingSoon"));
@@ -77,6 +78,7 @@ const App = () => (
                     <Route path="/reviews/:gameId" element={<OnboardingGuard><GameReview /></OnboardingGuard>} />
                     <Route path="/game-patch" element={<OnboardingGuard><GamePatchCatalog /></OnboardingGuard>} />
                     <Route path="/game-patch/:gameId" element={<OnboardingGuard><GamePatchHistory /></OnboardingGuard>} />
+                    <Route path="/free-games" element={<OnboardingGuard><FreeGames /></OnboardingGuard>} />
                     <Route path="/battle-pass" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                     <Route path="/hub" element={<OnboardingGuard><Hub /></OnboardingGuard>} />
                     <Route path="/notifications" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />

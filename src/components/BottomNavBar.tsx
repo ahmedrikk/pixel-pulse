@@ -1,12 +1,13 @@
-import { Home, Trophy, Swords, Users, Star, ScrollText } from "lucide-react";
+import { Gift, Home, Trophy, Swords, Users, Star, ScrollText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const BOTTOM_NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
   { icon: Trophy, label: "Esports", href: "/esports" },
   { icon: Users, label: "Hub", href: "/hub" },
-  { icon: ScrollText, label: "Game Patch", href: "/game-patch" },
-  { icon: Swords, label: "Battle Pass", href: "/battle-pass" },
+  { icon: Gift, label: "Free", href: "/free-games" },
+  { icon: ScrollText, label: "Patches", href: "/game-patch" },
+  { icon: Swords, label: "Pass", href: "/battle-pass" },
   { icon: Star, label: "Reviews", href: "/reviews" },
 ];
 

@@ -109,6 +109,15 @@ and advances older-history backfills until each source is complete. Commerce,
 community, preview, and roadmap posts are excluded so the archive remains
 focused on shipped patches, hotfixes, balance changes, and release notes.
 
+## Free Games
+
+`/free-games` tracks active, legitimate game giveaways across Epic Games,
+Steam, GOG, itch.io, mobile stores, and other supported platforms. The
+`fetch-free-games` Edge Function refreshes GamerPower's public game feed every
+30 minutes, archives expired offers, and keeps the claim destination, artwork,
+platforms, original price, and expiry time together. GamerPower attribution is
+shown on the page as required by its API terms.
+
 ## AI generation
 
 Talus uses Gemini first for news cards, video cards, article processing, and
