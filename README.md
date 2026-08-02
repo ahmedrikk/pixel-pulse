@@ -113,8 +113,10 @@ focused on shipped patches, hotfixes, balance changes, and release notes.
 
 `/free-games` tracks active, legitimate game giveaways across Epic Games,
 Steam, GOG, itch.io, mobile stores, and other supported platforms. The
-`fetch-free-games` Edge Function refreshes GamerPower's public game feed every
-30 minutes, archives expired offers, and keeps the claim destination, artwork,
+`fetch-free-games` Edge Function refreshes GamerPower's broad public game feed
+and Epic Games Store's official promotions endpoint every 30 minutes. Talus
+merges duplicates in favor of first-party storefront data, supports upcoming
+offers, archives expired offers, and keeps the claim destination, artwork,
 platforms, original price, and expiry time together. GamerPower attribution is
 shown on the page as required by its API terms.
 
