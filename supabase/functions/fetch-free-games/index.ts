@@ -61,15 +61,11 @@ interface EpicResponse {
 interface OfferRow {
   source_name: string;
   external_id: string;
-  title: string;
-  description: string;
+  game_id: string;
   instructions: string;
-  image_url: string | null;
-  thumbnail_url: string | null;
   offer_url: string;
   source_url: string;
   store_name: string;
-  platforms: string[];
   offer_kind: "keep" | "timed" | "other";
   worth_text: string | null;
   users_count: number;
@@ -78,6 +74,16 @@ interface OfferRow {
   ends_at: string | null;
   status: OfferStatus;
   last_seen_at: string;
+  updated_at: string;
+}
+
+interface GameSeed {
+  id: string;
+  slug: string;
+  name: string;
+  cover_image: string | null;
+  platforms: string[];
+  expires_at: string;
   updated_at: string;
 }
 
@@ -93,6 +99,20 @@ function normalizeTitle(value: string): string {
     .replace(/\s*\((?:Steam|Epic Games|GOG|itch\.io|PC|Mobile)\)\s*Giveaway\s*$/i, "")
     .replace(/\s*Giveaway\s*$/i, "")
     .trim();
+}
+
+function canonicalGameName(value: string): string {
+  return normalizeTitle(value)
+    .replace(/\s*\((?:Steam|Epic Games|GOG|itch\.io|PC|Mobile)\)\s*(?:Key)?\s*$/i, "")
+    .replace(/\s+Steam\s+Key\s*$/i, "")
+    .trim();
+}
+
+function gameSlug(value: string): string {
+  return canonicalGameName(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function splitPlatforms(value?: string): string[] {
@@ -144,6 +164,19 @@ function getEpicPeriods(item: EpicElement): EpicPromotion[] {
   return [...current, ...upcoming];
 }
 
+async function ensureGames(supabase: SupabaseClient, seeds: GameSeed[], preferSourceMetadata = false) {
+  if (seeds.length === 0) return;
+
+  const unique = [...new Map(seeds.map((seed) => [seed.id, seed])).values()];
+  const { error } = await supabase
+    .from("games")
+    .upsert(unique, {
+      onConflict: "id",
+      ignoreDuplicates: !preferSourceMetadata,
+    });
+  if (error) throw error;
+}
+
 async function syncRows(supabase: SupabaseClient, sourceName: string, rows: OfferRow[], now: string) {
   if (rows.length === 0) throw new Error(`${sourceName} returned no valid game offers`);
 
@@ -191,20 +224,31 @@ async function syncGamerPower(supabase: SupabaseClient, now: string) {
   const active = (payload as GamerPowerGiveaway[]).filter((item) =>
     item.id && item.title && item.status?.toLowerCase() === "active"
   );
-  const rows: OfferRow[] = active.map((item) => {
+  const gameSeeds: GameSeed[] = [];
+  const rows: OfferRow[] = active.flatMap((item) => {
     const platforms = splitPlatforms(item.platforms);
-    return {
+    const name = canonicalGameName(item.title);
+    const id = gameSlug(name);
+    if (!id) return [];
+
+    gameSeeds.push({
+      id,
+      slug: id,
+      name,
+      cover_image: item.image || item.thumbnail || null,
+      platforms,
+      expires_at: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: now,
+    });
+
+    return [{
       source_name: "GamerPower",
       external_id: String(item.id),
-      title: normalizeTitle(item.title),
-      description: (item.description ?? "").trim(),
+      game_id: id,
       instructions: (item.instructions ?? "").trim(),
-      image_url: item.image || item.thumbnail || null,
-      thumbnail_url: item.thumbnail || item.image || null,
       offer_url: item.open_giveaway_url || item.open_giveaway || item.gamerpower_url || "https://www.gamerpower.com/giveaways",
       source_url: item.gamerpower_url || "https://www.gamerpower.com/giveaways",
       store_name: detectStore(platforms),
-      platforms,
       offer_kind: detectKind(item),
       worth_text: item.worth && item.worth !== "N/A" ? item.worth : null,
       users_count: Math.max(0, Number(item.users ?? 0)),
@@ -214,9 +258,10 @@ async function syncGamerPower(supabase: SupabaseClient, now: string) {
       status: "active",
       last_seen_at: now,
       updated_at: now,
-    };
+    }];
   });
 
+  await ensureGames(supabase, gameSeeds);
   return syncRows(supabase, "GamerPower", rows, now);
 }
 
@@ -235,6 +280,7 @@ async function syncEpicGames(supabase: SupabaseClient, now: string) {
 
   const nowDate = new Date(now);
   const rows: OfferRow[] = [];
+  const gameSeeds: GameSeed[] = [];
   const seenPeriods = new Set<string>();
 
   for (const item of elements) {
@@ -253,18 +299,26 @@ async function syncEpicGames(supabase: SupabaseClient, now: string) {
 
       const offerUrl = `https://store.epicgames.com/en-US/p/${slug}`;
       const imageUrl = getEpicImage(item);
+      const name = canonicalGameName(item.title);
+      const id = gameSlug(name);
+      if (!id) continue;
+      gameSeeds.push({
+        id,
+        slug: id,
+        name,
+        cover_image: imageUrl,
+        platforms: ["PC", "Epic Games Store"],
+        expires_at: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
+        updated_at: now,
+      });
       rows.push({
         source_name: "Epic Games Store",
         external_id: externalId,
-        title: item.title.trim(),
-        description: (item.description ?? "").trim(),
+        game_id: id,
         instructions: "",
-        image_url: imageUrl,
-        thumbnail_url: imageUrl,
         offer_url: offerUrl,
         source_url: offerUrl,
         store_name: "Epic Games",
-        platforms: ["PC", "Epic Games Store"],
         offer_kind: "keep",
         worth_text: item.price?.totalPrice?.fmtPrice?.originalPrice || null,
         users_count: 0,
@@ -278,6 +332,7 @@ async function syncEpicGames(supabase: SupabaseClient, now: string) {
     }
   }
 
+  await ensureGames(supabase, gameSeeds, true);
   return syncRows(supabase, "Epic Games Store", rows, now);
 }
 

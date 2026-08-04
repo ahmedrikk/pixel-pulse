@@ -6,11 +6,11 @@ export type FreeGameStatus = "active" | "upcoming";
 
 export interface FreeGameOffer {
   id: string;
+  gameId: string;
   title: string;
   description: string;
   instructions: string;
   imageUrl: string | null;
-  thumbnailUrl: string | null;
   offerUrl: string;
   sourceUrl: string;
   sourceName: string;
@@ -25,14 +25,6 @@ export interface FreeGameOffer {
   status: FreeGameStatus;
 }
 
-function canonicalTitle(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/\([^)]*(?:epic|steam|gog|itch|mobile)[^)]*\)/g, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
 function sourcePriority(sourceName: string) {
   return sourceName === "Epic Games Store" ? 2 : 1;
 }
@@ -40,43 +32,47 @@ function sourcePriority(sourceName: string) {
 async function getFreeGames(): Promise<FreeGameOffer[]> {
   const { data, error } = await supabase
     .from("free_game_offers")
-    .select("id, title, description, instructions, image_url, thumbnail_url, offer_url, source_url, source_name, store_name, platforms, offer_kind, worth_text, users_count, published_at, starts_at, ends_at, status")
+    .select("id, game_id, instructions, offer_url, source_url, source_name, store_name, offer_kind, worth_text, users_count, published_at, starts_at, ends_at, status, games!free_game_offers_game_id_fkey(id, name, slug, description, cover_image, platforms)")
     .in("status", ["active", "upcoming"])
     .order("ends_at", { ascending: true, nullsFirst: false })
     .order("published_at", { ascending: false });
-
   if (error) throw error;
-  const mapped: FreeGameOffer[] = (data ?? []).map((row) => ({
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    instructions: row.instructions,
-    imageUrl: row.image_url,
-    thumbnailUrl: row.thumbnail_url,
-    offerUrl: row.offer_url,
-    sourceUrl: row.source_url,
-    sourceName: row.source_name,
-    storeName: row.store_name,
-    platforms: row.platforms ?? [],
-    offerKind: row.offer_kind as FreeGameKind,
-    worthText: row.worth_text,
-    usersCount: row.users_count,
-    publishedAt: row.published_at,
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    status: row.status as FreeGameStatus,
-  }));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapped: FreeGameOffer[] = ((data ?? []) as any[]).flatMap((row) => {
+    const game = row.games;
+    if (!game) return [];
+    return [{
+      id: row.id,
+      gameId: row.game_id,
+      title: game.name,
+      description: game.description ?? "",
+      instructions: row.instructions,
+      imageUrl: game.cover_image,
+      offerUrl: row.offer_url,
+      sourceUrl: row.source_url,
+      sourceName: row.source_name,
+      storeName: row.store_name,
+      platforms: game.platforms ?? [],
+      offerKind: row.offer_kind as FreeGameKind,
+      worthText: row.worth_text,
+      usersCount: row.users_count,
+      publishedAt: row.published_at,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
+      status: row.status as FreeGameStatus,
+    }];
+  });
 
   const deduplicated = new Map<string, FreeGameOffer>();
   for (const offer of mapped.sort((a, b) => sourcePriority(b.sourceName) - sourcePriority(a.sourceName))) {
-    const key = `${canonicalTitle(offer.title)}:${offer.storeName}`;
+    const key = `${offer.gameId}:${offer.storeName}:${offer.status}`;
     const existing = deduplicated.get(key);
     if (!existing) {
       deduplicated.set(key, offer);
       continue;
     }
     existing.usersCount = Math.max(existing.usersCount, offer.usersCount);
-    existing.description ||= offer.description;
     existing.instructions ||= offer.instructions;
     existing.worthText ||= offer.worthText;
   }

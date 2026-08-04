@@ -184,77 +184,153 @@ export type Database = {
       free_game_offers: {
         Row: {
           created_at: string
-          description: string
           ends_at: string | null
           external_id: string
+          game_id: string
           id: string
-          image_url: string | null
           instructions: string
           last_seen_at: string
           offer_kind: string
           offer_url: string
-          platforms: string[]
           published_at: string | null
           source_name: string
           source_url: string
           starts_at: string | null
           status: string
           store_name: string
-          thumbnail_url: string | null
-          title: string
           updated_at: string
           users_count: number
           worth_text: string | null
         }
         Insert: {
           created_at?: string
-          description?: string
           ends_at?: string | null
           external_id: string
+          game_id: string
           id?: string
-          image_url?: string | null
           instructions?: string
           last_seen_at?: string
           offer_kind?: string
           offer_url: string
-          platforms?: string[]
           published_at?: string | null
           source_name?: string
           source_url: string
           starts_at?: string | null
           status?: string
           store_name?: string
-          thumbnail_url?: string | null
-          title: string
           updated_at?: string
           users_count?: number
           worth_text?: string | null
         }
         Update: {
           created_at?: string
-          description?: string
           ends_at?: string | null
           external_id?: string
+          game_id?: string
           id?: string
-          image_url?: string | null
           instructions?: string
           last_seen_at?: string
           offer_kind?: string
           offer_url?: string
-          platforms?: string[]
           published_at?: string | null
           source_name?: string
           source_url?: string
           starts_at?: string | null
           status?: string
           store_name?: string
-          thumbnail_url?: string | null
-          title?: string
           updated_at?: string
           users_count?: number
           worth_text?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "free_game_offers_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_review_comments: {
+        Row: {
+          created_at: string
+          id: string
+          parent_comment_id: string | null
+          review_id: string
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          parent_comment_id?: string | null
+          review_id: string
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          parent_comment_id?: string | null
+          review_id?: string
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_review_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "game_review_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_review_comments_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "user_game_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_review_votes: {
+        Row: {
+          created_at: string
+          direction: string
+          id: string
+          review_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          id?: string
+          review_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          id?: string
+          review_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_review_votes_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "user_game_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       game_patch_sources: {
         Row: {
@@ -384,17 +460,29 @@ export type Database = {
       games: {
         Row: {
           cover_image: string | null
+          description_generated_at: string | null
+          description_status: string
+          description_style_version: string | null
           description: string | null
+          developer: string | null
           expires_at: string
+          external_ratings: Json
+          free_now: boolean
+          free_offer_ends_at: string | null
+          free_offer_store: string | null
+          free_offer_url: string | null
           genres: string[] | null
           id: string
           metacritic_score: number | null
           name: string
           opencritic_id: number | null
           opencritic_score: number | null
+          our_rating: number
           platforms: string[] | null
+          publisher: string | null
           rawg_rating: number | null
           release_date: string | null
+          review_count: number
           slug: string
           steam_appid: number | null
           trending: boolean | null
@@ -402,17 +490,29 @@ export type Database = {
         }
         Insert: {
           cover_image?: string | null
+          description_generated_at?: string | null
+          description_status?: string
+          description_style_version?: string | null
           description?: string | null
+          developer?: string | null
           expires_at: string
+          external_ratings?: Json
+          free_now?: boolean
+          free_offer_ends_at?: string | null
+          free_offer_store?: string | null
+          free_offer_url?: string | null
           genres?: string[] | null
           id: string
           metacritic_score?: number | null
           name: string
           opencritic_id?: number | null
           opencritic_score?: number | null
+          our_rating?: number
           platforms?: string[] | null
+          publisher?: string | null
           rawg_rating?: number | null
           release_date?: string | null
+          review_count?: number
           slug: string
           steam_appid?: number | null
           trending?: boolean | null
@@ -420,17 +520,29 @@ export type Database = {
         }
         Update: {
           cover_image?: string | null
+          description_generated_at?: string | null
+          description_status?: string
+          description_style_version?: string | null
           description?: string | null
+          developer?: string | null
           expires_at?: string
+          external_ratings?: Json
+          free_now?: boolean
+          free_offer_ends_at?: string | null
+          free_offer_store?: string | null
+          free_offer_url?: string | null
           genres?: string[] | null
           id?: string
           metacritic_score?: number | null
           name?: string
           opencritic_id?: number | null
           opencritic_score?: number | null
+          our_rating?: number
           platforms?: string[] | null
+          publisher?: string | null
           rawg_rating?: number | null
           release_date?: string | null
+          review_count?: number
           slug?: string
           steam_appid?: number | null
           trending?: boolean | null
@@ -812,6 +924,7 @@ export type Database = {
       user_game_reviews: {
         Row: {
           created_at: string | null
+          downvote_votes: number
           game_id: string
           helpful_votes: number | null
           id: string
@@ -819,9 +932,11 @@ export type Database = {
           star_rating: number
           tags: string[] | null
           user_id: string
+          updated_at: string
         }
         Insert: {
           created_at?: string | null
+          downvote_votes?: number
           game_id: string
           helpful_votes?: number | null
           id?: string
@@ -829,9 +944,11 @@ export type Database = {
           star_rating: number
           tags?: string[] | null
           user_id: string
+          updated_at?: string
         }
         Update: {
           created_at?: string | null
+          downvote_votes?: number
           game_id?: string
           helpful_votes?: number | null
           id?: string
@@ -839,6 +956,7 @@ export type Database = {
           star_rating?: number
           tags?: string[] | null
           user_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1058,6 +1176,19 @@ export type Database = {
           steam_appid: number
         }[]
       }
+      get_genre_game_rankings: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cover_image: string | null
+          game_id: string
+          genre: string
+          name: string
+          our_rating: number
+          platforms: string[]
+          rank_score: number
+          review_count: number
+        }[]
+      }
       get_trending_topics: {
         Args: { p_limit?: number }
         Returns: {
@@ -1073,6 +1204,22 @@ export type Database = {
       increment_helpful_votes: {
         Args: { review_id: string }
         Returns: undefined
+      }
+      refresh_game_free_state: {
+        Args: { target_game_id: string }
+        Returns: undefined
+      }
+      refresh_game_review_stats: {
+        Args: { target_game_id: string }
+        Returns: undefined
+      }
+      toggle_game_review_vote: {
+        Args: { p_direction: string; p_review_id: string }
+        Returns: {
+          downvote_count: number
+          upvote_count: number
+          user_vote: string | null
+        }[]
       }
       increment_xp: {
         Args: {

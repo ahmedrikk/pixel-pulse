@@ -22,35 +22,22 @@ export interface CatalogGame extends Partial<TrendingSignals> {
   description: string;
 }
 
-/**
- * Average USER star rating per game (Letterboxd-style) — NOT RAWG's average.
- * There are few reviews, so we aggregate the whole table client-side.
- */
-async function getUserRatingMap(): Promise<Map<string, { avg: number; count: number }>> {
-  const { data } = await supabase
-    .from("user_game_reviews")
-    .select("game_id, star_rating");
-
-  const acc = new Map<string, { sum: number; count: number }>();
-  for (const r of (data ?? []) as { game_id: string; star_rating: number }[]) {
-    const e = acc.get(r.game_id) ?? { sum: 0, count: 0 };
-    e.sum += r.star_rating;
-    e.count += 1;
-    acc.set(r.game_id, e);
-  }
-
-  const out = new Map<string, { avg: number; count: number }>();
-  for (const [id, { sum, count }] of acc) {
-    out.set(id, { avg: Math.round((sum / count) * 10) / 10, count });
-  }
-  return out;
+export interface GenreRankingGroup {
+  genre: string;
+  games: CatalogGame[];
 }
 
-/** Overlay real user ratings onto catalog games (0 / no count when unrated). */
-function withUserRatings(
-  games: CatalogGame[],
-  ratings: Map<string, { avg: number; count: number }>
-): CatalogGame[] {
+/** Read Talus aggregates from the canonical Game rows. */
+async function withCanonicalRatings(games: CatalogGame[]): Promise<CatalogGame[]> {
+  if (games.length === 0) return games;
+  const { data } = await supabase
+    .from("games")
+    .select("id, our_rating, review_count")
+    .in("id", games.map((game) => game.id));
+  const ratings = new Map((data ?? []).map((row) => [row.id, {
+    avg: Number(row.our_rating ?? 0),
+    count: Number(row.review_count ?? 0),
+  }]));
   return games.map((g) => {
     const r = ratings.get(g.id);
     return { ...g, rating: r?.avg ?? 0, ratingCount: r?.count ?? 0 };
@@ -100,8 +87,8 @@ async function getCatalogGames(
         id: g.id,
         name: g.name,
         coverImage: g.cover_image ?? "",
-        rating: 0,        // overlaid with user-review average below
-        ratingCount: 0,
+        rating: Number(g.our_rating ?? 0),
+        ratingCount: Number(g.review_count ?? 0),
         rawgRating: g.rawg_rating ?? 0,
         metacriticScore: g.metacritic_score ?? null,
         genres: g.genres ?? [],
@@ -137,9 +124,8 @@ async function getCatalogGames(
 
     games = result.results.map(mapRawgToCatalog);
 
-    // 3. Write to Supabase cache (only unfiltered). Store RAWG rating as a
-    //    catalog reference; the displayed rating still comes from user reviews.
-    if (!params.search && !params.genre && games.length > 0) {
+    // 3. Every discovered title becomes (or refreshes) one canonical Game row.
+    if (games.length > 0) {
       const expiresAt = new Date(Date.now() + CACHE_TTL_MS).toISOString();
       await supabase.from("games").upsert(
         result.results.map((g) => ({
@@ -160,9 +146,7 @@ async function getCatalogGames(
     }
   }
 
-  // 4. Overlay real user ratings (Letterboxd-style)
-  const ratings = await getUserRatingMap();
-  return withUserRatings(games, ratings);
+  return withCanonicalRatings(games);
 }
 
 export function useGameCatalog(params: {
@@ -186,24 +170,21 @@ async function getMyRatedGames(userId: string): Promise<CatalogGame[]> {
     .from("user_game_reviews")
     .select(`
       game_id, star_rating, created_at,
-      games ( name, cover_image, genres, platforms, release_date, metacritic_score, rawg_rating )
+      games ( name, cover_image, genres, platforms, release_date, metacritic_score, rawg_rating, our_rating, review_count )
     `)
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
 
-  const community = await getUserRatingMap();
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any[]).map((r) => {
-    const c = community.get(r.game_id);
     return {
       id: r.game_id,
       name: r.games?.name ?? r.game_id,
       coverImage: r.games?.cover_image ?? "",
-      rating: c?.avg ?? r.star_rating,
-      ratingCount: c?.count ?? 1,
+      rating: r.games?.our_rating ?? r.star_rating,
+      ratingCount: r.games?.review_count ?? 1,
       userRating: r.star_rating,
       rawgRating: r.games?.rawg_rating ?? 0,
       metacriticScore: r.games?.metacritic_score ?? null,
@@ -230,31 +211,21 @@ export function useMyRatedGames(userId: string | undefined) {
  * Sorted by most reviewed, then highest community average.
  */
 async function getCommunityReviewedGames(): Promise<CatalogGame[]> {
-  const ratings = await getUserRatingMap();
-  if (ratings.size === 0) return [];
-
-  const gameIds = Array.from(ratings.keys());
   const { data: gamesData, error } = await supabase
     .from("games")
     .select("*")
-    .in("id", gameIds);
+    .gt("review_count", 0)
+    .order("review_count", { ascending: false })
+    .order("our_rating", { ascending: false });
 
   if (error || !gamesData) return [];
 
-  const gameMap = new Map(gamesData.map((g) => [g.id, g]));
-
-  const reviewed: CatalogGame[] = [];
-  for (const [gameId, { avg, count }] of ratings) {
-    if (count === 0) continue;
-    const g = gameMap.get(gameId);
-    if (!g) continue;
-
-    reviewed.push({
+  return gamesData.map((g) => ({
       id: g.id,
       name: g.name,
       coverImage: g.cover_image ?? "",
-      rating: avg,
-      ratingCount: count,
+      rating: Number(g.our_rating ?? 0),
+      ratingCount: Number(g.review_count ?? 0),
       rawgRating: g.rawg_rating ?? 0,
       metacriticScore: g.metacritic_score ?? null,
       genres: g.genres ?? [],
@@ -262,13 +233,7 @@ async function getCommunityReviewedGames(): Promise<CatalogGame[]> {
       releaseDate: g.release_date ?? "TBA",
       trending: g.trending ?? false,
       description: g.description ?? "",
-    });
-  }
-
-  return reviewed.sort((a, b) => {
-    if (b.ratingCount !== a.ratingCount) return b.ratingCount - a.ratingCount;
-    return b.rating - a.rating;
-  });
+    }));
 }
 
 export function useCommunityReviewedGames() {
@@ -294,23 +259,21 @@ async function getTrendingGames(): Promise<CatalogGame[]> {
     .select(`
       game_id, name, composite_score, news_score, steam_score, twitch_score,
       esports_score, community_score, rawg_score, release_proximity_score,
-      games ( name, cover_image, genres, platforms, release_date, metacritic_score, rawg_rating, description )
+      games ( name, cover_image, genres, platforms, release_date, metacritic_score, rawg_rating, description, our_rating, review_count )
     `)
     .order("composite_score", { ascending: false })
     .limit(12);
 
   if (!scoreError && scoreRows && scoreRows.length >= 5) {
-    const ratings = await getUserRatingMap();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (scoreRows as any[]).map((r) => {
       const g = r.games;
-      const rating = ratings.get(r.game_id);
       return {
         id: r.game_id,
         name: g?.name ?? r.name ?? r.game_id,
         coverImage: g?.cover_image ?? "",
-        rating: rating?.avg ?? 0,
-        ratingCount: rating?.count ?? 0,
+        rating: Number(g?.our_rating ?? 0),
+        ratingCount: Number(g?.review_count ?? 0),
         rawgRating: g?.rawg_rating ?? 0,
         metacriticScore: g?.metacritic_score ?? null,
         genres: g?.genres ?? [],
@@ -340,5 +303,56 @@ export function useTrendingGames() {
     queryFn: getTrendingGames,
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
+  });
+}
+
+const GENRE_ORDER = [
+  "action", "role-playing-games-rpg", "adventure", "strategy", "simulation",
+  "shooter", "sports", "racing", "fighting", "horror", "puzzle",
+  "platformer", "open-world", "massively-multiplayer", "indie", "sandbox",
+];
+
+async function getGenreRankings(): Promise<GenreRankingGroup[]> {
+  const { data, error } = await supabase.rpc("get_genre_game_rankings");
+  if (error) throw error;
+
+  const grouped = new Map<string, CatalogGame[]>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const row of (data ?? []) as any[]) {
+    const items = grouped.get(row.genre) ?? [];
+    items.push({
+      id: row.game_id,
+      name: row.name,
+      coverImage: row.cover_image ?? "",
+      rating: Number(row.our_rating ?? 0),
+      ratingCount: Number(row.review_count ?? 0),
+      rawgRating: 0,
+      metacriticScore: null,
+      genres: [row.genre],
+      platforms: row.platforms ?? [],
+      releaseDate: "TBA",
+      trending: false,
+      description: "",
+    });
+    grouped.set(row.genre, items);
+  }
+
+  return [...grouped.entries()]
+    .sort(([a], [b]) => {
+      const aIndex = GENRE_ORDER.indexOf(a);
+      const bIndex = GENRE_ORDER.indexOf(b);
+      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    })
+    .map(([genre, games]) => ({ genre, games }));
+}
+
+export function useGenreRankings() {
+  return useQuery({
+    queryKey: ["games", "genre-rankings"],
+    queryFn: getGenreRankings,
+    staleTime: 60 * 1000,
   });
 }

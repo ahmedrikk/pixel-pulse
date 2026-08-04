@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import {
   useGameCatalog,
   useCommunityReviewedGames,
+  useGenreRankings,
   useTrendingGames,
   type CatalogGame,
 } from "@/hooks/useGameCatalog";
@@ -46,6 +47,45 @@ function RatingBadge({
       )}
       {label && <span className="text-muted-foreground ml-0.5">{label}</span>}
     </span>
+  );
+}
+
+const genreLabels: Record<string, string> = {
+  "role-playing-games-rpg": "RPG",
+  "massively-multiplayer": "MMO",
+  "open-world": "Open World",
+};
+
+function genreLabel(genre: string) {
+  return genreLabels[genre] ?? genre.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function GenreRankCard({ game, rank }: { game: CatalogGame; rank: number }) {
+  return (
+    <Link
+      to={`/reviews/${game.id}`}
+      className="group flex w-[240px] shrink-0 items-center gap-3 rounded-xl border bg-card p-2.5 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:card-shadow"
+    >
+      <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-secondary">
+        {game.coverImage ? (
+          <img src={game.coverImage} alt={game.name} className="h-full w-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
+        ) : (
+          <Gamepad2 className="absolute inset-0 m-auto h-6 w-6 text-muted-foreground/40" />
+        )}
+        <span className="absolute left-1.5 top-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-black text-white">#{rank}</span>
+      </div>
+      <div className="min-w-0">
+        <h3 className="line-clamp-2 text-sm font-bold leading-tight text-foreground group-hover:text-primary">{game.name}</h3>
+        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Star className="h-3 w-3 fill-primary text-primary" />
+          {game.ratingCount > 0 ? (
+            <><span className="font-bold text-foreground">{game.rating.toFixed(1)}</span><span>· {game.ratingCount} reviews</span></>
+          ) : (
+            <span>Awaiting Talus reviews</span>
+          )}
+        </div>
+      </div>
+    </Link>
   );
 }
 
@@ -226,6 +266,8 @@ export default function GameCatalog() {
   });
   const { data: trendingGames = [], isLoading: trendingLoading } =
     useTrendingGames();
+  const { data: genreRankings = [], isLoading: genreRankingsLoading } =
+    useGenreRankings();
 
   const games = searchActive ? searchResults : communityGames;
   const isLoading = searchActive ? searchLoading : communityLoading;
@@ -292,6 +334,31 @@ export default function GameCatalog() {
                 </p>
               )}
             </motion.div>
+          )}
+
+          {!hasSearch && (genreRankingsLoading || genreRankings.length > 0) && (
+            <section className="space-y-5">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Top games by genre</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Community rating balanced by review volume; catalog order fills unrated genres.</p>
+              </div>
+              {genreRankingsLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, index) => <div key={index} className="h-24 animate-pulse rounded-xl bg-secondary" />)}
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {genreRankings.map((group) => (
+                    <div key={group.genre}>
+                      <h3 className="mb-2 text-sm font-bold text-foreground">{genreLabel(group.genre)}</h3>
+                      <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+                        {group.games.map((game, index) => <GenreRankCard key={game.id} game={game} rank={index + 1} />)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
 
           {/* Games Grid */}
