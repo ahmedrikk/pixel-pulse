@@ -1150,6 +1150,10 @@ export type Database = {
         Returns: undefined
       }
       cleanup_expired_articles: { Args: never; Returns: undefined }
+      claim_game_description_jobs: {
+        Args: { candidate_ids: string[]; limit_count?: number }
+        Returns: { game_id: string }[]
+      }
       get_article_engagement: {
         Args: { p_article_ids: string[] }
         Returns: {

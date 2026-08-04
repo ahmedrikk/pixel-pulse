@@ -1,1 +1,7 @@
 project_id = "zxcqqsviwtwxukizibef"
+
+[functions.fetch-free-games]
+verify_jwt = true
+
+[functions.enrich-game-description]
+verify_jwt = true

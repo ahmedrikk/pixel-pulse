@@ -85,6 +85,14 @@ interface GameSeed {
   platforms: string[];
   expires_at: string;
   updated_at: string;
+  sourceSummary: string;
+}
+
+interface SyncResult {
+  source: string;
+  active: number;
+  upcoming: number;
+  enrichmentSeeds: GameSeed[];
 }
 
 function parseDate(value?: string): string | null {
@@ -164,17 +172,117 @@ function getEpicPeriods(item: EpicElement): EpicPromotion[] {
   return [...current, ...upcoming];
 }
 
-async function ensureGames(supabase: SupabaseClient, seeds: GameSeed[], preferSourceMetadata = false) {
-  if (seeds.length === 0) return;
+function isDirectClaimUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+    return url.protocol === "https:" && hostname !== "gamerpower.com";
+  } catch {
+    return false;
+  }
+}
+
+async function resolveDirectClaimUrl(item: GamerPowerGiveaway): Promise<string | null> {
+  const candidate = item.open_giveaway_url || item.open_giveaway;
+  if (!candidate) return null;
+
+  try {
+    const response = await fetch(candidate, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(12_000),
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": "Mozilla/5.0 (compatible; TalusFreeGames/1.0; +https://pixel-pulse-roan.vercel.app)",
+      },
+    });
+    const resolved = new URL(response.url);
+    await response.body?.cancel();
+    if (!isDirectClaimUrl(resolved.toString())) return null;
+    return resolved.toString();
+  } catch (error) {
+    console.warn(`Could not resolve direct claim URL for GamerPower ${item.id}`, error);
+    return null;
+  }
+}
+
+async function ensureGames(
+  supabase: SupabaseClient,
+  seeds: GameSeed[],
+  preferSourceMetadata = false,
+): Promise<Map<string, string>> {
+  if (seeds.length === 0) return new Map();
 
   const unique = [...new Map(seeds.map((seed) => [seed.id, seed])).values()];
+  const proposedIds = unique.map((seed) => seed.id);
+  const { data: existingBySlug, error: slugLookupError } = await supabase
+    .from("games")
+    .select("id, slug")
+    .in("slug", unique.map((seed) => seed.slug));
+  if (slugLookupError) throw slugLookupError;
+
+  const { data: existingById, error: idLookupError } = await supabase
+    .from("games")
+    .select("id, slug")
+    .in("id", proposedIds);
+  if (idLookupError) throw idLookupError;
+
+  const canonicalBySlug = new Map<string, string>();
+  for (const game of [...(existingBySlug ?? []), ...(existingById ?? [])]) {
+    canonicalBySlug.set(game.slug, game.id);
+  }
+  const idMap = new Map(unique.map((seed) => [seed.id, canonicalBySlug.get(seed.slug) ?? seed.id]));
+  const rows = [...new Map(unique.map(({ sourceSummary: _sourceSummary, ...seed }) => {
+    const canonicalId = idMap.get(seed.id) ?? seed.id;
+    return [canonicalId, { ...seed, id: canonicalId }];
+  })).values()];
   const { error } = await supabase
     .from("games")
-    .upsert(unique, {
+    .upsert(rows, {
       onConflict: "id",
       ignoreDuplicates: !preferSourceMetadata,
     });
   if (error) throw error;
+  return idMap;
+}
+
+async function enrichMissingGames(
+  supabase: SupabaseClient,
+  functionCaller: SupabaseClient,
+  seeds: GameSeed[],
+) {
+  const unique = [...new Map(seeds.map((seed) => [seed.id, seed])).values()];
+  if (unique.length === 0) return { attempted: 0, completed: 0 };
+
+  // Claim a small batch atomically. The database function uses row locks so
+  // overlapping 30-minute workers cannot spend generation budget twice.
+  const { data: claimed, error: claimError } = await supabase.rpc(
+    "claim_game_description_jobs",
+    { candidate_ids: unique.map((seed) => seed.id), limit_count: 3 },
+  );
+  if (claimError) throw claimError;
+
+  const seedById = new Map(unique.map((seed) => [seed.id, seed]));
+  const settled = await Promise.allSettled((claimed ?? []).map((game) => {
+    const seed = seedById.get(game.game_id);
+    return functionCaller.functions.invoke("enrich-game-description", {
+      body: {
+        gameId: game.game_id,
+        facts: {
+          name: seed?.name,
+          platforms: seed?.platforms ?? [],
+          sourceSummary: seed?.sourceSummary ?? "",
+        },
+      },
+    }).then(({ data, error }) => {
+      if (error || data?.ok === false) throw error ?? new Error(data?.error ?? "Description enrichment failed");
+      return data;
+    });
+  }));
+
+  return {
+    attempted: settled.length,
+    completed: settled.filter((result) => result.status === "fulfilled").length,
+  };
 }
 
 async function syncRows(supabase: SupabaseClient, sourceName: string, rows: OfferRow[], now: string) {
@@ -209,7 +317,7 @@ async function syncRows(supabase: SupabaseClient, sourceName: string, rows: Offe
   return { source: sourceName, active: rows.filter((row) => row.status === "active").length, upcoming: rows.filter((row) => row.status === "upcoming").length };
 }
 
-async function syncGamerPower(supabase: SupabaseClient, now: string) {
+async function syncGamerPower(supabase: SupabaseClient, now: string): Promise<SyncResult> {
   const response = await fetch(GAMERPOWER_URL, {
     headers: {
       Accept: "application/json",
@@ -224,48 +332,77 @@ async function syncGamerPower(supabase: SupabaseClient, now: string) {
   const active = (payload as GamerPowerGiveaway[]).filter((item) =>
     item.id && item.title && item.status?.toLowerCase() === "active"
   );
-  const gameSeeds: GameSeed[] = [];
-  const rows: OfferRow[] = active.flatMap((item) => {
-    const platforms = splitPlatforms(item.platforms);
-    const name = canonicalGameName(item.title);
-    const id = gameSlug(name);
-    if (!id) return [];
+  const { data: existingOffers, error: existingOfferError } = await supabase
+    .from("free_game_offers")
+    .select("external_id, offer_url")
+    .eq("source_name", "GamerPower")
+    .in("external_id", active.map((item) => String(item.id)));
+  if (existingOfferError) throw existingOfferError;
+  const cachedDirectUrls = new Map((existingOffers ?? [])
+    .filter((offer) => isDirectClaimUrl(offer.offer_url))
+    .map((offer) => [offer.external_id, offer.offer_url]));
 
-    gameSeeds.push({
-      id,
-      slug: id,
-      name,
-      cover_image: item.image || item.thumbnail || null,
-      platforms,
-      expires_at: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: now,
-    });
+  const prepared: Array<{ seed: GameSeed; row: OfferRow }> = [];
+  for (let index = 0; index < active.length; index += 5) {
+    const batch = await Promise.all(active.slice(index, index + 5).map(async (item) => {
+      const offerUrl = cachedDirectUrls.get(String(item.id)) ?? await resolveDirectClaimUrl(item);
+      if (!offerUrl) {
+        console.warn(`Skipping GamerPower ${item.id}: direct official claim URL unavailable`);
+        return null;
+      }
+      const platforms = splitPlatforms(item.platforms);
+      const name = canonicalGameName(item.title);
+      const id = gameSlug(name);
+      if (!id) return null;
 
-    return [{
-      source_name: "GamerPower",
-      external_id: String(item.id),
-      game_id: id,
-      instructions: (item.instructions ?? "").trim(),
-      offer_url: item.open_giveaway_url || item.open_giveaway || item.gamerpower_url || "https://www.gamerpower.com/giveaways",
-      source_url: item.gamerpower_url || "https://www.gamerpower.com/giveaways",
-      store_name: detectStore(platforms),
-      offer_kind: detectKind(item),
-      worth_text: item.worth && item.worth !== "N/A" ? item.worth : null,
-      users_count: Math.max(0, Number(item.users ?? 0)),
-      published_at: parseDate(item.published_date),
-      starts_at: null,
-      ends_at: parseDate(item.end_date),
-      status: "active",
-      last_seen_at: now,
-      updated_at: now,
-    }];
-  });
+      return {
+        seed: {
+          id,
+          slug: id,
+          name,
+          cover_image: item.image || item.thumbnail || null,
+          platforms,
+          expires_at: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
+          updated_at: now,
+          sourceSummary: (item.description ?? "").trim(),
+        },
+        row: {
+          source_name: "GamerPower",
+          external_id: String(item.id),
+          game_id: id,
+          instructions: (item.instructions ?? "").trim(),
+          offer_url: offerUrl,
+          source_url: item.gamerpower_url || "https://www.gamerpower.com/giveaways",
+          store_name: detectStore(platforms),
+          offer_kind: detectKind(item),
+          worth_text: item.worth && item.worth !== "N/A" ? item.worth : null,
+          users_count: Math.max(0, Number(item.users ?? 0)),
+          published_at: parseDate(item.published_date),
+          starts_at: null,
+          ends_at: parseDate(item.end_date),
+          status: "active" as const,
+          last_seen_at: now,
+          updated_at: now,
+        },
+      };
+    }));
+    prepared.push(...batch.filter((item): item is { seed: GameSeed; row: OfferRow } => item !== null));
+  }
 
-  await ensureGames(supabase, gameSeeds);
-  return syncRows(supabase, "GamerPower", rows, now);
+  const gameSeeds = prepared.map((item) => item.seed);
+  const idMap = await ensureGames(supabase, gameSeeds);
+  const rows = prepared.map((item) => ({
+    ...item.row,
+    game_id: idMap.get(item.row.game_id) ?? item.row.game_id,
+  }));
+  const result = await syncRows(supabase, "GamerPower", rows, now);
+  return {
+    ...result,
+    enrichmentSeeds: gameSeeds.map((seed) => ({ ...seed, id: idMap.get(seed.id) ?? seed.id })),
+  };
 }
 
-async function syncEpicGames(supabase: SupabaseClient, now: string) {
+async function syncEpicGames(supabase: SupabaseClient, now: string): Promise<SyncResult> {
   const response = await fetch(EPIC_PROMOTIONS_URL, {
     headers: {
       Accept: "application/json",
@@ -310,6 +447,7 @@ async function syncEpicGames(supabase: SupabaseClient, now: string) {
         platforms: ["PC", "Epic Games Store"],
         expires_at: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(),
         updated_at: now,
+        sourceSummary: (item.description ?? "").trim(),
       });
       rows.push({
         source_name: "Epic Games Store",
@@ -332,8 +470,13 @@ async function syncEpicGames(supabase: SupabaseClient, now: string) {
     }
   }
 
-  await ensureGames(supabase, gameSeeds, true);
-  return syncRows(supabase, "Epic Games Store", rows, now);
+  const idMap = await ensureGames(supabase, gameSeeds, true);
+  const canonicalRows = rows.map((row) => ({ ...row, game_id: idMap.get(row.game_id) ?? row.game_id }));
+  const result = await syncRows(supabase, "Epic Games Store", canonicalRows, now);
+  return {
+    ...result,
+    enrichmentSeeds: gameSeeds.map((seed) => ({ ...seed, id: idMap.get(seed.id) ?? seed.id })),
+  };
 }
 
 serve(async (req) => {
@@ -345,24 +488,33 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !serviceRoleKey) throw new Error("Supabase environment is incomplete");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) throw new Error("Supabase environment is incomplete");
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const functionCaller = createClient(supabaseUrl, anonKey);
     const now = new Date().toISOString();
     const settled = await Promise.allSettled([
       syncGamerPower(supabase, now),
       syncEpicGames(supabase, now),
     ]);
     const results = settled.map((result, index) => {
-      if (result.status === "fulfilled") return { ok: true, ...result.value };
+      if (result.status === "fulfilled") {
+        const { enrichmentSeeds: _enrichmentSeeds, ...publicResult } = result.value;
+        return { ok: true, ...publicResult };
+      }
       const source = index === 0 ? "GamerPower" : "Epic Games Store";
       console.error(`${source} sync failed`, result.reason);
       return { ok: false, source, error: result.reason instanceof Error ? result.reason.message : String(result.reason) };
     });
     const successfulSources = results.filter((result) => result.ok).length;
+    const enrichmentSeeds = settled.flatMap((result) => result.status === "fulfilled" ? result.value.enrichmentSeeds : []);
+    const descriptions = successfulSources > 0
+      ? await enrichMissingGames(supabase, functionCaller, enrichmentSeeds)
+      : { attempted: 0, completed: 0 };
 
     return new Response(
-      JSON.stringify({ ok: successfulSources > 0, partial: successfulSources !== results.length, results }),
+      JSON.stringify({ ok: successfulSources > 0, partial: successfulSources !== results.length, results, descriptions }),
       { status: successfulSources > 0 ? 200 : 500, headers: jsonHeaders },
     );
   } catch (error) {
