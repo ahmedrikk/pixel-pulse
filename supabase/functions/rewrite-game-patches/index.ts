@@ -59,6 +59,28 @@ function parseBatch(payload: string): EditorialPatch[] {
   throw new Error(`Patch editorial JSON is invalid (${Object.keys(record).join(", ") || "no keys"})`);
 }
 
+async function generateBatchWithFormatRetry(
+  systemInstruction: string,
+  userPrompt: string,
+): Promise<EditorialPatch[]> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const retryInstruction = attempt === 0
+        ? ""
+        : "\n\nFORMAT REPAIR: The previous response was not parseable JSON. Return one complete JSON object only, with a patches array and no trailing text.";
+      return parseBatch(await generateGeminiJson(
+        systemInstruction,
+        `${userPrompt}${retryInstruction}`,
+        { maxOutputTokens: 8_000, timeoutMs: 90_000 },
+      ));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Patch editorial JSON could not be parsed");
+}
+
 function assertString(value: unknown, label: string, min: number, max: number): asserts value is string {
   if (typeof value !== "string" || value.trim().length < min || value.trim().length > max) {
     throw new Error(`${label} must contain ${min}-${max} characters`);
@@ -183,11 +205,10 @@ serve(async (req) => {
 - The takeaway should give a measured, grounded read of the patch's overall effect, not generic praise.
 - Do not mention this rewrite process, AI, or source-data limitations.`);
 
-    const draft = parseBatch(await generateGeminiJson(
+    const draft = await generateBatchWithFormatRetry(
       draftRules,
       `SOURCE PATCHES\n${JSON.stringify(facts)}\n\nWrite the first editorial drafts.`,
-      { maxOutputTokens: 8_000, timeoutMs: 90_000 },
-    ));
+    );
 
     const editRules = talusSystemPrompt(`Apply a final voice-and-rhythm edit to Talus patch articles.
 - Return one JSON object with a patches array, exactly preserving every object, id, field, section, and callout.
@@ -198,11 +219,10 @@ serve(async (req) => {
 - Preserve a scannable player-first shape: framing, descriptive sections, practical callouts, and a clear takeaway.
 - metaTitle must be 20-75 characters; metaDescription must be 80-180 characters.`);
 
-    const edited = parseBatch(await generateGeminiJson(
+    const edited = await generateBatchWithFormatRetry(
       editRules,
       `SOURCE PATCHES\n${JSON.stringify(facts)}\n\nDRAFTS TO EDIT\n${JSON.stringify({ patches: draft })}`,
-      { maxOutputTokens: 8_000, timeoutMs: 90_000 },
-    ));
+    );
 
     const byId = new Map(edited.map((item) => [item.id, item]));
     const completed: string[] = [];
