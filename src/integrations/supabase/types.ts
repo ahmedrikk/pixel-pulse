@@ -389,54 +389,81 @@ export type Database = {
         Row: {
           content_text: string
           created_at: string
+          editorial_content: Json
+          editorial_error: string | null
+          editorial_generated_at: string | null
+          editorial_status: string
+          editorial_style_version: string | null
           external_id: string
           fetched_at: string
           game_id: string
           id: string
           image_url: string | null
+          meta_description: string | null
+          meta_title: string | null
           patch_type: string
           published_at: string
           source_id: string
+          source_content: string
           source_name: string
+          source_title: string
           source_url: string
           summary: string
-          title: string
+          title: string | null
           updated_at: string
           version_label: string | null
         }
         Insert: {
           content_text?: string
           created_at?: string
+          editorial_content?: Json
+          editorial_error?: string | null
+          editorial_generated_at?: string | null
+          editorial_status?: string
+          editorial_style_version?: string | null
           external_id: string
           fetched_at?: string
           game_id: string
           id?: string
           image_url?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
           patch_type?: string
           published_at: string
           source_id: string
+          source_content?: string
           source_name?: string
+          source_title?: string
           source_url: string
           summary?: string
-          title: string
+          title?: string | null
           updated_at?: string
           version_label?: string | null
         }
         Update: {
           content_text?: string
           created_at?: string
+          editorial_content?: Json
+          editorial_error?: string | null
+          editorial_generated_at?: string | null
+          editorial_status?: string
+          editorial_style_version?: string | null
           external_id?: string
           fetched_at?: string
           game_id?: string
           id?: string
           image_url?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
           patch_type?: string
           published_at?: string
           source_id?: string
+          source_content?: string
           source_name?: string
+          source_title?: string
           source_url?: string
           summary?: string
-          title?: string
+          title?: string | null
           updated_at?: string
           version_label?: string | null
         }
@@ -1154,6 +1181,20 @@ export type Database = {
         Args: { candidate_ids: string[]; limit_count?: number }
         Returns: { game_id: string }[]
       }
+      claim_patch_editorial_jobs: {
+        Args: { limit_count?: number }
+        Returns: {
+          patch_id: string
+          game_id: string
+          game_name: string
+          source_title: string
+          source_content: string
+          source_url: string
+          patch_type: string
+          version_label: string | null
+          published_at: string
+        }[]
+      }
       get_article_engagement: {
         Args: { p_article_ids: string[] }
         Returns: {
@@ -1179,6 +1220,10 @@ export type Database = {
           platforms: string[]
           steam_appid: number
         }[]
+      }
+      ingest_game_patch_sources: {
+        Args: { source_rows: Json }
+        Returns: number
       }
       get_genre_game_rankings: {
         Args: Record<PropertyKey, never>

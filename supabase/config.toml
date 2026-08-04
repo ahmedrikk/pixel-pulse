@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.enrich-game-description]
 verify_jwt = true
+
+[functions.fetch-game-patches]
+verify_jwt = true
+
+[functions.rewrite-game-patches]
+verify_jwt = true

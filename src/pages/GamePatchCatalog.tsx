@@ -18,7 +18,7 @@ const typeLabels: Record<string, string> = {
 };
 
 function timeAgo(value: string | null) {
-  if (!value) return "Not synced yet";
+  if (!value) return "Rewrite in progress";
   return formatDistanceToNow(new Date(value), { addSuffix: true });
 }
 
@@ -76,7 +76,7 @@ function PatchGameCard({ game, index }: { game: PatchGame; index: number }) {
               </>
             ) : (
               <p className="text-xs text-muted-foreground">
-                Patch history is being imported from the official source.
+                Official patch history is being rewritten into the Talus format.
               </p>
             )}
           </div>
@@ -121,8 +121,8 @@ export default function GamePatchCatalog() {
                 <span className="text-gradient">Game Patch</span>
               </h1>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Every official update in one place—from the newest hotfix to earlier versions.
-                Select a game to explore its complete patch history.
+                Patch notes should help you play, not make you decode a developer changelog.
+                Talus rewrites every official update into a clear player-first breakdown, then keeps the full history ready whenever you need to look back.
               </p>
             </div>
           </motion.header>
@@ -134,6 +134,7 @@ export default function GamePatchCatalog() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search patch history…"
+              aria-label="Search every game patch archive"
               className="border-0 bg-secondary pl-10 focus-visible:ring-primary"
             />
           </div>
@@ -178,7 +179,7 @@ export default function GamePatchCatalog() {
               </h2>
               {!isLoading && (
                 <span className="text-sm text-muted-foreground">
-                  {filteredGames.length} games
+                  {filteredGames.length} game {filteredGames.length === 1 ? "archive" : "archives"}
                 </span>
               )}
             </div>
