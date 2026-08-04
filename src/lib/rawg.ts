@@ -41,6 +41,7 @@ export async function fetchGameList(
     search?: string;
     genres?: string;       // comma-separated RAWG genre slugs
     ordering?: string;     // e.g. "-rating", "-metacritic", "-added"
+    dates?: string;        // inclusive YYYY-MM-DD,YYYY-MM-DD release window
   } = {},
   signal?: AbortSignal
 ): Promise<RawgListResponse> {
@@ -50,6 +51,7 @@ export async function fetchGameList(
       page_size: params.page_size ?? 20,
       ...(params.search && { search: params.search }),
       ...(params.genres && { genres: params.genres }),
+      ...(params.dates && { dates: params.dates }),
       // When searching, let RAWG rank by relevance — forcing "-rating"
       // returns the highest-rated fuzzy match instead of the right game.
       ...(params.search

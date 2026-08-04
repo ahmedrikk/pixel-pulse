@@ -1,4 +1,4 @@
-import { Gift, Home, Trophy, Swords, Users, Star, ScrollText } from "lucide-react";
+import { CalendarDays, Gift, Home, Trophy, Swords, Users, Star, ScrollText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const BOTTOM_NAV_ITEMS = [
@@ -7,6 +7,7 @@ const BOTTOM_NAV_ITEMS = [
   { icon: Users, label: "Hub", href: "/hub" },
   { icon: Gift, label: "Free", href: "/free-games" },
   { icon: ScrollText, label: "Patches", href: "/game-patch" },
+  { icon: CalendarDays, label: "Calendar", href: "/game-calendar" },
   { icon: Swords, label: "Pass", href: "/battle-pass" },
   { icon: Star, label: "Reviews", href: "/reviews" },
 ];
