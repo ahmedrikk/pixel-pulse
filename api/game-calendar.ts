@@ -69,6 +69,7 @@ function fallbackPlatform(slug?: string): string {
     "series-x-s": "Xbox Series S/X",
     switch: "Nintendo Switch",
     switch2: "Nintendo Switch 2",
+    "switch-2": "Nintendo Switch 2",
     ios: "iOS",
     android: "Android",
   };
