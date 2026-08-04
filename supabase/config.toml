@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.rewrite-game-patches]
 verify_jwt = true
+
+[functions.backfill-game-descriptions]
+verify_jwt = true
