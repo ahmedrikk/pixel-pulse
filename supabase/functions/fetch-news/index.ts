@@ -821,7 +821,7 @@ async function summarizeWithGemini(title: string, content: string): Promise<Summ
     const contentJson = await generateGeminiJson(
       SYSTEM_PROMPT,
       `Article Title: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nWrite a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with summary, gameTags, and tags.`,
-      { maxOutputTokens: 1200, timeoutMs: 60_000 },
+      { maxOutputTokens: 1200, timeoutMs: 60_000, service: "news-ingestion", operation: "summarize-article" },
     );
     return parseSummaryResult(contentJson, "Gemini")
       ?? { summary: "", gameTags: [], tags: [] };
@@ -1062,7 +1062,7 @@ async function summarizeVideo(
     const contentJson = await generateGeminiJson(
       VIDEO_SYSTEM_PROMPT,
       userPrompt,
-      { maxOutputTokens: 900, timeoutMs: 60_000 },
+      { maxOutputTokens: 900, timeoutMs: 60_000, service: "news-ingestion", operation: "summarize-video" },
     );
     const parsed = parseVideoSummary(contentJson, title, source, "Gemini");
     if (parsed) return parsed;
@@ -1124,6 +1124,23 @@ serve(async (req) => {
       });
     }
     return new Response(JSON.stringify({ ok: true, cachedArticles: count ?? 0 }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: newsControl } = await supabase
+    .from("operational_controls")
+    .select("enabled, reason, updated_at")
+    .eq("key", "news_updates")
+    .maybeSingle();
+  if (newsControl?.enabled === false) {
+    return new Response(JSON.stringify({
+      ok: true,
+      paused: true,
+      reason: newsControl.reason,
+      pausedAt: newsControl.updated_at,
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -1411,7 +1428,7 @@ serve(async (req) => {
       break;
     }
     try {
-      let { headline, summary, gameTags, tags, rateLimited } = item.mediaType === "youtube"
+      const { headline, summary, gameTags, tags, rateLimited } = item.mediaType === "youtube"
         ? await summarizeVideo(item.title, item.description, item.content, item.source)
         : await summarizeArticle(item.title, item.content);
 

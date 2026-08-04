@@ -118,6 +118,23 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  const { data: newsControl } = await supabase
+    .from("operational_controls")
+    .select("enabled, reason, updated_at")
+    .eq("key", "news_updates")
+    .maybeSingle();
+  if (newsControl?.enabled === false) {
+    return new Response(JSON.stringify({
+      ok: true,
+      paused: true,
+      reason: newsControl.reason,
+      pausedAt: newsControl.updated_at,
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   console.log("=== fetch-esports-news pipeline starting ===");
 
   // Fetch all RSS feeds in parallel

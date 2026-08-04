@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { generateGeminiJson, talusSystemPrompt } from "../_shared/talus-ai.ts";
+import { recordApiUsage } from "../_shared/api-usage.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -129,7 +130,7 @@ async function generateQuestionsFromGemini(needed: number): Promise<TriviaQuesti
   const content = await generateGeminiJson(
     TRIVIA_SYSTEM_PROMPT,
     buildTriviaPrompt(needed),
-    { maxOutputTokens: 3000, timeoutMs: 75_000 },
+    { maxOutputTokens: 3000, timeoutMs: 75_000, service: "daily-trivia", operation: "generate-pool" },
   );
   return parseGeneratedQuestions("Gemini", content, needed);
 }
@@ -137,34 +138,78 @@ async function generateQuestionsFromGemini(needed: number): Promise<TriviaQuesti
 async function generateQuestionsFromGroq(needed: number): Promise<TriviaQuestion[]> {
   const apiKey = Deno.env.get("GROQ_API_KEY");
   if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
+  const model = Deno.env.get("GROQ_TRIVIA_MODEL") ?? "llama-3.3-70b-versatile";
+  const startedAt = Date.now();
+  let usageRecorded = false;
 
-  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    signal: AbortSignal.timeout(60_000),
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: Deno.env.get("GROQ_TRIVIA_MODEL") ?? "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      max_tokens: 2500,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: TRIVIA_SYSTEM_PROMPT },
-        { role: "user", content: buildTriviaPrompt(needed) },
-      ],
-    }),
-  });
+  try {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      signal: AbortSignal.timeout(60_000),
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.7,
+        max_tokens: 2500,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: TRIVIA_SYSTEM_PROMPT },
+          { role: "user", content: buildTriviaPrompt(needed) },
+        ],
+      }),
+    });
 
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`Groq request failed (${resp.status}): ${errText}`);
+    if (!resp.ok) {
+      const errText = await resp.text();
+      await recordApiUsage({
+        provider: "Groq",
+        service: "daily-trivia",
+        model,
+        operation: "fallback-generate-pool",
+        success: false,
+        statusCode: resp.status,
+        latencyMs: Date.now() - startedAt,
+        errorSummary: errText,
+      });
+      usageRecorded = true;
+      throw new Error(`Groq request failed (${resp.status}): ${errText}`);
+    }
+
+    const data = await resp.json();
+    const usage = data?.usage ?? {};
+    const content: string = data?.choices?.[0]?.message?.content ?? "";
+    await recordApiUsage({
+      provider: "Groq",
+      service: "daily-trivia",
+      model,
+      operation: "fallback-generate-pool",
+      success: Boolean(content),
+      statusCode: 200,
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens,
+      latencyMs: Date.now() - startedAt,
+      errorSummary: content ? null : "empty response",
+    });
+    usageRecorded = true;
+    return parseGeneratedQuestions("Groq", content, needed);
+  } catch (error) {
+    if (!usageRecorded) {
+      await recordApiUsage({
+        provider: "Groq",
+        service: "daily-trivia",
+        model,
+        operation: "fallback-generate-pool",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        errorSummary: error instanceof Error ? error.message : String(error),
+      });
+    }
+    throw error;
   }
-
-  const data = await resp.json();
-  const content: string = data?.choices?.[0]?.message?.content ?? "";
-  return parseGeneratedQuestions("Groq", content, needed);
 }
 
 async function generateQuestions(needed: number): Promise<TriviaQuestion[]> {
