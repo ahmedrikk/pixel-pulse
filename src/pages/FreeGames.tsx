@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Clock3, ExternalLink, Gift, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { BookOpen, Clock3, ExternalLink, Gift, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Link } from "react-router-dom";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -70,7 +70,7 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
             <Link to={`/reviews/${offer.gameId}`} className="transition-colors hover:text-primary">{offer.title}</Link>
           </h2>
           <p className="mt-1.5 line-clamp-3 min-h-[60px] text-sm leading-5 text-muted-foreground">
-            {offer.description || "Claim this active game offer while it is still available."}
+            {offer.description || "Talus is preparing this game's full editorial overview."}
           </p>
         </div>
 
@@ -93,15 +93,24 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
               {timingLabel(offer)}
             </p>
           </div>
-          <a
-            href={offer.offerUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            {offer.status === "upcoming" ? "View" : "Claim"}
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              to={`/reviews/${offer.gameId}`}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3 py-2 text-xs font-bold text-foreground transition-colors hover:text-primary"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Read more
+            </Link>
+            <a
+              href={offer.offerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              {offer.status === "upcoming" ? "View offer" : "Claim"}
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </div>
       </div>
     </motion.article>
@@ -149,7 +158,7 @@ export default function FreeGames() {
                 <span className="text-gradient">Free Games</span>
               </h1>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Live and upcoming game giveaways across trusted storefronts, collected in one place before they disappear.
+                Never miss a game that suddenly drops to free. Talus watches trusted storefronts, surfaces live and upcoming offers before the clock runs out, and connects every deal to full game details and community reviews.
               </p>
               {!isLoading && (
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -174,9 +183,9 @@ export default function FreeGames() {
 
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
-              { icon: Sparkles, title: "Multi-store tracking", text: "Broad discovery plus direct storefront checks every 30 minutes." },
-              { icon: ShieldCheck, title: "Normalized and verified", text: "Duplicates merge while official storefront data takes priority." },
-              { icon: ExternalLink, title: "Claim at the store", text: "Every button takes you to the official offer path." },
+              { icon: Sparkles, title: "One feed, many stores", text: "Epic, Steam, GOG, itch.io, and other trusted sources—organized in one place." },
+              { icon: ShieldCheck, title: "Beat the expiry clock", text: "Live and upcoming offers are checked every 30 minutes, with the deadline shown up front." },
+              { icon: ExternalLink, title: "Claim it, then explore", text: "Go straight to the claim destination or open the full game page for details and reviews." },
             ].map((item) => (
               <div key={item.title} className="rounded-2xl border bg-card p-4">
                 <item.icon className="h-5 w-5 text-primary" />

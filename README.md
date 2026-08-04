@@ -118,6 +118,11 @@ and Epic Games Store's official promotions endpoint every 30 minutes. Talus
 merges duplicates in favor of first-party storefront data, supports upcoming
 offers, archives expired offers, and keeps the claim destination, original
 price, and expiry time attached to the canonical Game record. GamerPower
+redirects are resolved during ingestion so public Claim buttons store the final
+offer destination rather than an aggregation hop. Every card reads its title,
+art, platforms, and introduction through the canonical Game relationship; its
+title and Read more action open that same game page. Missing Game descriptions
+are gradually filled by the locked Talus editorial workflow. GamerPower
 attribution is shown on the page as required by its API terms.
 
 ## Canonical game records
