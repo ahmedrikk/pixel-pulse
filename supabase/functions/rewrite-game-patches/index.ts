@@ -72,7 +72,7 @@ async function generateBatchWithFormatRetry(
       return parseBatch(await generateGeminiJson(
         systemInstruction,
         `${userPrompt}${retryInstruction}`,
-        { maxOutputTokens: 8_000, timeoutMs: 90_000 },
+        { maxOutputTokens: 8_000, timeoutMs: 90_000, service: "game-patch-editorial", operation: attempt === 0 ? "rewrite-batch" : "format-repair" },
       ));
     } catch (error) {
       lastError = error;

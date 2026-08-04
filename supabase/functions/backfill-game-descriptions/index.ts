@@ -44,6 +44,36 @@ serve(async (req) => {
 
     const service = createClient(supabaseUrl, serviceRoleKey);
     const functionCaller = createClient(supabaseUrl, anonKey);
+
+    // A provider-wide 429 is not a bad game record. Preserve the queue and
+    // probe hourly instead of consuming every job's two attempts while the
+    // account quota is unavailable.
+    const { data: latestQuotaFailure } = await service
+      .from("api_usage_events")
+      .select("occurred_at, error_summary")
+      .eq("provider", "Google Gemini")
+      .eq("service", "game-description-backfill")
+      .eq("status_code", 429)
+      .order("occurred_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestQuotaFailure) {
+      const retryAfter = new Date(new Date(latestQuotaFailure.occurred_at).getTime() + 60 * 60 * 1000);
+      if (retryAfter.getTime() > Date.now()) {
+        await service
+          .from("game_description_backfill_runs")
+          .update({ next_batch_at: retryAfter.toISOString(), updated_at: new Date().toISOString() })
+          .eq("status", "running");
+        return new Response(JSON.stringify({
+          ok: true,
+          claimed: 0,
+          pausedForQuota: true,
+          retryAfter: retryAfter.toISOString(),
+          reason: latestQuotaFailure.error_summary ?? "Gemini quota is temporarily unavailable.",
+        }), { headers: jsonHeaders });
+      }
+    }
+
     const { data: claimed, error: claimError } = await service.rpc("claim_game_description_backfill_jobs", { p_limit: 3 });
     if (claimError) throw claimError;
     const jobs = (claimed ?? []) as BackfillJob[];

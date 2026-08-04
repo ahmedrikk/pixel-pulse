@@ -90,7 +90,7 @@ serve(async (req) => {
     const draft = parseDescription(await generateGeminiJson(
       draftPrompt,
       `FACTS\n${JSON.stringify(facts)}\n\nWrite the first draft.`,
-      { maxOutputTokens: 1300 },
+      { maxOutputTokens: 1300, service: "game-description-backfill", operation: "draft" },
     ));
 
     const editPrompt = talusSystemPrompt(`Edit a game overview for a recognizably human editorial voice.
@@ -104,7 +104,7 @@ serve(async (req) => {
     let finalDescription = parseDescription(await generateGeminiJson(
       editPrompt,
       `FACTS\n${JSON.stringify(facts)}\n\nDRAFT TO EDIT\n${draft}`,
-      { maxOutputTokens: 1300 },
+      { maxOutputTokens: 1300, service: "game-description-backfill", operation: "edit" },
     ));
 
     let finalWordCount = wordCount(finalDescription);
@@ -112,7 +112,7 @@ serve(async (req) => {
       finalDescription = parseDescription(await generateGeminiJson(
         editPrompt,
         `FACTS\n${JSON.stringify(facts)}\n\nCURRENT EDIT (${finalWordCount} words)\n${finalDescription}\n\nRepair the length to 270-330 words. Count the words before returning JSON. Preserve grounded detail and natural paragraphs; do not pad with generic filler.`,
-        { maxOutputTokens: 1400 },
+        { maxOutputTokens: 1400, service: "game-description-backfill", operation: "length-repair" },
       ));
       finalWordCount = wordCount(finalDescription);
     }

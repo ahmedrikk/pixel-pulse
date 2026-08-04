@@ -1,3 +1,5 @@
+import { recordApiUsage } from "./api-usage.ts";
+
 export const TALUS_EDITORIAL_STYLE_VERSION = "talus-editorial-v1";
 
 /**
@@ -36,6 +38,8 @@ ${taskRules.trim()}`;
 export interface GeminiJsonOptions {
   maxOutputTokens?: number;
   timeoutMs?: number;
+  service?: string;
+  operation?: string;
 }
 
 export async function generateGeminiJson(
@@ -51,44 +55,89 @@ export async function generateGeminiJson(
   const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-3.5-flash-lite";
   const endpoint =
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const startedAt = Date.now();
+  let usageRecorded = false;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    signal: AbortSignal.timeout(options.timeoutMs ?? 60_000),
-    headers: {
-      "x-goog-api-key": apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: systemInstruction }],
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      signal: AbortSignal.timeout(options.timeoutMs ?? 60_000),
+      headers: {
+        "x-goog-api-key": apiKey,
+        "Content-Type": "application/json",
       },
-      contents: [{
-        role: "user",
-        parts: [{ text: userPrompt }],
-      }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        maxOutputTokens: options.maxOutputTokens ?? 2048,
-      },
-    }),
-  });
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: systemInstruction }],
+        },
+        contents: [{
+          role: "user",
+          parts: [{ text: userPrompt }],
+        }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          maxOutputTokens: options.maxOutputTokens ?? 2048,
+        },
+      }),
+    });
 
-  if (!response.ok) {
-    const detail = (await response.text()).substring(0, 300);
-    throw new Error(`Gemini ${model} request failed (${response.status}): ${detail}`);
+    if (!response.ok) {
+      const detail = (await response.text()).substring(0, 300);
+      await recordApiUsage({
+        provider: "Google Gemini",
+        service: options.service ?? "talus-editorial",
+        model,
+        operation: options.operation ?? "generate-json",
+        success: false,
+        statusCode: response.status,
+        latencyMs: Date.now() - startedAt,
+        errorSummary: detail,
+      });
+      usageRecorded = true;
+      throw new Error(`Gemini ${model} request failed (${response.status}): ${detail}`);
+    }
+
+    const payload = await response.json();
+    const usage = payload?.usageMetadata ?? {};
+    const text = payload?.candidates?.[0]?.content?.parts
+      ?.map((part: { text?: string }) => part.text ?? "")
+      .join("")
+      .trim();
+
+    await recordApiUsage({
+      provider: "Google Gemini",
+      service: options.service ?? "talus-editorial",
+      model,
+      operation: options.operation ?? "generate-json",
+      success: Boolean(text),
+      statusCode: 200,
+      promptTokens: usage.promptTokenCount,
+      completionTokens: usage.candidatesTokenCount,
+      totalTokens: usage.totalTokenCount,
+      cachedTokens: usage.cachedContentTokenCount,
+      latencyMs: Date.now() - startedAt,
+      errorSummary: text ? null : payload?.candidates?.[0]?.finishReason ?? "empty response",
+    });
+    usageRecorded = true;
+
+    if (!text) {
+      const reason = payload?.candidates?.[0]?.finishReason ?? "empty response";
+      throw new Error(`Gemini ${model} returned no JSON (${reason})`);
+    }
+
+    return text;
+  } catch (error) {
+    if (!usageRecorded) {
+      await recordApiUsage({
+        provider: "Google Gemini",
+        service: options.service ?? "talus-editorial",
+        model,
+        operation: options.operation ?? "generate-json",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        errorSummary: error instanceof Error ? error.message : String(error),
+      });
+    }
+    throw error;
   }
-
-  const payload = await response.json();
-  const text = payload?.candidates?.[0]?.content?.parts
-    ?.map((part: { text?: string }) => part.text ?? "")
-    .join("")
-    .trim();
-
-  if (!text) {
-    const reason = payload?.candidates?.[0]?.finishReason ?? "empty response";
-    throw new Error(`Gemini ${model} returned no JSON (${reason})`);
-  }
-
-  return text;
 }

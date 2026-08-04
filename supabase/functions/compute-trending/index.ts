@@ -365,8 +365,22 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const { data: newsControl } = await supabase
+      .from("operational_controls")
+      .select("enabled, reason, updated_at")
+      .eq("key", "news_updates")
+      .maybeSingle();
+    if (newsControl?.enabled === false) {
+      return new Response(JSON.stringify({
+        ok: true,
+        paused: true,
+        reason: newsControl.reason,
+        pausedAt: newsControl.updated_at,
+      }), { headers: JSON_HEADERS });
+    }
+
     // 1. Load cached games
-    let { data: games, error: gamesError } = await supabase
+    const { data: games, error: gamesError } = await supabase
       .from("games")
       .select("id, name, steam_appid, rawg_rating, metacritic_score, release_date, cover_image");
     if (gamesError) throw gamesError;

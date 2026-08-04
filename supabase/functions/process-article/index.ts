@@ -281,7 +281,7 @@ TASK:
     const geminiContent = await generateGeminiJson(
       systemPrompt,
       userPrompt,
-      { maxOutputTokens: 1200, timeoutMs: 60_000 },
+      { maxOutputTokens: 1200, timeoutMs: 60_000, service: "article-processing", operation: "summarize-and-tag" },
     );
     const geminiResult = parseProviderResult(geminiContent, "Gemini");
     if (geminiResult) return geminiResult;
