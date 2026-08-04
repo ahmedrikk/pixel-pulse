@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { normalisePatchEditorial, type PatchEditorialContent } from "@/lib/patchEditorial";
 
 export type PatchType = "patch" | "hotfix" | "balance" | "maintenance" | "update";
 
@@ -28,9 +29,33 @@ export interface GamePatch {
   versionLabel: string | null;
   imageUrl: string | null;
   publishedAt: string;
+  editorial: PatchEditorialContent | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
 }
 
 const PATCH_PAGE_SIZE = 12;
+const PATCH_SELECT = "id, game_id, title, summary, content_text, source_url, source_name, patch_type, version_label, image_url, published_at, editorial_content, meta_title, meta_description";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapPatch(row: any): GamePatch {
+  return {
+    id: row.id,
+    gameId: row.game_id,
+    title: row.title,
+    summary: row.summary,
+    contentText: row.content_text,
+    sourceUrl: row.source_url,
+    sourceName: row.source_name,
+    patchType: row.patch_type as PatchType,
+    versionLabel: row.version_label,
+    imageUrl: row.image_url,
+    publishedAt: row.published_at,
+    editorial: normalisePatchEditorial(row.editorial_content),
+    metaTitle: row.meta_title,
+    metaDescription: row.meta_description,
+  };
+}
 
 async function getPatchGames(): Promise<PatchGame[]> {
   const { data, error } = await supabase.rpc("get_patch_game_catalog");
@@ -56,25 +81,14 @@ async function getPatchPage(gameId: string, page: number) {
   const to = from + PATCH_PAGE_SIZE - 1;
   const { data, error, count } = await supabase
     .from("game_patches")
-    .select("id, game_id, title, summary, content_text, source_url, source_name, patch_type, version_label, image_url, published_at", { count: "exact" })
+    .select(PATCH_SELECT, { count: "exact" })
     .eq("game_id", gameId)
+    .eq("editorial_status", "ready")
     .order("published_at", { ascending: false })
     .range(from, to);
 
   if (error) throw error;
-  const patches: GamePatch[] = (data ?? []).map((row) => ({
-    id: row.id,
-    gameId: row.game_id,
-    title: row.title,
-    summary: row.summary,
-    contentText: row.content_text,
-    sourceUrl: row.source_url,
-    sourceName: row.source_name,
-    patchType: row.patch_type as PatchType,
-    versionLabel: row.version_label,
-    imageUrl: row.image_url,
-    publishedAt: row.published_at,
-  }));
+  const patches: GamePatch[] = (data ?? []).filter((row) => row.title).map(mapPatch);
 
   return {
     patches,
@@ -87,47 +101,25 @@ async function getPatchPage(gameId: string, page: number) {
 async function getRecentGamePatches(gameId: string): Promise<GamePatch[]> {
   const { data, error } = await supabase
     .from("game_patches")
-    .select("id, game_id, title, summary, content_text, source_url, source_name, patch_type, version_label, image_url, published_at")
+    .select(PATCH_SELECT)
     .eq("game_id", gameId)
+    .eq("editorial_status", "ready")
     .order("published_at", { ascending: false })
     .limit(4);
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    gameId: row.game_id,
-    title: row.title,
-    summary: row.summary,
-    contentText: row.content_text,
-    sourceUrl: row.source_url,
-    sourceName: row.source_name,
-    patchType: row.patch_type as PatchType,
-    versionLabel: row.version_label,
-    imageUrl: row.image_url,
-    publishedAt: row.published_at,
-  }));
+  return (data ?? []).filter((row) => row.title).map(mapPatch);
 }
 
 async function getGamePatch(patchId: string): Promise<GamePatch | null> {
   const { data, error } = await supabase
     .from("game_patches")
-    .select("id, game_id, title, summary, content_text, source_url, source_name, patch_type, version_label, image_url, published_at")
+    .select(PATCH_SELECT)
     .eq("id", patchId)
+    .eq("editorial_status", "ready")
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return {
-    id: data.id,
-    gameId: data.game_id,
-    title: data.title,
-    summary: data.summary,
-    contentText: data.content_text,
-    sourceUrl: data.source_url,
-    sourceName: data.source_name,
-    patchType: data.patch_type as PatchType,
-    versionLabel: data.version_label,
-    imageUrl: data.image_url,
-    publishedAt: data.published_at,
-  };
+  return data.title ? mapPatch(data) : null;
 }
 
 export function usePatchGames() {

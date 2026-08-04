@@ -101,13 +101,22 @@ gaming feed is intentionally excluded.
 
 `/game-patch` is Talus's permanent patch archive. It currently tracks 24 games
 from their official Steam Community announcement feeds, displays the newest
-updates in an image-led catalog, and keeps every matched historical patch on a
-dedicated game page at `/game-patch/:gameId`.
+updates in an image-led catalog, and keeps every rewritten historical patch on
+a dedicated game page at `/game-patch/:gameId`.
 
-The public `fetch-game-patches` Edge Function refreshes recent releases hourly
+The JWT-protected `fetch-game-patches` Edge Function refreshes recent releases hourly
 and advances older-history backfills until each source is complete. Commerce,
 community, preview, and roadmap posts are excluded so the archive remains
-focused on shipped patches, hotfixes, balance changes, and release notes.
+focused on shipped patches, hotfixes, balance changes, and release notes. Raw
+developer text is private source material and is never returned to public
+clients. The bounded `rewrite-game-patches` worker creates a teaser and a full
+sectioned article in two locked Talus editorial passes, rejects copied source
+sentences, and only publishes records that pass structural validation.
+
+Every tile links to `/game-patch/:gameId/:patchId`, where the full article,
+practical callouts, takeaway, official-source link, canonical game link, title,
+description, and Article structured data are present in the initial server
+response. `/patch-sitemap.xml` lists every published permanent patch URL.
 
 ## Free Games
 

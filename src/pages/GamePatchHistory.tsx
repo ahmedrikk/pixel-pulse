@@ -1,12 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
-  ChevronDown,
-  ChevronUp,
   Clock3,
-  ExternalLink,
+  Gamepad2,
   Layers3,
   ScrollText,
 } from "lucide-react";
@@ -27,10 +25,7 @@ const patchTypeStyles: Record<PatchType, { label: string; className: string }> =
 };
 
 function PatchEntry({ patch, index }: { patch: GamePatch; index: number }) {
-  const [expanded, setExpanded] = useState(false);
   const type = patchTypeStyles[patch.patchType] ?? patchTypeStyles.update;
-  const details = patch.contentText || patch.summary;
-  const canExpand = details.length > 520;
 
   return (
     <motion.article
@@ -39,6 +34,11 @@ function PatchEntry({ patch, index }: { patch: GamePatch; index: number }) {
       transition={{ delay: Math.min(index * 0.035, 0.25), duration: 0.25 }}
       className="relative rounded-2xl border bg-card p-4 card-shadow sm:p-5"
     >
+      {index === 0 && (
+        <span className="absolute -top-2.5 left-4 rounded-full bg-primary px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-primary-foreground shadow-sm">
+          Current patch
+        </span>
+      )}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide", type.className)}>
           {type.label}
@@ -60,46 +60,20 @@ function PatchEntry({ patch, index }: { patch: GamePatch; index: number }) {
         </Link>
       </h2>
 
-      {details && (
-        <div
-          className={cn(
-            "mt-3 whitespace-pre-line text-sm leading-6 text-muted-foreground",
-            !expanded && "line-clamp-5",
-          )}
-        >
-          {expanded ? details : patch.summary || details}
-        </div>
+      {patch.summary && (
+        <p className="mt-3 line-clamp-4 text-sm leading-6 text-muted-foreground">
+          {patch.summary}
+        </p>
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-        <span className="text-[11px] text-muted-foreground">Official source · {patch.sourceName}</span>
-        <div className="flex items-center gap-2">
-          <Link
-            to={`/game-patch/${patch.gameId}/${patch.id}`}
-            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
-          >
-            Read patch
-          </Link>
-          {canExpand && (
-            <button
-              type="button"
-              onClick={() => setExpanded((value) => !value)}
-              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
-            >
-              {expanded ? "Show less" : "Show details"}
-              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
-          )}
-          <a
-            href={patch.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Official notes
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        </div>
+        <span className="text-[11px] text-muted-foreground">Rewritten from the official {patch.sourceName} release</span>
+        <Link
+          to={`/game-patch/${patch.gameId}/${patch.id}`}
+          className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Read more <span aria-hidden="true">→</span>
+        </Link>
       </div>
     </motion.article>
   );
@@ -166,6 +140,13 @@ export default function GamePatchHistory() {
                         Latest · {format(new Date(game.latestPatchAt), "MMM d, yyyy")}
                       </span>
                     )}
+                    <Link
+                      to={`/reviews/${game.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-full border bg-card/85 px-3 py-1.5 text-xs font-semibold text-primary backdrop-blur-sm hover:bg-card"
+                    >
+                      <Gamepad2 className="h-3.5 w-3.5" />
+                      Game page
+                    </Link>
                   </div>
                 </div>
               </header>
@@ -173,9 +154,9 @@ export default function GamePatchHistory() {
               <div className="mb-4 flex items-end justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-foreground">Complete patch history</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Newest first. Older official updates remain available as you continue loading.
-                  </p>
+                   <p className="mt-1 text-sm text-muted-foreground">
+                     The current rewrite appears first, followed by every older Talus patch breakdown in date order.
+                   </p>
                 </div>
               </div>
 
@@ -219,7 +200,7 @@ export default function GamePatchHistory() {
                 <div className="rounded-2xl border bg-card p-10 text-center">
                   <ScrollText className="mx-auto h-8 w-8 text-muted-foreground/50" />
                   <p className="mt-3 font-semibold text-foreground">Patch history is being imported</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Check back shortly for official updates.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Talus is rewriting the official updates into readable player-first breakdowns. Check back shortly.</p>
                 </div>
               )}
             </>

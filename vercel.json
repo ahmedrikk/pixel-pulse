@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/game-patch/:gameId/:patchId", "destination": "/api/patch-page?gameId=:gameId&patchId=:patchId" },
+    { "source": "/patch-sitemap.xml", "destination": "/api/patch-sitemap" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [

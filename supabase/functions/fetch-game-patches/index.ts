@@ -81,14 +81,6 @@ function stripMarkup(value: string): string {
     .trim();
 }
 
-function summarize(content: string): string {
-  const compact = content.replace(/\s+/g, " ").trim();
-  if (compact.length <= 520) return compact;
-  const excerpt = compact.slice(0, 520);
-  const sentenceEnd = Math.max(excerpt.lastIndexOf(". "), excerpt.lastIndexOf("! "), excerpt.lastIndexOf("? "));
-  return `${excerpt.slice(0, sentenceEnd > 260 ? sentenceEnd + 1 : 500).trim()}…`;
-}
-
 function classifyPatch(title: string): "patch" | "hotfix" | "balance" | "maintenance" | "update" {
   if (/hotfix/i.test(title)) return "hotfix";
   if (/balance/i.test(title)) return "balance";
@@ -146,9 +138,8 @@ async function storeItems(
       game_id: source.game_id,
       source_id: source.id,
       external_id: item.gid,
-      title: stripMarkup(item.title).slice(0, 500),
-      summary: summarize(contentText),
-      content_text: contentText,
+      source_title: stripMarkup(item.title).slice(0, 500),
+      source_content: contentText,
       source_url: item.url,
       source_name: source.source_name,
       patch_type: classifyPatch(item.title),
@@ -161,11 +152,11 @@ async function storeItems(
   });
 
   if (patches.length === 0) return 0;
-  const { error } = await supabase
-    .from("game_patches")
-    .upsert(patches, { onConflict: "source_id,external_id" });
+  const { data, error } = await supabase.rpc("ingest_game_patch_sources", {
+    source_rows: patches,
+  });
   if (error) throw new Error(error.message);
-  return patches.length;
+  return Number(data ?? patches.length);
 }
 
 async function syncSource(
