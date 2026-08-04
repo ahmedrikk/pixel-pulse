@@ -287,7 +287,9 @@ export default function GameCalendar() {
 
             <div className="flex flex-col gap-1 border-t bg-secondary/20 px-4 py-3 text-[10px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
               <span className="flex items-center gap-1"><Monitor className="h-3 w-3" /> Confirmed dates can change; Talus refreshes them throughout the day.</span>
-              <a href="https://rawg.io/" target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">Game data provided by RAWG</a>
+              <span className="font-semibold text-primary">
+                Data from <a href="https://rawg.io/" target="_blank" rel="noreferrer" className="hover:underline">RAWG</a> · <a href="https://www.igdb.com/" target="_blank" rel="noreferrer" className="hover:underline">IGDB</a>
+              </span>
             </div>
           </section>
 
