@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Clock3, ExternalLink, Gift, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
+import { Link } from "react-router-dom";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
@@ -39,7 +40,7 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
       transition={{ delay: Math.min(index * 0.04, 0.28), duration: 0.25 }}
       className="group overflow-hidden rounded-2xl border bg-card card-shadow transition-all hover:-translate-y-1 hover:card-shadow-hover"
     >
-      <a href={offer.offerUrl} target="_blank" rel="noopener noreferrer" className="block">
+      <Link to={`/reviews/${offer.gameId}`} className="block">
         <div className="relative aspect-[16/9] overflow-hidden bg-secondary">
           {offer.imageUrl ? (
             <img
@@ -61,11 +62,13 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
             {offer.status === "upcoming" ? "Coming soon" : kindLabel[offer.offerKind]}
           </span>
         </div>
-      </a>
+      </Link>
 
       <div className="space-y-3 p-4">
         <div>
-          <h2 className="line-clamp-1 text-base font-bold text-foreground">{offer.title}</h2>
+          <h2 className="line-clamp-1 text-base font-bold text-foreground">
+            <Link to={`/reviews/${offer.gameId}`} className="transition-colors hover:text-primary">{offer.title}</Link>
+          </h2>
           <p className="mt-1.5 line-clamp-3 min-h-[60px] text-sm leading-5 text-muted-foreground">
             {offer.description || "Claim this active game offer while it is still available."}
           </p>

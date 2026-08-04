@@ -1,476 +1,404 @@
-import { useState, useEffect } from "react";
-import { useParams, Navigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import { format, formatDistanceToNowStrict } from "date-fns";
+import { motion } from "framer-motion";
 import {
-  Star,
-  ThumbsUp,
-  Monitor,
-  Gamepad2,
-  Trophy,
-  ChevronRight,
-  Send,
   Crown,
+  ExternalLink,
+  Gamepad2,
+  Gift,
+  MessageCircle,
+  Monitor,
+  ScrollText,
+  Send,
+  Star,
+  ThumbsDown,
+  ThumbsUp,
 } from "lucide-react";
-import { SiteLayout } from "@/components/SiteLayout";
+import { Link, Navigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { trackComment, trackReaction } from "@/lib/xpService";
-import { useGameDetails } from "@/hooks/useGameDetails";
-import { useUserReviews, useSubmitReview, useVoteHelpful } from "@/hooks/useGameReviews";
-import { useAuthGate } from "@/contexts/AuthGateContext";
-import { ShareReviewButton } from "@/components/ShareReviewButton";
+import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
+import { ShareReviewButton } from "@/components/ShareReviewButton";
+import { useAuthGate } from "@/contexts/AuthGateContext";
+import { useGameDetails } from "@/hooks/useGameDetails";
+import { useRecentGamePatches } from "@/hooks/useGamePatches";
+import {
+  useAddReviewComment,
+  useSubmitReview,
+  useUserReviews,
+  useVoteReview,
+  type ReviewVoteDirection,
+  type UserReview,
+} from "@/hooks/useGameReviews";
+import { cn } from "@/lib/utils";
 
 const platformIcons: Record<string, React.ReactNode> = {
-  PC: <Monitor className="h-5 w-5" />,
-  PS5: <Gamepad2 className="h-5 w-5" />,
-  Xbox: <Gamepad2 className="h-5 w-5" />,
-  Switch: <Gamepad2 className="h-5 w-5" />,
+  PC: <Monitor className="h-4 w-4" />,
+  PS5: <Gamepad2 className="h-4 w-4" />,
+  PS4: <Gamepad2 className="h-4 w-4" />,
+  Xbox: <Gamepad2 className="h-4 w-4" />,
+  Switch: <Gamepad2 className="h-4 w-4" />,
 };
 
 function StarRating({
   rating,
-  max = 5,
-  size = "md",
   interactive = false,
   onChange,
 }: {
   rating: number;
-  max?: number;
-  size?: "sm" | "md" | "lg";
   interactive?: boolean;
-  onChange?: (r: number) => void;
+  onChange?: (rating: number) => void;
 }) {
-  const sizeMap = { sm: "h-4 w-4", md: "h-5 w-5", lg: "h-7 w-7" };
   return (
-    <div className="flex gap-0.5">
-      {Array.from({ length: max }).map((_, i) => (
-        <Star
-          key={i}
-          className={`${sizeMap[size]} transition-colors ${
-            i < rating
-              ? "fill-primary text-primary"
-              : "text-muted-foreground/30"
-          } ${interactive ? "cursor-pointer hover:scale-110 transition-transform" : ""}`}
-          onClick={() => interactive && onChange?.(i + 1)}
-        />
+    <div className="flex gap-0.5" aria-label={`${rating} out of 5 stars`}>
+      {Array.from({ length: 5 }).map((_, index) => (
+        <button
+          key={index}
+          type="button"
+          disabled={!interactive}
+          aria-label={interactive ? `${index + 1} stars` : undefined}
+          onClick={() => interactive && onChange?.(index + 1)}
+          className={cn("disabled:cursor-default", interactive && "transition-transform hover:scale-110")}
+        >
+          <Star className={cn("h-5 w-5", index < rating ? "fill-primary text-primary" : "text-muted-foreground/30")} />
+        </button>
       ))}
     </div>
   );
 }
 
+function ReviewCard({
+  review,
+  gameName,
+  coverUrl,
+  currentUserId,
+  onVote,
+  onComment,
+}: {
+  review: UserReview;
+  gameName: string;
+  coverUrl: string;
+  currentUserId?: string;
+  onVote: (reviewId: string, direction: ReviewVoteDirection) => void;
+  onComment: (reviewId: string, text: string) => Promise<boolean>;
+}) {
+  const [commentText, setCommentText] = useState("");
+  const [showComments, setShowComments] = useState(review.comments.length > 0);
+  const [submitting, setSubmitting] = useState(false);
+
+  const submitComment = async () => {
+    if (!commentText.trim()) return;
+    setSubmitting(true);
+    const posted = await onComment(review.id, commentText.trim());
+    setSubmitting(false);
+    if (posted) {
+      setCommentText("");
+      setShowComments(true);
+    }
+  };
+
+  return (
+    <motion.article layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border bg-card p-4 card-shadow sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {review.author.avatar ? (
+            <img src={review.author.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-primary-foreground">
+              {review.author.name[0]?.toUpperCase() ?? "?"}
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-foreground">{review.author.name}</p>
+            <p className="text-xs text-muted-foreground">{format(new Date(review.createdAt), "MMM d, yyyy")}</p>
+          </div>
+        </div>
+        <StarRating rating={review.starRating} />
+      </div>
+
+      {review.reviewText && <p className="mt-4 whitespace-pre-line text-sm leading-6 text-muted-foreground">{review.reviewText}</p>}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
+        <button
+          type="button"
+          aria-label={`Upvote review by ${review.author.name}`}
+          onClick={() => onVote(review.id, "up")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
+            review.userVote === "up" ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-secondary text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <ThumbsUp className="h-4 w-4" />
+          {review.upvoteCount}
+        </button>
+        <button
+          type="button"
+          aria-label={`Downvote review by ${review.author.name}`}
+          onClick={() => onVote(review.id, "down")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
+            review.userVote === "down" ? "bg-red-500/15 text-red-600 dark:text-red-400" : "bg-secondary text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <ThumbsDown className="h-4 w-4" />
+          {review.downvoteCount}
+        </button>
+        <button
+          type="button"
+          aria-label={`${showComments ? "Hide" : "Show"} comments on ${review.author.name}'s review`}
+          onClick={() => setShowComments((value) => !value)}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
+        >
+          <MessageCircle className="h-4 w-4" />
+          {review.comments.length}
+        </button>
+        {review.userId === currentUserId && (
+          <div className="ml-auto">
+            <ShareReviewButton
+              gameId={review.gameId}
+              gameName={gameName}
+              starRating={review.starRating}
+              reviewText={review.reviewText}
+              coverUrl={coverUrl}
+              userName={review.author.name}
+            />
+          </div>
+        )}
+      </div>
+
+      {showComments && (
+        <div className="mt-4 space-y-3 border-l-2 border-primary/15 pl-3 sm:pl-4">
+          {review.comments.map((comment) => (
+            <div key={comment.id} className="rounded-xl bg-secondary/60 p-3">
+              <div className="flex items-center gap-2 text-xs">
+                <span className="font-bold text-foreground">{comment.author.name}</span>
+                <time className="text-muted-foreground">{format(new Date(comment.createdAt), "MMM d")}</time>
+              </div>
+              <p className="mt-1 text-sm leading-5 text-muted-foreground">{comment.text}</p>
+            </div>
+          ))}
+          {review.comments.length === 0 && <p className="text-xs text-muted-foreground">No comments yet. Start the discussion.</p>}
+          <div className="flex gap-2">
+            <input
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && !event.shiftKey && submitComment()}
+              placeholder="Reply to this review…"
+              maxLength={2000}
+              className="min-w-0 flex-1 rounded-xl border-0 bg-secondary px-3 py-2 text-sm text-foreground outline-none ring-primary focus:ring-2"
+            />
+            <button
+              type="button"
+              onClick={submitComment}
+              disabled={!commentText.trim() || submitting}
+              className="rounded-xl bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50"
+              aria-label="Post comment"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </motion.article>
+  );
+}
+
 export default function GameReview() {
   const { gameId } = useParams<{ gameId: string }>();
+  const { user, openAuthModal, pendingAction, executePendingAction } = useAuthGate();
   const [newReviewText, setNewReviewText] = useState("");
   const [newRating, setNewRating] = useState(0);
   const [sortBy, setSortBy] = useState<"helpful" | "recent">("helpful");
 
-  const { data: game, isLoading: gameLoading, error: gameError } = useGameDetails(gameId);
-  const { data: userReviews = [] } = useUserReviews(gameId);
-  const submitReview = useSubmitReview(gameId ?? "", game?.name);
-  const voteHelpful = useVoteHelpful(gameId ?? "");
+  const gameQuery = useGameDetails(gameId);
+  const reviewsQuery = useUserReviews(gameId, user?.id);
+  const patchesQuery = useRecentGamePatches(gameId);
+  const submitReview = useSubmitReview(gameId ?? "", gameQuery.data?.name);
+  const voteReview = useVoteReview(gameId ?? "");
+  const addComment = useAddReviewComment(gameId ?? "");
 
-  const { user, openAuthModal, pendingAction, executePendingAction } = useAuthGate();
-
-  // Replay a review draft that was interrupted by the auth gate (F15.1).
-  // The draft rides along in the pending action; once the user is signed in
-  // and back on this game's page, restore it into the form.
   useEffect(() => {
-    if (!user || !pendingAction || pendingAction.type !== "review") return;
-    if (pendingAction.gameId !== gameId) return;
+    if (!user || !pendingAction || pendingAction.type !== "review" || pendingAction.gameId !== gameId) return;
     const draft = pendingAction.data as { starRating?: number; reviewText?: string } | undefined;
     if (draft?.starRating) setNewRating(draft.starRating);
     if (draft?.reviewText) setNewReviewText(draft.reviewText);
     executePendingAction();
-    toast.success("Welcome back! Your review draft is restored — hit Submit to post it.");
+    toast.success("Your review draft is ready to submit.");
   }, [user, pendingAction, gameId, executePendingAction]);
 
-  // Community rating = average of USER star reviews (Letterboxd-style)
-  const userAvg = userReviews.length
-    ? userReviews.reduce((s, r) => s + r.starRating, 0) / userReviews.length
-    : 0;
-  // The logged-in user's own rating for this game, if any.
-  const myRating = userReviews.find((r) => r.userId === user?.id)?.starRating ?? null;
-
-  if (gameLoading) {
-    return (
-      <SiteLayout>
-        <div className="space-y-4 animate-pulse">
-          <div className="h-64 rounded-2xl bg-secondary" />
-          <div className="h-8 w-1/2 rounded bg-secondary" />
-          <div className="h-4 w-full rounded bg-secondary" />
-          <div className="h-4 w-3/4 rounded bg-secondary" />
-        </div>
-      </SiteLayout>
-    );
+  if (gameQuery.isLoading) {
+    return <SiteLayout><div className="h-[520px] animate-pulse rounded-2xl bg-secondary" /></SiteLayout>;
   }
+  if (gameQuery.error || !gameQuery.data) return <Navigate to="/reviews" replace />;
 
-  if (gameError || !game) {
-    return <Navigate to="/reviews" replace />;
-  }
+  const game = gameQuery.data;
+  const reviews = reviewsQuery.data ?? [];
+  const myRating = reviews.find((review) => review.userId === user?.id)?.starRating ?? null;
+  const sortedReviews = [...reviews].sort((a, b) => sortBy === "recent"
+    ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    : (b.upvoteCount - b.downvoteCount) - (a.upvoteCount - a.downvoteCount));
 
-  const handleVote = (reviewId: string) => {
+  const handleVote = (reviewId: string, direction: ReviewVoteDirection) => {
+    if (!user) return openAuthModal("react");
+    voteReview.mutate({ reviewId, direction }, { onError: () => toast.error("Couldn't register your vote.") });
+  };
+
+  const handleComment = async (reviewId: string, text: string) => {
     if (!user) {
-      openAuthModal("react");
-      return;
+      openAuthModal("comment");
+      return false;
     }
-    voteHelpful.mutate(reviewId, {
-      onError: () => toast.error("Couldn't register your vote."),
-    });
-    trackReaction(game.id, "helpful");
+    try {
+      await addComment.mutateAsync({ reviewId, text });
+      return true;
+    } catch {
+      toast.error("Couldn't post that comment.");
+      return false;
+    }
   };
 
   const handleSubmitReview = async () => {
     if (!newReviewText.trim() || newRating === 0) return;
     if (!user) {
-      // Carry the draft into the pending action so it survives login (F15.1).
-      openAuthModal("review", {
-        gameId: game.id,
-        data: { starRating: newRating, reviewText: newReviewText.trim() },
-      });
+      openAuthModal("review", { gameId: game.id, data: { starRating: newRating, reviewText: newReviewText.trim() } });
       return;
     }
     try {
-      await submitReview.mutateAsync({
-        starRating: newRating,
-        reviewText: newReviewText.trim(),
-        tags: [],
-      });
+      await submitReview.mutateAsync({ starRating: newRating, reviewText: newReviewText.trim(), tags: [] });
       setNewReviewText("");
       setNewRating(0);
-      trackComment(game.id);
-      toast.success("Review posted!");
-    } catch (err) {
-      toast.error("Couldn't post your review. Please try again.");
-      console.error("Review submit failed:", err);
+      toast.success(myRating ? "Review updated." : "Review posted.");
+    } catch {
+      toast.error("Couldn't save your review.");
     }
   };
-
-  // Critic reviews from OpenCritic
-  const criticReviews = (game.openCritic?.reviews ?? []).map((r, i) => ({
-    id: `critic-${i}`,
-    userName: r.author,
-    outlet: r.outlet,
-    outletLogo: r.outletLogo,
-    rating: r.score ? Math.round((r.score / 100) * 5) : 3,
-    score: r.score,
-    text: r.snippet,
-    date: r.publishedDate,
-    helpful: 0,
-    url: r.url,
-    isCritic: true,
-  }));
-
-  // User reviews sorted
-  const sortedUserReviews = [...userReviews].sort((a, b) =>
-    sortBy === "helpful"
-      ? b.helpfulVotes - a.helpfulVotes
-      : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
 
   return (
     <>
       <SiteLayout>
-
-      {/* Hero */}
-      <div className="relative h-[420px] md:h-[480px] overflow-hidden rounded-2xl mb-6">
-        <img
-          src={game.coverImage}
-          alt={game.name}
-          className="w-full h-full object-cover"
-          loading="eager"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            {game.genres[0] && (
-              <span className="inline-block px-3 py-1 rounded-full bg-accent/20 text-accent text-xs font-bold uppercase tracking-wider mb-3">
-                {game.genres[0]}
-              </span>
-            )}
-            <h1 className="text-3xl md:text-5xl font-black text-foreground mb-2 leading-tight">
-              {game.name}
-            </h1>
-            {game.releaseDate && (
-              <p className="text-muted-foreground text-sm mb-4">
-                {game.releaseDate}
-              </p>
-            )}
-
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Your rating */}
-              {myRating != null && (
-                <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-xl px-4 py-2.5">
-                  <span className="text-2xl font-black text-primary">{myRating.toFixed(1)}</span>
-                  <div>
-                    <StarRating rating={myRating} size="sm" />
-                    <p className="text-xs text-muted-foreground">Your rating</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Community rating — average of all user reviews */}
-              <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border rounded-xl px-4 py-2.5">
-                {userReviews.length > 0 ? (
-                  <>
-                    <span className="text-2xl font-black text-foreground">{userAvg.toFixed(1)}</span>
-                    <div>
-                      <StarRating rating={Math.round(userAvg)} size="sm" />
-                      <p className="text-xs text-muted-foreground">
-                        Community · {userReviews.length} rating{userReviews.length > 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <StarRating rating={0} size="sm" />
-                    <p className="text-xs text-muted-foreground">Not rated yet</p>
-                  </div>
-                )}
+        <main className="space-y-7 pb-16 md:pb-0">
+          <header className="relative min-h-[380px] overflow-hidden rounded-2xl border bg-card sm:min-h-[460px]">
+            {game.coverImage && <img src={game.coverImage} alt={game.name} className="absolute inset-0 h-full w-full object-cover" />}
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-black/10" />
+            <div className="relative flex min-h-[380px] flex-col justify-end p-5 sm:min-h-[460px] sm:p-8">
+              <div className="mb-3 flex flex-wrap gap-2">
+                {game.genres.slice(0, 4).map((genre) => <span key={genre} className="rounded-full bg-primary/15 px-3 py-1 text-xs font-bold capitalize text-primary backdrop-blur-sm">{genre.replace(/-/g, " ")}</span>)}
               </div>
+              <h1 className="text-3xl font-black leading-tight text-foreground sm:text-5xl">{game.name}</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {[game.developer, game.releaseDate].filter(Boolean).join(" · ")}
+              </p>
 
-              {/* RAWG rating — external reference */}
-              {game.rawgRating > 0 && (
-                <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border rounded-xl px-4 py-2.5">
-                  <span className="text-2xl font-black text-muted-foreground">{game.rawgRating.toFixed(1)}</span>
-                  <div>
-                    <StarRating rating={Math.round(game.rawgRating)} size="sm" />
-                    <p className="text-xs text-muted-foreground">RAWG</p>
-                  </div>
+              <div className="mt-5 flex flex-wrap items-stretch gap-2">
+                <div className="rounded-xl border bg-card/90 px-4 py-2.5 backdrop-blur-sm">
+                  <div className="flex items-baseline gap-1"><span className="text-2xl font-black text-primary">{game.reviewCount ? game.ourRating.toFixed(1) : "—"}</span><span className="text-xs text-muted-foreground">/5</span></div>
+                  <p className="text-[11px] text-muted-foreground">Talus · {game.reviewCount} reviews</p>
                 </div>
-              )}
-
-              {/* OpenCritic Score */}
-              {game.openCritic?.score && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20">
-                  <div className="text-center">
-                    <div className="text-2xl font-black text-primary">{game.openCritic.score}</div>
-                    <div className="text-[10px] text-muted-foreground">OpenCritic</div>
-                  </div>
-                  {game.openCritic.tier && (
-                    <div>
-                      <div className="text-sm font-semibold">{game.openCritic.tier}</div>
-                      {game.openCritic.percentRecommended != null && (
-                        <div className="text-xs text-muted-foreground">
-                          {game.openCritic.percentRecommended.toFixed(0)}% recommend
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Metacritic */}
-              {game.metacriticScore && (
-                <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border rounded-xl px-4 py-2.5">
-                  <span className="text-2xl font-black text-primary">{game.metacriticScore}</span>
-                  <p className="text-xs text-muted-foreground">Metacritic</p>
-                </div>
-              )}
-
-              {/* Platforms */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {game.platforms.map((p) => (
-                  <div
-                    key={p}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-card/80 backdrop-blur-sm border rounded-lg text-sm text-muted-foreground"
-                  >
-                    {platformIcons[p] || <Gamepad2 className="h-5 w-5" />}
-                    <span className="font-medium">{p}</span>
+                {game.externalRatings.map((rating) => (
+                  <div key={rating.source} className="rounded-xl border bg-card/90 px-4 py-2.5 backdrop-blur-sm">
+                    <div className="text-2xl font-black text-foreground">{rating.score}<span className="text-xs font-medium text-muted-foreground">/{rating.scale}</span></div>
+                    <p className="text-[11px] text-muted-foreground">{rating.source}</p>
                   </div>
                 ))}
               </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {game.platforms.map((platform) => (
+                  <span key={platform} className="inline-flex items-center gap-1.5 rounded-lg border bg-card/85 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground backdrop-blur-sm">
+                    {platformIcons[platform] ?? <Gamepad2 className="h-4 w-4" />}{platform}
+                  </span>
+                ))}
+              </div>
             </div>
-          </motion.div>
-        </div>
-      </div>
+          </header>
 
-      {/* Content */}
-      <div className="space-y-8">
+          {game.freeNow && game.freeOfferUrl && (
+            <section className="flex flex-col gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white"><Gift className="h-5 w-5" /></div>
+                <div>
+                  <h2 className="font-bold text-foreground">Free to claim now</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {game.freeOfferStore ?? "Store offer"}{game.freeOfferEndsAt ? ` · Ends in ${formatDistanceToNowStrict(new Date(game.freeOfferEndsAt))}` : ""}
+                  </p>
+                </div>
+              </div>
+              <a href={game.freeOfferUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">
+                Claim free <ExternalLink className="h-4 w-4" />
+              </a>
+            </section>
+          )}
 
-        {/* Description */}
-        {game.description && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-card border rounded-2xl p-6 card-shadow"
-          >
-            <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-              <ChevronRight className="h-5 w-5 text-primary" />
-              About the Game
-            </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed line-clamp-6">{game.description}</p>
-          </motion.div>
-        )}
+          <section className="rounded-2xl border bg-card p-5 card-shadow sm:p-7">
+            <h2 className="text-xl font-bold text-foreground">About the game</h2>
+            {game.description ? (
+              <div className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground sm:text-base">{game.description}</div>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">Talus is preparing this game's editorial overview.</p>
+            )}
+          </section>
 
-        {/* Critic Reviews */}
-        {criticReviews.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-primary" />
-              Critic Reviews
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {criticReviews.map((r) => (
-                <motion.a
-                  key={r.id}
-                  href={r.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="block bg-card border rounded-xl p-5 card-shadow hover:card-shadow-hover transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      {r.outletLogo ? (
-                        <img src={r.outletLogo} alt={r.outlet} className="w-8 h-8 rounded object-contain bg-secondary p-1" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-xs">
-                          {r.outlet[0]}
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-semibold text-foreground">{r.outlet}</p>
-                        <p className="text-xs text-muted-foreground">{r.userName}</p>
-                      </div>
-                    </div>
-                    {r.score != null && (
-                      <span className="text-lg font-black text-primary">{r.score}/100</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{r.text}</p>
-                </motion.a>
-              ))}
+          {(patchesQuery.isLoading || (patchesQuery.data?.length ?? 0) > 0) && (
+            <section>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><ScrollText className="h-5 w-5 text-primary" />Recent patches</h2>
+                <Link to={`/game-patch/${game.id}`} className="text-sm font-semibold text-primary hover:underline">All patches →</Link>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {patchesQuery.isLoading ? Array.from({ length: 2 }).map((_, index) => <div key={index} className="h-32 animate-pulse rounded-xl bg-secondary" />) : patchesQuery.data?.map((patch) => (
+                  <Link key={patch.id} to={`/game-patch/${game.id}/${patch.id}`} className="rounded-xl border bg-card p-4 transition-colors hover:border-primary/30">
+                    <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground"><span className="font-bold uppercase text-primary">{patch.patchType}</span><time>{format(new Date(patch.publishedAt), "MMM d, yyyy")}</time></div>
+                    <h3 className="mt-2 line-clamp-2 font-bold text-foreground">{patch.title}</h3>
+                    {patch.summary && <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{patch.summary}</p>}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="space-y-5">
+            <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><Crown className="h-5 w-5 text-primary" />Community reviews</h2>
+
+            <div className="rounded-2xl border bg-card p-5 card-shadow sm:p-6">
+              <h3 className="font-semibold text-foreground">{myRating ? "Update your review" : "Write a review"}</h3>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <span className="text-sm text-muted-foreground">Your rating</span>
+                <StarRating rating={newRating} interactive onChange={setNewRating} />
+                {newRating > 0 && <span className="text-sm font-bold text-primary">{newRating}/5</span>}
+              </div>
+              <textarea
+                value={newReviewText}
+                onChange={(event) => setNewReviewText(event.target.value)}
+                placeholder="What worked, what didn't, and who would you recommend it to?"
+                maxLength={5000}
+                className="mt-4 min-h-28 w-full resize-y rounded-xl border-0 bg-secondary p-4 text-sm text-foreground outline-none ring-primary focus:ring-2"
+              />
+              <div className="mt-3 flex justify-end">
+                <button type="button" onClick={handleSubmitReview} disabled={!newReviewText.trim() || !newRating || submitReview.isPending} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50">
+                  <Send className="h-4 w-4" />{submitReview.isPending ? "Saving…" : myRating ? "Update review" : "Post review"}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Community Reviews */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Crown className="h-5 w-5 text-primary" />
-            Community Reviews
-          </h2>
-
-          {/* Write Review */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-card border rounded-2xl p-6 card-shadow"
-          >
-            <h3 className="font-semibold text-foreground mb-3">Write a Review</h3>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-sm text-muted-foreground">Your Rating:</span>
-              <StarRating rating={newRating} interactive onChange={setNewRating} />
-              {newRating > 0 && (
-                <span className="text-sm font-bold text-primary">{newRating}/5</span>
-              )}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setSortBy("helpful")} className={cn("rounded-lg px-4 py-2 text-sm font-semibold", sortBy === "helpful" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>Most upvoted</button>
+              <button type="button" onClick={() => setSortBy("recent")} className={cn("rounded-lg px-4 py-2 text-sm font-semibold", sortBy === "recent" ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")}>Most recent</button>
             </div>
-            <textarea
-              value={newReviewText}
-              onChange={(e) => setNewReviewText(e.target.value)}
-              placeholder="Share your thoughts on the game..."
-              className="w-full min-h-[100px] rounded-xl bg-secondary border-0 p-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-            />
-            <div className="flex justify-end mt-3">
-              <button
-                onClick={handleSubmitReview}
-                disabled={!newReviewText.trim() || newRating === 0 || submitReview.isPending}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="h-4 w-4" />
-                {submitReview.isPending ? "Submitting..." : "Submit Review"}
-              </button>
-            </div>
-          </motion.div>
 
-          {/* Sort */}
-          <div className="flex gap-2">
-            {(["helpful", "recent"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setSortBy(s)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  sortBy === s
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {s === "helpful" ? "Most Helpful" : "Most Recent"}
-              </button>
-            ))}
-          </div>
-
-          {/* Review List */}
-          <AnimatePresence mode="popLayout">
-            <div className="space-y-4">
-              {sortedUserReviews.map((r) => (
-                <motion.div
-                  key={r.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-card border rounded-xl p-5 card-shadow hover:card-shadow-hover transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-sm">
-                        {r.author.name[0]?.toUpperCase() ?? "?"}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground">{r.author.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                        </p>
-                      </div>
-                    </div>
-                    <StarRating rating={r.starRating} size="sm" />
-                  </div>
-
-                  {r.reviewText && (
-                    <p className="text-sm text-muted-foreground leading-relaxed mb-4">{r.reviewText}</p>
-                  )}
-
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-muted-foreground mr-1">Helpful?</span>
-                    <button
-                      onClick={() => handleVote(r.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary hover:bg-primary/10 hover:text-primary transition-all active:scale-95"
-                    >
-                      <ThumbsUp className="h-3.5 w-3.5" />
-                      <span className="font-medium">{r.helpfulVotes}</span>
-                    </button>
-                    {r.userId === user?.id && game && (
-                      <div className="ml-auto flex items-center gap-1.5 text-muted-foreground">
-                        <span className="text-xs">Share your review</span>
-                        <ShareReviewButton
-                          gameId={r.gameId}
-                          gameName={game.name}
-                          starRating={r.starRating}
-                          reviewText={r.reviewText}
-                          coverUrl={game.coverImage}
-                          userName={r.author.name}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-
-              {sortedUserReviews.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  No community reviews yet. Be the first!
-                </p>
-              )}
-            </div>
-          </AnimatePresence>
-        </div>
-      </div>
-      <BottomNavBar />
-    </SiteLayout>
+            {reviewsQuery.isLoading ? (
+              <div className="h-48 animate-pulse rounded-2xl bg-secondary" />
+            ) : sortedReviews.length ? (
+              <div className="space-y-4">
+                {sortedReviews.map((review) => <ReviewCard key={review.id} review={review} gameName={game.name} coverUrl={game.coverImage} currentUserId={user?.id} onVote={handleVote} onComment={handleComment} />)}
+              </div>
+            ) : (
+              <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">No community reviews yet. Be the first.</div>
+            )}
+          </section>
+        </main>
+        <BottomNavBar />
+      </SiteLayout>
       <Footer />
     </>
   );

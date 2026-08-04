@@ -116,9 +116,20 @@ Steam, GOG, itch.io, mobile stores, and other supported platforms. The
 `fetch-free-games` Edge Function refreshes GamerPower's broad public game feed
 and Epic Games Store's official promotions endpoint every 30 minutes. Talus
 merges duplicates in favor of first-party storefront data, supports upcoming
-offers, archives expired offers, and keeps the claim destination, artwork,
-platforms, original price, and expiry time together. GamerPower attribution is
-shown on the page as required by its API terms.
+offers, archives expired offers, and keeps the claim destination, original
+price, and expiry time attached to the canonical Game record. GamerPower
+attribution is shown on the page as required by its API terms.
+
+## Canonical game records
+
+Reviews, Free Games, and Game Patch share `public.games` as their single source
+of truth. Store offers retain only offer-specific fields and reference a game
+by foreign key; patch records use the same relationship. Game rows hold
+canonical metadata, external ratings, live Talus rating aggregates, and the
+current free-to-claim state. Community review votes are stored per user,
+comments are attached to reviews, and genre rankings are calculated from the
+canonical aggregates. Missing editorial descriptions are created once through
+a locked two-pass Talus voice workflow and remain editable in the game record.
 
 ## AI generation
 

@@ -55,7 +55,9 @@ function PatchEntry({ patch, index }: { patch: GamePatch; index: number }) {
       </div>
 
       <h2 className="text-base font-bold leading-snug text-foreground sm:text-lg">
-        {patch.title}
+        <Link to={`/game-patch/${patch.gameId}/${patch.id}`} className="transition-colors hover:text-primary">
+          {patch.title}
+        </Link>
       </h2>
 
       {details && (
@@ -72,6 +74,12 @@ function PatchEntry({ patch, index }: { patch: GamePatch; index: number }) {
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
         <span className="text-[11px] text-muted-foreground">Official source · {patch.sourceName}</span>
         <div className="flex items-center gap-2">
+          <Link
+            to={`/game-patch/${patch.gameId}/${patch.id}`}
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+          >
+            Read patch
+          </Link>
           {canExpand && (
             <button
               type="button"

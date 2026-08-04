@@ -84,6 +84,52 @@ async function getPatchPage(gameId: string, page: number) {
   };
 }
 
+async function getRecentGamePatches(gameId: string): Promise<GamePatch[]> {
+  const { data, error } = await supabase
+    .from("game_patches")
+    .select("id, game_id, title, summary, content_text, source_url, source_name, patch_type, version_label, image_url, published_at")
+    .eq("game_id", gameId)
+    .order("published_at", { ascending: false })
+    .limit(4);
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    gameId: row.game_id,
+    title: row.title,
+    summary: row.summary,
+    contentText: row.content_text,
+    sourceUrl: row.source_url,
+    sourceName: row.source_name,
+    patchType: row.patch_type as PatchType,
+    versionLabel: row.version_label,
+    imageUrl: row.image_url,
+    publishedAt: row.published_at,
+  }));
+}
+
+async function getGamePatch(patchId: string): Promise<GamePatch | null> {
+  const { data, error } = await supabase
+    .from("game_patches")
+    .select("id, game_id, title, summary, content_text, source_url, source_name, patch_type, version_label, image_url, published_at")
+    .eq("id", patchId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: data.id,
+    gameId: data.game_id,
+    title: data.title,
+    summary: data.summary,
+    contentText: data.content_text,
+    sourceUrl: data.source_url,
+    sourceName: data.source_name,
+    patchType: data.patch_type as PatchType,
+    versionLabel: data.version_label,
+    imageUrl: data.image_url,
+    publishedAt: data.published_at,
+  };
+}
+
 export function usePatchGames() {
   return useQuery({
     queryKey: ["game-patches", "catalog"],
@@ -108,6 +154,24 @@ export function useGamePatchHistory(gameId: string | undefined) {
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.page + 1 : undefined,
     enabled: !!gameId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useRecentGamePatches(gameId: string | undefined) {
+  return useQuery({
+    queryKey: ["game-patches", "recent", gameId],
+    queryFn: () => getRecentGamePatches(gameId!),
+    enabled: !!gameId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useGamePatch(patchId: string | undefined) {
+  return useQuery({
+    queryKey: ["game-patches", "detail", patchId],
+    queryFn: () => getGamePatch(patchId!),
+    enabled: !!patchId,
     staleTime: 5 * 60 * 1000,
   });
 }

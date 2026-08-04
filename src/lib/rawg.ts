@@ -16,6 +16,8 @@ export interface RawgGame {
   platforms: { platform: { name: string } }[] | null;
   description_raw?: string;
   stores?: { store: { name: string } }[] | null;
+  developers?: { id: number; name: string; slug: string }[];
+  publishers?: { id: number; name: string; slug: string }[];
 }
 
 export interface RawgListResponse {
