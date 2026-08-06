@@ -32,6 +32,13 @@ function wordCount(value: string): number {
   return value.trim().split(/\s+/).filter(Boolean).length;
 }
 
+function responseStatusForError(error: unknown): number {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/\b429\b|quota exceeded|current quota/i.test(message)) return 429;
+  if (/\b503\b|temporar(?:y|ily)|timeout|timed out|fetch failed/i.test(message)) return 503;
+  return 500;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") {
@@ -136,6 +143,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ ok: true, cached: false, wordCount: finalWordCount, description: finalDescription }), { headers: jsonHeaders });
   } catch (error) {
     console.error("Game description enrichment failed", error);
+    const status = responseStatusForError(error);
     try {
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -150,7 +158,7 @@ serve(async (req) => {
     }
     return new Response(
       JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }),
-      { status: 500, headers: jsonHeaders },
+      { status, headers: jsonHeaders },
     );
   }
 });
