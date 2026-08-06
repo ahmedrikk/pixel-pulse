@@ -10,7 +10,7 @@ Scope: production Supabase workers, scheduled jobs, client-side integrations, an
 - A database trigger now cancels every insert, update, or delete on `cached_articles` while the pause is active. This protects against renamed cron jobs, external workers, old browser clients, and direct service-role writers.
 - Cron cleanup now matches both job names and Edge Function destination URLs, so renamed copies are also archived and unscheduled.
 - The remaining API traffic was backend work, not news ingestion. From ledger activation through the August 6 check, Gemini recorded **1,168 calls**, approximately **779,878 input tokens** and **294,920 output tokens**. At the published paid-tier `gemini-3.5-flash-lite` rates, that token volume is roughly **$0.97**; the provider dashboard remains authoritative for actual billing and free-tier treatment.
-- The game-description run had processed 280 of 542 records: 184 succeeded and 96 failed, with 262 not yet processed. Those calls intentionally remain active because the owner requested backend completion while news is paused.
+- The game-description run initially showed 184 succeeded and 96 failed. Follow-up diagnosis proved Gemini 429 responses were being flattened into generic Edge Function failures and consuming both permanent attempts. The worker now preserves attempts for 429/502/503/504 and timeout failures, waits six hours after unresolved quota exhaustion, and probes with one game. All 96 false failures were restored: the live run now shows **184 succeeded, 0 failed, and 358 queued**. The first protected recovery probe is scheduled for August 6 at 7:49 PM CDT.
 
 ## Executive summary
 
