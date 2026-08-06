@@ -577,6 +577,27 @@ export type Database = {
         }
         Relationships: []
       }
+      operational_controls: {
+        Row: {
+          enabled: boolean
+          key: string
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          key: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          key?: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       predictions: {
         Row: {
           created_at: string | null

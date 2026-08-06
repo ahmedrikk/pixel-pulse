@@ -76,6 +76,18 @@ def already_cached(sb, source_url: str) -> bool:
     return bool(res.data)
 
 
+def news_updates_enabled(sb) -> bool:
+    """Honor the same operational kill switch as the Edge Functions."""
+    res = (
+        sb.table("operational_controls")
+        .select("enabled")
+        .eq("key", "news_updates")
+        .limit(1)
+        .execute()
+    )
+    return not res.data or bool(res.data[0].get("enabled", True))
+
+
 def upsert_article(sb, *, source: str, title: str, url: str, summary: str,
                    image_url: str | None) -> None:
     """Match the exact shape fetch-news writes so the frontend template is
@@ -113,6 +125,10 @@ def run() -> None:
         return
 
     sb = get_supabase()
+
+    if not news_updates_enabled(sb):
+        print("News updates are paused by operational control — exiting.")
+        return
 
     for src in STEALTH_SOURCES:
         print(f"[{src['name']}] fetching listing {src['list_url']}")
