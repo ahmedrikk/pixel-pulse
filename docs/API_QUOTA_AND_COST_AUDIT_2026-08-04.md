@@ -3,6 +3,15 @@
 Date: August 4, 2026  
 Scope: production Supabase workers, scheduled jobs, client-side integrations, and the game-description backfill.
 
+## Follow-up verification — August 6, 2026
+
+- The live `news_updates` control remains disabled. The newest `cached_articles.fetched_at` value is **August 4, 2026 at 5:02 PM CDT**, 27 minutes before the original pause. No new homepage news rows were inserted after the pause.
+- The site could still look as though news was updating because `get_ranked_feed` recalculated order every 15 minutes and adjusted results after impressions. Freeze mode now bypasses that ranking behavior and returns a deterministic newest-first feed.
+- A database trigger now cancels every insert, update, or delete on `cached_articles` while the pause is active. This protects against renamed cron jobs, external workers, old browser clients, and direct service-role writers.
+- Cron cleanup now matches both job names and Edge Function destination URLs, so renamed copies are also archived and unscheduled.
+- The remaining API traffic was backend work, not news ingestion. From ledger activation through the August 6 check, Gemini recorded **1,168 calls**, approximately **779,878 input tokens** and **294,920 output tokens**. At the published paid-tier `gemini-3.5-flash-lite` rates, that token volume is roughly **$0.97**; the provider dashboard remains authoritative for actual billing and free-tier treatment.
+- The game-description run had processed 280 of 542 records: 184 succeeded and 96 failed, with 262 not yet processed. Those calls intentionally remain active because the owner requested backend completion while news is paused.
+
 ## Executive summary
 
 - News updates were paused at `2026-08-04 17:29:40 America/Chicago`.

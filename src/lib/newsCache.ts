@@ -388,6 +388,37 @@ export async function getAllCachedArticles(
   // Retry up to 3 times — Supabase auth init can abort in-flight queries
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      // A paused news pipeline should look paused too. The normal ranking RPC
+      // intentionally rotates cards every 15 minutes and after impressions;
+      // bypass it during a hard freeze and return one stable newest-first view.
+      const { data: newsControl } = await supabase
+        .from('operational_controls')
+        .select('enabled')
+        .eq('key', 'news_updates')
+        .maybeSingle();
+
+      if (newsControl?.enabled === false) {
+        let frozenQuery = supabase
+          .from('cached_articles')
+          .select('*')
+          .order('article_date', { ascending: false })
+          .order('id', { ascending: true })
+          .range(offset, offset + limit - 1);
+
+        if (category) frozenQuery = frozenQuery.eq('category', category);
+        const frozenTag = tag?.replace(/[^a-zA-Z0-9]/g, '');
+        if (frozenTag) {
+          frozenQuery = frozenQuery.or(`tags.cs.{${frozenTag}},game_tags.cs.{${frozenTag}}`);
+        }
+
+        const { data: frozenRows, error: frozenError } = await frozenQuery;
+        if (frozenError) {
+          console.warn('Frozen news feed unavailable:', frozenError.message);
+          return [];
+        }
+        return ((frozenRows ?? []) as CachedArticle[]).map(toNewsItem);
+      }
+
       const useVideoCadence =
         !tag
         && limit >= 5
