@@ -1,5 +1,5 @@
 import { formatDistanceToNowStrict } from "date-fns";
-import { CheckCircle2, CircleDashed, Clock3, FileText, RefreshCw, XCircle } from "lucide-react";
+import { CheckCircle2, CircleDashed, Clock3, FileText, PauseCircle, RefreshCw, XCircle } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
@@ -40,7 +40,7 @@ export default function BackfillStatus() {
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Pre-launch operation</p>
                   <h1 className="mt-1 text-2xl font-black text-foreground sm:text-3xl">Editorial backfill</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">Live progress for AI-written game overviews. This page refreshes every 30 seconds.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Live progress for Talus game overviews. This page refreshes every 30 seconds.</p>
                 </div>
               </div>
               <Button variant="outline" size="icon" onClick={() => progressQuery.refetch()} disabled={progressQuery.isFetching} aria-label="Refresh progress">
@@ -62,6 +62,15 @@ export default function BackfillStatus() {
           ) : (
             <>
               <section className="rounded-2xl border bg-card p-5 card-shadow sm:p-6">
+                {run.status === "paused" && (
+                  <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-100">
+                    <PauseCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-bold">Backfill paused</p>
+                      <p className="mt-0.5 text-xs opacity-80">The scheduler and manual worker are disabled. Completed descriptions and the remaining queue are preserved.</p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">

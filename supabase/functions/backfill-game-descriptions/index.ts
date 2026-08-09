@@ -106,6 +106,27 @@ serve(async (req) => {
     if (!supabaseUrl || !serviceRoleKey || !anonKey) throw new Error("Supabase environment is incomplete");
 
     const service = createClient(supabaseUrl, serviceRoleKey);
+    const { data: backfillControl } = await service
+      .from("operational_controls")
+      .select("enabled, reason, updated_at")
+      .eq("key", "game_description_backfill")
+      .maybeSingle();
+    if (backfillControl?.enabled === false) {
+      const { data: run } = await service
+        .from("game_description_backfill_runs")
+        .select("*")
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return new Response(JSON.stringify({
+        ok: true,
+        paused: true,
+        reason: backfillControl.reason,
+        pausedAt: backfillControl.updated_at,
+        run,
+      }), { headers: jsonHeaders });
+    }
+
     // A provider-wide 429 is not a bad game record. Preserve the queue, wait
     // six hours, then probe with one game rather than consuming three records.
     const [{ data: latestQuotaFailure }, { data: latestProviderSuccess }] = await Promise.all([

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface DescriptionBackfillRun {
   id: string;
-  status: "running" | "completed" | "cancelled";
+  status: "running" | "paused" | "completed" | "cancelled";
   totalTarget: number;
   processed: number;
   succeeded: number;
