@@ -106,12 +106,18 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
       >
         {/* Cover Image */}
         <div className="relative aspect-[16/10] overflow-hidden">
-          <img
-            src={game.coverImage}
-            alt={game.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
+          {game.coverImage ? (
+            <img
+              src={game.coverImage}
+              alt={game.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-secondary">
+              <Gamepad2 className="h-10 w-10 text-muted-foreground/45" />
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
 
           {/* Rating Badge — community average of USER reviews (Letterboxd-style) */}
