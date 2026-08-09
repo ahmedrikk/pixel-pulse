@@ -20,6 +20,8 @@ export interface CatalogGame extends Partial<TrendingSignals> {
   releaseDate: string;
   trending: boolean;
   description: string;
+  popularity: number;
+  externalReviewCount: number;
 }
 
 export interface GenreRankingGroup {
@@ -58,6 +60,28 @@ function mapRawgToCatalog(g: RawgGame): CatalogGame {
     releaseDate: g.released ?? "TBA",
     trending: g.rating >= 4.2 && (g.metacritic ?? 0) >= 80,
     description: "",  // fetched on detail page
+    popularity: Number(g.added ?? 0),
+    externalReviewCount: Number(g.ratings_count ?? 0),
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapCanonicalToCatalog(g: any): CatalogGame {
+  return {
+    id: g.id,
+    name: g.name,
+    coverImage: g.cover_image ?? "",
+    rating: Number(g.our_rating ?? 0),
+    ratingCount: Number(g.review_count ?? 0),
+    rawgRating: Number(g.rawg_rating ?? 0),
+    metacriticScore: g.metacritic_score ?? null,
+    genres: g.genres ?? [],
+    platforms: g.platforms ?? [],
+    releaseDate: g.release_date ?? "TBA",
+    trending: Boolean(g.trending),
+    description: g.description ?? "",
+    popularity: 0,
+    externalReviewCount: 0,
   };
 }
 
@@ -72,6 +96,20 @@ async function getCatalogGames(
   signal?: AbortSignal
 ): Promise<CatalogGame[]> {
   let games: CatalogGame[] = [];
+
+  // Search the Talus catalog immediately. This keeps search useful even when
+  // RAWG is slow or temporarily unavailable, and makes existing games such as
+  // Fortnite appear without waiting for an external round trip.
+  if (params.search) {
+    const escaped = params.search.replace(/[%_]/g, "");
+    const { data } = await supabase
+      .from("games")
+      .select("*")
+      .ilike("name", `%${escaped}%`)
+      .order("review_count", { ascending: false })
+      .limit(20);
+    games = (data ?? []).map(mapCanonicalToCatalog);
+  }
 
   // 1. Try Supabase cache (only for unfiltered requests)
   if (!params.search && !params.genre) {
@@ -101,7 +139,7 @@ async function getCatalogGames(
   }
 
   // 2. Fetch from RAWG if no usable cache
-  if (games.length === 0) {
+  if (games.length === 0 || params.search) {
     const rawgGenreMap: Record<string, string> = {
       "action-rpg": "action,role-playing-games-rpg",
       fps: "shooter",
@@ -112,20 +150,26 @@ async function getCatalogGames(
       sports: "sports",
     };
 
-    const result = await fetchGameList(
-      {
-        page_size: 40,
-        search: params.search,
-        genres: params.genre ? rawgGenreMap[params.genre] : undefined,
-        ordering: params.ordering ?? "-rating",
-      },
-      signal
-    );
+    let result: Awaited<ReturnType<typeof fetchGameList>> | null = null;
+    try {
+      result = await fetchGameList(
+        {
+          page_size: 40,
+          search: params.search,
+          genres: params.genre ? rawgGenreMap[params.genre] : undefined,
+          ordering: params.ordering ?? "-rating",
+        },
+        signal
+      );
+    } catch (error) {
+      if (games.length === 0) throw error;
+    }
 
-    games = result.results.map(mapRawgToCatalog);
+    const rawgGames = (result?.results ?? []).map(mapRawgToCatalog);
+    games = [...new Map([...games, ...rawgGames].map((game) => [game.id, game])).values()];
 
     // 3. Every discovered title becomes (or refreshes) one canonical Game row.
-    if (games.length > 0) {
+    if (result && result.results.length > 0) {
       const expiresAt = new Date(Date.now() + CACHE_TTL_MS).toISOString();
       await supabase.from("games").upsert(
         result.results.map((g) => ({
@@ -149,6 +193,51 @@ async function getCatalogGames(
   return withCanonicalRatings(games);
 }
 
+async function getRecentPopularGames(signal?: AbortSignal): Promise<CatalogGame[]> {
+  const today = new Date();
+  const start = new Date(today);
+  start.setFullYear(start.getFullYear() - 1);
+  const date = (value: Date) => value.toISOString().slice(0, 10);
+
+  try {
+    const result = await fetchGameList({
+      page_size: 20,
+      dates: `${date(start)},${date(today)}`,
+      ordering: "-added",
+    }, signal);
+    return withCanonicalRatings(
+      result.results
+        .filter((game) => game.background_image && game.released)
+        .map(mapRawgToCatalog)
+        .sort((a, b) => (b.popularity + b.externalReviewCount * 4) - (a.popularity + a.externalReviewCount * 4))
+        .slice(0, 6),
+    );
+  } catch {
+    const { data } = await supabase
+      .from("games")
+      .select("*")
+      .not("release_date", "is", null)
+      .neq("release_date", "TBA")
+      .order("release_date", { ascending: false })
+      .limit(100);
+    const mapped = (data ?? []).map(mapCanonicalToCatalog);
+    const valid = mapped.filter((game) => !Number.isNaN(Date.parse(game.releaseDate)) && new Date(game.releaseDate) <= today);
+    const recent = valid.filter((game) => new Date(game.releaseDate) >= start);
+    const score = (game: CatalogGame) => game.ratingCount * 10 + game.rawgRating * 20 + (game.metacriticScore ?? 0);
+    return (recent.length >= 6 ? recent : valid)
+      .sort((a, b) => score(b) - score(a) || Date.parse(b.releaseDate) - Date.parse(a.releaseDate))
+      .slice(0, 6);
+  }
+}
+
+export function useRecentPopularGames() {
+  return useQuery({
+    queryKey: ["games", "recent-popular"],
+    queryFn: ({ signal }) => getRecentPopularGames(signal),
+    staleTime: 6 * 60 * 60 * 1000,
+  });
+}
+
 export function useGameCatalog(params: {
   search?: string;
   genre?: string;
@@ -158,6 +247,27 @@ export function useGameCatalog(params: {
     queryFn: ({ signal }) => getCatalogGames(params, signal),
     staleTime: params.search ? 5 * 60 * 1000 : 10 * 60 * 1000,
     gcTime: params.search ? 10 * 60 * 1000 : 30 * 60 * 1000,
+  });
+}
+
+async function searchCanonicalGames(search: string): Promise<CatalogGame[]> {
+  const escaped = search.replace(/[%_]/g, "");
+  const { data, error } = await supabase
+    .from("games")
+    .select("*")
+    .ilike("name", `%${escaped}%`)
+    .order("review_count", { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return (data ?? []).map(mapCanonicalToCatalog);
+}
+
+export function useCanonicalGameSearch(search: string | undefined) {
+  return useQuery({
+    queryKey: ["games", "canonical-search", search],
+    queryFn: () => searchCanonicalGames(search!),
+    enabled: !!search,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -193,6 +303,8 @@ async function getMyRatedGames(userId: string): Promise<CatalogGame[]> {
       releaseDate: r.games?.release_date ?? "TBA",
       trending: false,
       description: "",
+      popularity: 0,
+      externalReviewCount: 0,
     } as CatalogGame;
   });
 }
@@ -233,6 +345,8 @@ async function getCommunityReviewedGames(): Promise<CatalogGame[]> {
       releaseDate: g.release_date ?? "TBA",
       trending: g.trending ?? false,
       description: g.description ?? "",
+      popularity: 0,
+      externalReviewCount: 0,
     }));
 }
 
@@ -281,6 +395,8 @@ async function getTrendingGames(): Promise<CatalogGame[]> {
         releaseDate: g?.release_date ?? "TBA",
         trending: true,
         description: g?.description ?? "",
+        popularity: 0,
+        externalReviewCount: 0,
         compositeScore: r.composite_score,
         newsScore: r.news_score,
         steamScore: r.steam_score,
@@ -290,7 +406,13 @@ async function getTrendingGames(): Promise<CatalogGame[]> {
         rawgScore: r.rawg_score,
         releaseProximityScore: r.release_proximity_score,
       } as CatalogGame;
-    });
+    }).sort((a, b) => {
+      // "Trending" on Reviews is deliberately driven by people playing now
+      // (Steam signal) and release recency, not news-volume alone.
+      const aScore = Number(a.steamScore ?? 0) * 0.75 + Number(a.releaseProximityScore ?? 0) * 0.25;
+      const bScore = Number(b.steamScore ?? 0) * 0.75 + Number(b.releaseProximityScore ?? 0) * 0.25;
+      return bScore - aScore;
+    }).slice(0, 12);
   }
 
   // 2. Fallback: community-reviewed games (no complex client-side compute)
@@ -333,6 +455,8 @@ async function getGenreRankings(): Promise<GenreRankingGroup[]> {
       releaseDate: "TBA",
       trending: false,
       description: "",
+      popularity: 0,
+      externalReviewCount: 0,
     });
     grouped.set(row.genre, items);
   }

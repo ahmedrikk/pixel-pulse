@@ -32,10 +32,25 @@ export interface GamePatch {
   editorial: PatchEditorialContent | null;
   metaTitle: string | null;
   metaDescription: string | null;
+  seoSlug: string;
 }
 
 const PATCH_PAGE_SIZE = 12;
-const PATCH_SELECT = "id, game_id, title, summary, content_text, source_url, source_name, patch_type, version_label, image_url, published_at, editorial_content, meta_title, meta_description";
+const PATCH_SELECT = "id, game_id, title, summary, content_text, source_url, source_name, patch_type, version_label, image_url, published_at, editorial_content, meta_title, meta_description, seo_slug";
+
+export function toPatchSlug(title: string): string {
+  return title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100) || "patch-notes";
+}
+
+export function patchPath(patch: Pick<GamePatch, "gameId" | "seoSlug" | "title">): string {
+  return `/game-patch/${patch.gameId}/${patch.seoSlug || toPatchSlug(patch.title)}`;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapPatch(row: any): GamePatch {
@@ -54,6 +69,7 @@ function mapPatch(row: any): GamePatch {
     editorial: normalisePatchEditorial(row.editorial_content),
     metaTitle: row.meta_title,
     metaDescription: row.meta_description,
+    seoSlug: row.seo_slug || toPatchSlug(row.title),
   };
 }
 
@@ -110,13 +126,15 @@ async function getRecentGamePatches(gameId: string): Promise<GamePatch[]> {
   return (data ?? []).filter((row) => row.title).map(mapPatch);
 }
 
-async function getGamePatch(patchId: string): Promise<GamePatch | null> {
-  const { data, error } = await supabase
+async function getGamePatch(patchKey: string, gameId?: string): Promise<GamePatch | null> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(patchKey);
+  let request = supabase
     .from("game_patches")
     .select(PATCH_SELECT)
-    .eq("id", patchId)
-    .eq("editorial_status", "ready")
-    .maybeSingle();
+    .eq(isUuid ? "id" : "seo_slug", patchKey)
+    .eq("editorial_status", "ready");
+  if (gameId) request = request.eq("game_id", gameId);
+  const { data, error } = await request.order("published_at", { ascending: false }).limit(1).maybeSingle();
   if (error) throw error;
   if (!data) return null;
   return data.title ? mapPatch(data) : null;
@@ -159,10 +177,10 @@ export function useRecentGamePatches(gameId: string | undefined) {
   });
 }
 
-export function useGamePatch(patchId: string | undefined) {
+export function useGamePatch(patchId: string | undefined, gameId?: string) {
   return useQuery({
-    queryKey: ["game-patches", "detail", patchId],
-    queryFn: () => getGamePatch(patchId!),
+    queryKey: ["game-patches", "detail", gameId, patchId],
+    queryFn: () => getGamePatch(patchId!, gameId),
     enabled: !!patchId,
     staleTime: 5 * 60 * 1000,
   });

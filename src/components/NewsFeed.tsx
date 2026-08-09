@@ -8,7 +8,6 @@ import { InFeedSignupPrompt } from "./InFeedSignupPrompt";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { FeedHigherLowerCard, FeedSentimentCard } from "@/components/hub/HubEngagementWidgets";
 import type { RankedArticle } from "@/types/feed";
 import { prettifyTag } from "@/hooks/useTrendingCategories";
 
@@ -18,13 +17,10 @@ interface NewsFeedProps {
 
 type FeedEntry =
   | { type: "article"; article: RankedArticle; index: number }
-  | { type: "signup"; key: string }
-  | { type: "higher-lower"; key: string }
-  | { type: "sentiment"; key: string };
+  | { type: "signup"; key: string };
 
 function buildFeedEntries(articles: RankedArticle[], isAuthenticated: boolean): FeedEntry[] {
   const entries: FeedEntry[] = [];
-  let pendingWidget: "higher-lower" | "sentiment" | null = null;
   const deferredVideos: Array<{ article: RankedArticle; index: number }> = [];
   let articlePosition = 0;
   let previousGapOccupied = false;
@@ -50,26 +46,7 @@ function buildFeedEntries(articles: RankedArticle[], isAuthenticated: boolean): 
       gapOccupied = true;
     }
 
-    if (pendingWidget && !showSignup) {
-      entries.push({ type: pendingWidget, key: `${pendingWidget}-deferred-${position}` });
-      pendingWidget = null;
-      gapOccupied = true;
-    }
-
-    const scheduledWidget = position % 10 === 5
-      ? "higher-lower"
-      : position % 10 === 0
-        ? "sentiment"
-        : null;
-    if (scheduledWidget) {
-      if (gapOccupied) pendingWidget = scheduledWidget;
-      else {
-        entries.push({ type: scheduledWidget, key: `${scheduledWidget}-${position}` });
-        gapOccupied = true;
-      }
-    }
-
-    // If a signup or Hub widget occupied the intended YouTube gap, move that
+    // If a signup occupied the intended YouTube gap, move that
     // video to the next clear article gap instead of stacking two widgets.
     if (!gapOccupied && deferredVideos.length > 0) {
       const deferred = deferredVideos.shift()!;
@@ -246,12 +223,6 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
             feedEntries.map((entry) => {
               if (entry.type === "signup") {
                 return <motion.div key={entry.key} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}><InFeedSignupPrompt /></motion.div>;
-              }
-              if (entry.type === "higher-lower") {
-                return <motion.div key={entry.key} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}><FeedHigherLowerCard /></motion.div>;
-              }
-              if (entry.type === "sentiment") {
-                return <motion.div key={entry.key} layout initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}><FeedSentimentCard /></motion.div>;
               }
               const { article: item, index } = entry;
               return (

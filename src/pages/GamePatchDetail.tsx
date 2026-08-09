@@ -14,11 +14,11 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 import { useGameDetails } from "@/hooks/useGameDetails";
-import { useGamePatch, useRecentGamePatches } from "@/hooks/useGamePatches";
+import { patchPath, useGamePatch, useRecentGamePatches } from "@/hooks/useGamePatches";
 
 export default function GamePatchDetail() {
   const { gameId, patchId } = useParams<{ gameId: string; patchId: string }>();
-  const patchQuery = useGamePatch(patchId);
+  const patchQuery = useGamePatch(patchId, gameId);
   const gameQuery = useGameDetails(gameId);
   const recentQuery = useRecentGamePatches(gameId);
   const patch = patchQuery.data;
@@ -28,11 +28,15 @@ export default function GamePatchDetail() {
   useDocumentMetadata({
     title: patch?.metaTitle ?? (patch && game ? `${patch.title} | ${game.name} Patch Notes | Talus` : null),
     description: patch?.metaDescription ?? patch?.summary ?? null,
-    canonicalPath: patch && gameId ? `/game-patch/${gameId}/${patch.id}` : null,
+    canonicalPath: patch ? patchPath(patch) : null,
   });
 
   if (!patchQuery.isLoading && (!patch || patch.gameId !== gameId)) {
     return <Navigate to={gameId ? `/game-patch/${gameId}` : "/game-patch"} replace />;
+  }
+
+  if (patch && patchId !== patch.seoSlug) {
+    return <Navigate to={patchPath(patch)} replace />;
   }
 
   return (
@@ -44,7 +48,7 @@ export default function GamePatchDetail() {
             className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"
           >
             <ArrowLeft className="h-4 w-4" />
-            Complete patch history
+            All {game?.name ?? "game"} patches
           </Link>
 
           {patchQuery.isLoading || !patch ? (
@@ -98,7 +102,10 @@ export default function GamePatchDetail() {
 
                       <div className="mt-8 space-y-9">
                         {patch.editorial.sections.map((section, index) => (
-                          <section key={`${section.heading}-${index}`}>
+                          <section key={`${section.heading}-${index}`} className="relative border-l-2 border-primary/20 pl-5 sm:pl-7">
+                            <span className="absolute -left-4 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-black text-primary-foreground shadow-sm">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
                             <h2 className="text-xl font-black leading-snug text-foreground sm:text-2xl">{section.heading}</h2>
                             <div className="mt-3 whitespace-pre-line text-sm leading-7 text-muted-foreground sm:text-base">
                               {section.body}
@@ -137,10 +144,7 @@ export default function GamePatchDetail() {
                   )}
 
                   <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t pt-5">
-                    <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                      <ScrollText className="h-4 w-4 text-primary" />
-                      Rewritten from {patch.sourceName}
-                    </span>
+                    <span />
                     <a
                       href={patch.sourceUrl}
                       target="_blank"
@@ -166,7 +170,7 @@ export default function GamePatchDetail() {
                     {relatedPatches.map((item) => (
                       <Link
                         key={item.id}
-                        to={`/game-patch/${item.gameId}/${item.id}`}
+                        to={patchPath(item)}
                         className="group rounded-xl border bg-card p-4 transition-colors hover:border-primary/35"
                       >
                         <time className="text-[11px] text-muted-foreground">{format(new Date(item.publishedAt), "MMM d, yyyy")}</time>

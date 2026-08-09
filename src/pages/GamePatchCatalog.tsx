@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Clock3, Gamepad2, Layers3, Search, ScrollText } from "lucide-react";
+import { Clock3, Gamepad2, Layers3, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
@@ -112,18 +112,10 @@ export default function GamePatchCatalog() {
             animate={{ opacity: 1, y: 0 }}
             className="relative overflow-hidden rounded-2xl border bg-card p-5 sm:p-7"
           >
-            <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <ScrollText className="h-5 w-5" />
-              </div>
               <h1 className="text-3xl font-black text-foreground md:text-4xl">
-                <span className="text-gradient">Game Patch</span>
+                Recent Video Game Patches
               </h1>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Patch notes should help you play, not make you decode a developer changelog.
-                Talus rewrites every official update into a clear player-first breakdown, then keeps the full history ready whenever you need to look back.
-              </p>
             </div>
           </motion.header>
 

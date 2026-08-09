@@ -75,6 +75,13 @@ export default function ContentGuidelines() {
                 </section>
 
                 <section>
+                  <h2 className="text-xl font-semibold mb-2">Patch-note attribution</h2>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Talus patch breakdowns are editorial rewrites based on official developer or publisher release notes. Every patch page links to the original notes so readers can verify the source and full technical changelog.
+                  </p>
+                </section>
+
+                <section>
                   <h2 className="text-xl font-semibold mb-2">7. Limitation of Liability</h2>
                   <p className="text-muted-foreground leading-relaxed">
                     Talus does not endorse user-generated content and is not liable for

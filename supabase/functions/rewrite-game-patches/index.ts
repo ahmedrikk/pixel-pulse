@@ -237,6 +237,13 @@ serve(async (req) => {
           .from("game_patches")
           .update({
             title: item.headline,
+            seo_slug: item.headline
+              .normalize("NFKD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, "")
+              .slice(0, 100) || `patch-${job.patch_id.slice(0, 8)}`,
             summary: item.summary,
             content_text: plainText(item),
             editorial_content: publicContent(item),

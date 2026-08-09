@@ -3,7 +3,6 @@ import { Target, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PredictionCard } from "./PredictionCard";
 import { Card, CardContent } from "@/components/ui/card";
-import { TriviaWidget } from "@/components/shared/TriviaWidget";
 import { useEsportsMatches } from "@/hooks/useEsportsMatches";
 import { useTrendingTopics } from "@/hooks/useTrendingTopics";
 import type { EsportsMatch as PandaMatch } from "@/lib/pandascore";
@@ -119,8 +118,6 @@ export function RightSidebar() {
         </CardContent>
       </Card>
 
-      {/* Daily Trivia */}
-      <TriviaWidget />
     </aside>
   );
 }

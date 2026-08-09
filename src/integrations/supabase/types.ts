@@ -403,6 +403,7 @@ export type Database = {
           meta_title: string | null
           patch_type: string
           published_at: string
+          seo_slug: string | null
           source_id: string
           source_content: string
           source_name: string
@@ -430,6 +431,7 @@ export type Database = {
           meta_title?: string | null
           patch_type?: string
           published_at: string
+          seo_slug?: string | null
           source_id: string
           source_content?: string
           source_name?: string
@@ -457,6 +459,7 @@ export type Database = {
           meta_title?: string | null
           patch_type?: string
           published_at?: string
+          seo_slug?: string | null
           source_id?: string
           source_content?: string
           source_name?: string

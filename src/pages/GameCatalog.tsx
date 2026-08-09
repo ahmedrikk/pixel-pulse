@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, Monitor, Gamepad2, Search, Flame, Users } from "lucide-react";
+import { Star, Monitor, Gamepad2, Search, Flame, Users, CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   useGameCatalog,
-  useCommunityReviewedGames,
+  useCanonicalGameSearch,
   useGenreRankings,
+  useRecentPopularGames,
   useTrendingGames,
   type CatalogGame,
 } from "@/hooks/useGameCatalog";
@@ -128,6 +129,12 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
           <h3 className="font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
             {game.name}
           </h3>
+          <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <CalendarDays className="h-3.5 w-3.5" />
+            {game.releaseDate && game.releaseDate !== "TBA"
+              ? new Date(`${game.releaseDate}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+              : "Release date unavailable"}
+          </p>
           {game.description && (
             <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
               {game.description}
@@ -257,20 +264,29 @@ export default function GameCatalog() {
   const searchActive = debouncedSearch.length >= 2;
   const searchTooShort = hasSearch && !searchActive;
 
-  // Default view = community-reviewed games.
-  const { data: communityGames = [], isLoading: communityLoading } =
-    useCommunityReviewedGames();
-  // While searching, look across the whole catalog so you can find a game to rate.
-  const { data: searchResults = [], isLoading: searchLoading } = useGameCatalog({
+  // Search spans the canonical Talus catalog and RAWG discovery results.
+  const { data: searchResults = [], isLoading: searchLoading, isFetching: searchFetching, error: searchError } = useGameCatalog({
     search: searchActive ? debouncedSearch : undefined,
   });
+  const { data: canonicalSearchResults = [], isLoading: canonicalSearchLoading } =
+    useCanonicalGameSearch(searchActive ? debouncedSearch : undefined);
   const { data: trendingGames = [], isLoading: trendingLoading } =
     useTrendingGames();
   const { data: genreRankings = [], isLoading: genreRankingsLoading } =
     useGenreRankings();
+  const { data: recentPopularGames = [], isLoading: recentPopularLoading } =
+    useRecentPopularGames();
 
-  const games = searchActive ? searchResults : communityGames;
-  const isLoading = searchActive ? searchLoading : communityLoading;
+  const games = searchActive
+    ? [...new Map([...canonicalSearchResults, ...searchResults].map((game) => [game.id, game])).values()]
+    : [];
+  const isLoading = searchActive && canonicalSearchLoading && searchLoading;
+  const recentPopularDisplay = recentPopularGames.length > 0
+    ? recentPopularGames
+    : trendingGames
+        .filter((game) => game.releaseDate && game.releaseDate !== "TBA" && !Number.isNaN(Date.parse(game.releaseDate)))
+        .sort((a, b) => Date.parse(b.releaseDate) - Date.parse(a.releaseDate))
+        .slice(0, 6);
 
   return (
     <>
@@ -279,12 +295,8 @@ export default function GameCatalog() {
           {/* Page Header */}
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="text-3xl md:text-4xl font-black text-foreground">
-              <span className="text-gradient">Review</span>
+              Video Game Reviews
             </h1>
-            <p className="text-muted-foreground mt-1">
-              Community reviews from Talus players plus RAWG ratings.
-              Open a game to read reviews or write your own.
-            </p>
           </motion.div>
 
           {/* Search */}
@@ -311,7 +323,7 @@ export default function GameCatalog() {
             >
               <div className="flex items-center gap-2">
                 <Flame className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-bold text-foreground">Trending Games</h2>
+                <h2 className="text-lg font-bold text-foreground">Trending now</h2>
               </div>
               {trendingLoading ? (
                 <div className="flex gap-4 overflow-hidden">
@@ -334,6 +346,24 @@ export default function GameCatalog() {
                 </p>
               )}
             </motion.div>
+          )}
+
+          {!hasSearch && (
+            <section className="space-y-3">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Recently released popular games</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Six recent releases ranked by player interest and review activity.</p>
+              </div>
+              {recentPopularLoading ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-64 animate-pulse rounded-2xl bg-secondary" />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {recentPopularDisplay.slice(0, 6).map((game, index) => <GameCard key={game.id} game={game} index={index} />)}
+                </div>
+              )}
+            </section>
           )}
 
           {!hasSearch && (genreRankingsLoading || genreRankings.length > 0) && (
@@ -361,11 +391,11 @@ export default function GameCatalog() {
             </section>
           )}
 
-          {/* Games Grid */}
-          <div>
+          {/* Search results */}
+          {hasSearch && <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-foreground">
-                {searchActive ? "Search results" : searchTooShort ? "Search" : "Community reviewed games"}
+                {searchActive ? "Search results" : "Search"}
               </h2>
               {!isLoading && (
                 <span className="text-sm text-muted-foreground">{games.length} games</span>
@@ -392,21 +422,22 @@ export default function GameCatalog() {
                   ))}
                 </div>
               </AnimatePresence>
-            ) : searchActive ? (
-              <div className="text-center py-16">
-                <p className="text-muted-foreground text-lg">No games found for “{debouncedSearch}”.</p>
+            ) : searchFetching && games.length === 0 ? (
+              <div className="rounded-2xl border bg-card p-8 text-center">
+                <p className="font-semibold text-foreground">Searching the wider game catalog…</p>
+                <p className="mt-1 text-sm text-muted-foreground">Existing Talus games appear immediately; new titles may take a little longer.</p>
+              </div>
+            ) : searchError ? (
+              <div className="rounded-2xl border bg-card p-8 text-center">
+                <p className="font-semibold text-foreground">The wider game catalog is temporarily unavailable.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Talus catalog matches still appear above. Please retry shortly for games not yet in our database.</p>
               </div>
             ) : (
               <div className="text-center py-16">
-                <p className="text-muted-foreground text-lg">
-                  No community reviews yet.
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Search for a game above and be the first to review it.
-                </p>
+                <p className="text-muted-foreground text-lg">No games found for “{debouncedSearch}”.</p>
               </div>
             )}
-          </div>
+          </div>}
         </div>
         <BottomNavBar />
       </SiteLayout>

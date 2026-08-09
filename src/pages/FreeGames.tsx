@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, Clock3, ExternalLink, Gift, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { BookOpen, Clock3, ExternalLink, Gift, Search } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Link } from "react-router-dom";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -70,7 +70,7 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
             <Link to={`/reviews/${offer.gameId}`} className="transition-colors hover:text-primary">{offer.title}</Link>
           </h2>
           <p className="mt-1.5 line-clamp-3 min-h-[60px] text-sm leading-5 text-muted-foreground">
-            {offer.description || "Talus is preparing this game's full editorial overview."}
+            {offer.description || "No information available right now."}
           </p>
         </div>
 
@@ -135,10 +135,6 @@ export default function FreeGames() {
 
   const activeOffers = filteredOffers.filter((offer) => offer.status === "active");
   const upcomingOffers = filteredOffers.filter((offer) => offer.status === "upcoming");
-  const liveOfferCount = offers.filter((offer) => offer.status === "active").length;
-  const upcomingOfferCount = offers.filter((offer) => offer.status === "upcoming").length;
-  const totalClaims = offers.reduce((sum, offer) => sum + offer.usersCount, 0);
-
   return (
     <>
       <SiteLayout>
@@ -146,54 +142,14 @@ export default function FreeGames() {
           <motion.header
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-2xl border bg-card p-5 sm:p-7"
+            className="rounded-2xl border bg-card p-5 sm:p-7"
           >
-            <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-emerald-400/15 blur-3xl" />
-            <div className="absolute -bottom-24 left-20 h-44 w-44 rounded-full bg-primary/10 blur-3xl" />
-            <div className="relative">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <Gift className="h-5 w-5" />
-              </div>
+            <div>
               <h1 className="text-3xl font-black text-foreground md:text-4xl">
-                <span className="text-gradient">Free Games</span>
+                Free Game to Claim
               </h1>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Never miss a game that suddenly drops to free. Talus watches trusted storefronts, surfaces live and upcoming offers before the clock runs out, and connects every deal to full game details and community reviews.
-              </p>
-              {!isLoading && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground">
-                    {liveOfferCount} live {liveOfferCount === 1 ? "offer" : "offers"}
-                  </span>
-                  {upcomingOfferCount > 0 && (
-                    <span className="rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold text-foreground">
-                      {upcomingOfferCount} upcoming
-                    </span>
-                  )}
-                  {totalClaims > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" />
-                      {totalClaims.toLocaleString()} community claims
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           </motion.header>
-
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            {[
-              { icon: Sparkles, title: "One feed, many stores", text: "Epic, Steam, GOG, itch.io, and other trusted sources—organized in one place." },
-              { icon: ShieldCheck, title: "Beat the expiry clock", text: "Live and upcoming offers are checked every 30 minutes, with the deadline shown up front." },
-              { icon: ExternalLink, title: "Claim it, then explore", text: "Go straight to the claim destination or open the full game page for details and reviews." },
-            ].map((item) => (
-              <div key={item.title} className="rounded-2xl border bg-card p-4">
-                <item.icon className="h-5 w-5 text-primary" />
-                <h2 className="mt-2 text-sm font-bold text-foreground">{item.title}</h2>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.text}</p>
-              </div>
-            ))}
-          </section>
 
           <div className="space-y-3">
             <div className="relative max-w-md">

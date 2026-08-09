@@ -13,7 +13,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { useGamePatchHistory, usePatchGame, type GamePatch, type PatchType } from "@/hooks/useGamePatches";
+import { patchPath, useGamePatchHistory, usePatchGame, type GamePatch, type PatchType } from "@/hooks/useGamePatches";
 import { cn } from "@/lib/utils";
 
 const patchTypeStyles: Record<PatchType, { label: string; className: string }> = {
@@ -55,7 +55,7 @@ function PatchEntry({ patch, index }: { patch: GamePatch; index: number }) {
       </div>
 
       <h2 className="text-base font-bold leading-snug text-foreground sm:text-lg">
-        <Link to={`/game-patch/${patch.gameId}/${patch.id}`} className="transition-colors hover:text-primary">
+        <Link to={patchPath(patch)} className="transition-colors hover:text-primary">
           {patch.title}
         </Link>
       </h2>
@@ -67,9 +67,8 @@ function PatchEntry({ patch, index }: { patch: GamePatch; index: number }) {
       )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
-        <span className="text-[11px] text-muted-foreground">Rewritten from the official {patch.sourceName} release</span>
         <Link
-          to={`/game-patch/${patch.gameId}/${patch.id}`}
+          to={patchPath(patch)}
           className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           Read more <span aria-hidden="true">→</span>
@@ -150,15 +149,6 @@ export default function GamePatchHistory() {
                   </div>
                 </div>
               </header>
-
-              <div className="mb-4 flex items-end justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-foreground">Complete patch history</h2>
-                   <p className="mt-1 text-sm text-muted-foreground">
-                     The current rewrite appears first, followed by every older Talus patch breakdown in date order.
-                   </p>
-                </div>
-              </div>
 
               {historyQuery.isLoading ? (
                 <div className="space-y-4">

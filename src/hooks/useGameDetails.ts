@@ -172,7 +172,11 @@ export function useGameDetails(slug: string | undefined) {
     const current = queryClient.getQueryData<GameDetails>(["games", "detail", slug]);
     if (!current) return;
     const needsDescription = current.descriptionStatus !== "ready" || current.description.length < 500;
-    const needsMetadata = current.externalRatings.length === 0 || !current.developer;
+    const needsMetadata = current.externalRatings.length === 0
+      || !current.developer
+      || !current.releaseDate
+      || current.releaseDate === "TBA"
+      || !current.coverImage;
     if (!needsDescription && !needsMetadata) return;
 
     let cancelled = false;
