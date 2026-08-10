@@ -14,8 +14,10 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY") ?? "";
-const PROCESS_LIMIT = 20;
-const SCRAPE_LIMIT = 30;
+const ARTICLE_PROCESS_LIMIT = 15;
+const YOUTUBE_PROCESS_LIMIT = 10;
+const ARTICLE_SCRAPE_LIMIT = 25;
+const YOUTUBE_SCRAPE_LIMIT = 20;
 const DAILY_ARTICLE_CAP = 100;
 const REMOVED_SOURCES = ["Sportskeeda", "Dexerto"];
 
@@ -42,7 +44,7 @@ const RSS_FEEDS: RssSourceConfig[] = [
   { id: "wccftech", url: "https://wccftech.com/topic/games/feed/", source: "WCCFtech", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "gamesradar", url: "https://www.gamesradar.com/feeds/articles/rss/", source: "GamesRadar", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   // Added 2026-07-07 (QA F10.5). Additive only: same parser, same gaming
-  // filter, same PROCESS_LIMIT — excess items drain on later cron runs.
+  // filter; excess items drain on later cron runs.
   { id: "eurogamer", url: "https://www.eurogamer.net/feed", source: "Eurogamer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "rock-paper-shotgun", url: "https://www.rockpapershotgun.com/feed", source: "Rock Paper Shotgun", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "destructoid", url: "https://www.destructoid.com/feed/", source: "Destructoid", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
@@ -1503,10 +1505,9 @@ serve(async (req) => {
 
   // YouTube is deliberately outside the 100-article daily budget. Every fresh
   // 24-hour video remains eligible; only RSS candidates enter allocation.
-  const newItems = [
-    ...interleaveBySource(youtubeDedupe.items),
-    ...allocation.items,
-  ];
+  const youtubeQueue = interleaveBySource(youtubeDedupe.items);
+  const articleQueue = allocation.items;
+  const newItems = [...articleQueue, ...youtubeQueue];
   const similarityDuplicateCount = rssDedupe.duplicateCount + youtubeDedupe.duplicateCount;
   const duplicateCount = existingUrls.size + similarityDuplicateCount;
   if (existingUrls.size > 0) console.log(`  Cache gate removed ${existingUrls.size} previously published URLs`);
@@ -1528,8 +1529,14 @@ serve(async (req) => {
 
   const enrichedItems: EnrichedItem[] = [];
 
+  // Reserve independent scrape capacity for each pipeline. A busy YouTube day
+  // must never prevent allocated website articles from reaching summarization.
+  const scrapeCandidates = [
+    ...articleQueue.slice(0, ARTICLE_SCRAPE_LIMIT),
+    ...youtubeQueue.slice(0, YOUTUBE_SCRAPE_LIMIT),
+  ];
   const scrapeResults = await Promise.allSettled(
-    newItems.slice(0, SCRAPE_LIMIT).map(async (item) => {
+    scrapeCandidates.map(async (item) => {
       const rssDesc = removeBoilerplate(stripHtml(item.description));
       const rssWords = rssDesc.split(/\s+/).filter(Boolean).length;
 
@@ -1586,8 +1593,16 @@ serve(async (req) => {
   const pipelineStart = Date.now();
   const TIME_BUDGET_MS = 110_000;
   let consecutiveRateLimits = 0;
-  const itemsToProcess = enrichedItems.slice(0, PROCESS_LIMIT);
-  console.log(`Processing ${itemsToProcess.length}/${enrichedItems.length} articles (limit: ${PROCESS_LIMIT})`);
+  const enrichedArticles = enrichedItems.filter((item) => item.mediaType !== "youtube");
+  const enrichedYouTube = enrichedItems.filter((item) => item.mediaType === "youtube");
+  const itemsToProcess = [
+    ...enrichedArticles.slice(0, ARTICLE_PROCESS_LIMIT),
+    ...enrichedYouTube.slice(0, YOUTUBE_PROCESS_LIMIT),
+  ];
+  console.log(
+    `Processing ${itemsToProcess.length}/${enrichedItems.length} items `
+    + `(RSS ${Math.min(enrichedArticles.length, ARTICLE_PROCESS_LIMIT)}, YouTube ${Math.min(enrichedYouTube.length, YOUTUBE_PROCESS_LIMIT)})`,
+  );
   const processedBySource: Record<string, number> = {};
   for (const item of itemsToProcess) {
     if (Date.now() - pipelineStart > TIME_BUDGET_MS) {
