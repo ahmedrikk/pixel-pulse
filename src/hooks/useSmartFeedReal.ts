@@ -46,7 +46,9 @@ export function useSmartFeedReal(options: UseSmartFeedOptions = {}) {
     refresh,
     loadMore: loadMoreNews,
     hasMore: hasMoreNews,
-  } = useGamingNews({ category: "Gaming", tag });
+  // The homepage is the combined Talus feed. Restricting it to the literal
+  // "Gaming" category hid fresh website stories classified as esports.
+  } = useGamingNews({ tag });
 
   const articles = useMemo(() => news.map(convertToArticle), [news]);
   const [newArticlesCount, setNewArticlesCount] = useState(0);

@@ -1522,7 +1522,18 @@ serve(async (req) => {
   const rssDedupe = deduplicateCandidates(uncachedRss, dedupTitles);
   const youtubeDedupe = deduplicateCandidates(uncachedYouTube, dedupTitles);
 
-  const rollingWindowStart = new Date(Date.now() - INGESTION_WINDOW_MS).toISOString();
+  const naturalRollingWindowStartMs = Date.now() - INGESTION_WINDOW_MS;
+  const { data: pacingState, error: pacingStateError } = await supabase
+    .from("news_ingestion_budget")
+    .select("enforcement_started_at")
+    .eq("budget_key", "rss_articles")
+    .maybeSingle();
+  if (pacingStateError) console.warn(`  News pacing state unavailable: ${pacingStateError.message}`);
+  const enforcementStartMs = Date.parse(pacingState?.enforcement_started_at ?? "");
+  const rollingWindowStart = new Date(Math.max(
+    naturalRollingWindowStartMs,
+    Number.isFinite(enforcementStartMs) ? enforcementStartMs : naturalRollingWindowStartMs,
+  )).toISOString();
   const configuredRssSourceNames = configuredFeeds.map((source) => source.source);
   const { data: rollingArticleRows, error: rollingArticleError } = await supabase
     .from("cached_articles")
