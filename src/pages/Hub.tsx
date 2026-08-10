@@ -31,7 +31,7 @@ export function HubContent() {
     return () => window.clearTimeout(timer);
   }, [location.hash]);
 
-  const sectionClass = (id: string) => `scroll-mt-4 transition-shadow duration-500 ${highlighted === id ? "relative z-10 ring-2 ring-[#534AB7] ring-offset-2" : ""}`;
+  const sectionClass = (id: string) => `scroll-mt-4 transition-shadow duration-500 ${highlighted === id ? "relative z-10 ring-2 ring-[#3d59e0] ring-offset-2" : ""}`;
 
   return (
     <div className="min-h-screen pb-16 md:pb-0">

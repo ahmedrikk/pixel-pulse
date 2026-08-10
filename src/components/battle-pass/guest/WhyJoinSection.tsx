@@ -18,7 +18,7 @@ export default function WhyJoinSection({ season }: { season: any }) {
         {/* Habit Card */}
         <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.08)' }}>
           <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: 'rgba(83,74,183,0.2)' }}>
-            <CheckCircle className="w-4 h-4 text-[#EEEDFE]" />
+            <CheckCircle className="w-4 h-4 text-[#eef1ff]" />
           </div>
           <h3 className="text-[13px] font-medium text-white mb-1.5">Your daily routine = XP</h3>
           <p className="text-[11px] text-white/45 leading-[1.6]">

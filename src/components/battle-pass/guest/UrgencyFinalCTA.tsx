@@ -67,7 +67,7 @@ export default function UrgencyFinalCTA({ season }: { season: any }) {
             onClick={() => openAuthModal('battlepass' as any)}
             className="hover:shadow-lg hover:-translate-y-0.5 transition-all w-full sm:w-auto"
             style={{
-              background: '#534AB7',
+              background: '#3d59e0',
               color: '#fff',
               border: 'none',
               padding: '12px 28px',

@@ -17,7 +17,7 @@ const REACTIONS = [
   { emoji: "❤️", key: "heart", icon: Heart, label: "Love", color: "text-red-500" },
   { emoji: "👍", key: "thumbsup", icon: ThumbsUp, label: "Like", color: "text-blue-500" },
   { emoji: "😂", key: "laugh", icon: Laugh, label: "Funny", color: "text-yellow-500" },
-  { emoji: "⚡", key: "wow", icon: Zap, label: "Wow", color: "text-purple-500" },
+  { emoji: "⚡", key: "wow", icon: Zap, label: "Wow", color: "text-blue-500" },
   { emoji: "😢", key: "sad", icon: Frown, label: "Sad", color: "text-cyan-500" },
   { emoji: "🚀", key: "rocket", icon: Rocket, label: "Fire", color: "text-orange-500" },
 ] as const;

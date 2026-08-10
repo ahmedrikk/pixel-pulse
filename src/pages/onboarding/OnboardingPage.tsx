@@ -111,7 +111,7 @@ function StepCard({
       <div className="flex items-start gap-3 p-4 pb-3 sm:p-5 sm:pb-3">
         <div
           className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-          style={{ background: active ? '#534AB7' : 'rgba(255,255,255,0.08)', color: 'white' }}
+          style={{ background: active ? '#3d59e0' : 'rgba(255,255,255,0.08)', color: 'white' }}
         >
           {number}
         </div>
@@ -141,7 +141,7 @@ function ProgBar({ step, pct }: { step: string; pct: number }) {
     <div className="flex-1 sm:mr-3">
       <p className="text-[9px] text-white/50 mb-1">{step}</p>
       <div className="h-[3px] rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
-        <div className="h-full bg-[#534AB7] rounded-sm" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-[#3d59e0] rounded-sm" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -166,7 +166,7 @@ export default function OnboardingPage() {
   const [avatar, setAvatar]           = useState<AvatarValue>(
     state.step1
       ? { type: state.step1.avatarType, initials: state.step1.avatarInitials, color: state.step1.avatarColor, url: state.step1.avatarUrl } as AvatarValue
-      : { type: 'initials', initials: 'GP', color: '#534AB7', url: null }
+      : { type: 'initials', initials: 'GP', color: '#3d59e0', url: null }
   );
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
 
@@ -307,7 +307,7 @@ export default function OnboardingPage() {
   const sidebar = (
     <aside
       className="flex flex-col gap-3 p-5 flex-shrink-0 overflow-y-auto"
-      style={{ background: '#1a1a35', borderRight: '0.5px solid rgba(255,255,255,0.07)', width: 220 }}
+      style={{ background: '#080808', borderRight: '0.5px solid rgba(255,255,255,0.12)', width: 220 }}
     >
       <p className="text-[10px] font-medium uppercase tracking-widest text-white/60 mb-1">Why join?</p>
 
@@ -344,8 +344,8 @@ export default function OnboardingPage() {
             return (
               <div key={step.n} className="flex items-center gap-2">
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold flex-shrink-0 ${
-                  done ? 'bg-[#534AB7] text-white' :
-                  current ? 'bg-[#534AB7] text-white ring-[3px] ring-[#534AB7]/25' :
+                  done ? 'bg-[#3d59e0] text-white' :
+                  current ? 'bg-[#3d59e0] text-white ring-[3px] ring-[#3d59e0]/25' :
                   'bg-white/8 text-white/35'
                 }`}>
                   {done ? <Check className="w-2.5 h-2.5" /> : step.n}
@@ -361,7 +361,7 @@ export default function OnboardingPage() {
     </aside>
   );
 
-  const inputCls = "min-h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-base text-white outline-none placeholder:text-white/22 focus:border-[#534AB7] sm:min-h-0 sm:text-[12px]";
+  const inputCls = "min-h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-base text-white outline-none placeholder:text-white/22 focus:border-[#3d59e0] sm:min-h-0 sm:text-[12px]";
 
   // ── Step cards ───────────────────────────────────────────────────────────
 
@@ -370,7 +370,7 @@ export default function OnboardingPage() {
       {/* Avatar */}
       <div>
         <FieldLabel>Profile photo</FieldLabel>
-        <div className="[&_button]:!border-white/15 [&_button]:!text-white/55 [&_button]:!bg-white/5 [&_button:hover]:!border-[#534AB7]">
+        <div className="[&_button]:!border-white/15 [&_button]:!text-white/55 [&_button]:!bg-white/5 [&_button:hover]:!border-[#3d59e0]">
           <AvatarPicker
             username={username}
             userId={user?.id ?? ''}
@@ -392,12 +392,12 @@ export default function OnboardingPage() {
               className="relative h-11 overflow-hidden rounded-lg border-2 transition-all sm:h-10"
               style={{
                 background: BANNER_GRADIENTS[b.id],
-                borderColor: bannerPreset === b.id ? '#534AB7' : 'transparent',
+                borderColor: bannerPreset === b.id ? '#3d59e0' : 'transparent',
                 boxShadow: bannerPreset === b.id ? '0 0 0 1px rgba(83,74,183,0.4)' : undefined,
               }}
             >
               {bannerPreset === b.id && (
-                <div className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-[#534AB7] flex items-center justify-center">
+                <div className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-[#3d59e0] flex items-center justify-center">
                   <Check className="w-2 h-2 text-white" />
                 </div>
               )}
@@ -475,7 +475,7 @@ export default function OnboardingPage() {
                 <span className="text-sm w-6 text-center flex-shrink-0">{p.icon}</span>
                 <span className={`text-[11px] font-medium flex-1 ${sel ? 'text-[#a5b4fc]' : 'text-white/60'}`}>{p.label}</span>
                 {sel && (
-                  <div className="w-3.5 h-3.5 rounded-full bg-[#534AB7] flex items-center justify-center flex-shrink-0">
+                  <div className="w-3.5 h-3.5 rounded-full bg-[#3d59e0] flex items-center justify-center flex-shrink-0">
                     <Check className="w-2 h-2 text-white" />
                   </div>
                 )}
@@ -495,7 +495,7 @@ export default function OnboardingPage() {
               className="min-h-11 flex-1 rounded-[7px] py-1.5 text-[10px] transition-all sm:min-h-0"
               style={{
                 background: skill === s ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
-                border: skill === s ? '0.5px solid #534AB7' : '0.5px solid rgba(255,255,255,0.08)',
+                border: skill === s ? '0.5px solid #3d59e0' : '0.5px solid rgba(255,255,255,0.08)',
                 color: skill === s ? '#a5b4fc' : 'rgba(255,255,255,0.45)',
                 fontWeight: skill === s ? 500 : 400,
               }}
@@ -523,11 +523,11 @@ export default function OnboardingPage() {
       <div>
         <FieldLabel>
           Favourite games{' '}
-          <span className={`normal-case tracking-normal ${selectedIds.length < 3 ? 'text-red-400' : 'text-[#534AB7]'}`}>
+          <span className={`normal-case tracking-normal ${selectedIds.length < 3 ? 'text-red-400' : 'text-[#3d59e0]'}`}>
             * min 3 · {selectedIds.length} selected
           </span>
         </FieldLabel>
-        <div className="[&_input]:!min-h-11 [&_input]:!border-white/10 [&_input]:!bg-white/5 [&_input]:!text-base [&_input]:!text-white [&_input]:!placeholder-white/22 [&_input:focus]:!border-[#534AB7] [&_svg]:!text-white/30 sm:[&_input]:!text-sm">
+        <div className="[&_input]:!min-h-11 [&_input]:!border-white/10 [&_input]:!bg-white/5 [&_input]:!text-base [&_input]:!text-white [&_input]:!placeholder-white/22 [&_input:focus]:!border-[#3d59e0] [&_svg]:!text-white/30 sm:[&_input]:!text-sm">
           <GameSearchInput onResults={handleSearchResults} onClear={() => setSearchResults(null)} />
         </div>
         <div className="flex flex-wrap gap-1.5 mt-2">
@@ -541,7 +541,7 @@ export default function OnboardingPage() {
                 className="inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] transition-all sm:min-h-0"
                 style={{
                   background: sel ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
-                  border: sel ? '0.5px solid #534AB7' : '0.5px solid rgba(255,255,255,0.08)',
+                  border: sel ? '0.5px solid #3d59e0' : '0.5px solid rgba(255,255,255,0.08)',
                   color: sel ? '#a5b4fc' : 'rgba(255,255,255,0.45)',
                   fontWeight: sel ? 500 : 400,
                 }}
@@ -611,7 +611,7 @@ export default function OnboardingPage() {
       <button
         onClick={handleComplete}
         disabled={!canComplete || completing}
-        className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-[9px] bg-[#534AB7] text-[13px] font-semibold text-white transition-colors hover:bg-[#3C3489] disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-[9px] bg-[#3d59e0] text-[13px] font-semibold text-white transition-colors hover:bg-[#3d59e0] disabled:cursor-not-allowed disabled:opacity-40"
       >
         {completing ? (
           <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -629,10 +629,10 @@ export default function OnboardingPage() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden" style={{ background: '#0d0d1a', fontFamily: 'var(--font-sans, system-ui, sans-serif)' }}>
+    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden" style={{ background: '#000000', fontFamily: 'var(--font-sans, system-ui, sans-serif)' }}>
       {/* Nav */}
       <nav className="flex min-h-[54px] flex-shrink-0 items-center justify-between gap-3 px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6"
-           style={{ background: '#12122a', borderBottom: '0.5px solid rgba(255,255,255,0.08)' }}>
+           style={{ background: '#080808', borderBottom: '0.5px solid rgba(255,255,255,0.12)' }}>
         <TalusLogo size={34} />
         <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[9px] font-medium text-[#a5b4fc] sm:px-3 sm:text-[10px]"
               style={{ background: 'rgba(83,74,183,0.2)', border: '0.5px solid rgba(83,74,183,0.4)' }}>
@@ -643,7 +643,7 @@ export default function OnboardingPage() {
 
       {/* Page tabs */}
       <div className="flex flex-shrink-0 overflow-x-auto px-2 sm:px-6"
-           style={{ background: '#12122a', borderBottom: '0.5px solid rgba(255,255,255,0.07)' }}>
+           style={{ background: '#080808', borderBottom: '0.5px solid rgba(255,255,255,0.12)' }}>
         {([1, 2] as const).map(p => (
           <button
             key={p}
@@ -654,7 +654,7 @@ export default function OnboardingPage() {
             style={{
               color: page === p ? '#fff' : 'rgba(255,255,255,0.35)',
               fontWeight: page === p ? 500 : 400,
-              borderColor: page === p ? '#534AB7' : 'transparent',
+              borderColor: page === p ? '#3d59e0' : 'transparent',
             }}
           >
             <span className="sm:hidden">{p === 1 ? '1. Identity & platforms' : '2. Games & confirm'}</span>
@@ -664,7 +664,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Compact progress for phones and tablets (desktop uses the sidebar). */}
-      <div className="grid grid-cols-4 gap-1 border-b border-white/5 bg-[#12122a] px-3 py-3 lg:hidden">
+      <div className="grid grid-cols-4 gap-1 border-b border-white/10 bg-[#080808] px-3 py-3 lg:hidden">
         {[
           { n: 1, label: 'Identity' },
           { n: 2, label: 'Platforms' },
@@ -675,8 +675,8 @@ export default function OnboardingPage() {
           const current = page === 1 ? step.n <= 2 : step.n >= 3;
           return (
             <div key={step.n} className="relative flex min-w-0 flex-col items-center gap-1.5">
-              {index > 0 && <span className={`absolute right-1/2 top-3 h-px w-full ${done ? 'bg-[#534AB7]' : 'bg-white/10'}`} />}
-              <span className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold ${done || current ? 'bg-[#534AB7] text-white' : 'bg-white/8 text-white/35'}`}>
+              {index > 0 && <span className={`absolute right-1/2 top-3 h-px w-full ${done ? 'bg-[#3d59e0]' : 'bg-white/10'}`} />}
+              <span className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold ${done || current ? 'bg-[#3d59e0] text-white' : 'bg-white/8 text-white/35'}`}>
                 {done ? <Check className="h-3 w-3" /> : step.n}
               </span>
               <span className={`w-full truncate text-center text-[9px] ${current || done ? 'text-white/75' : 'text-white/30'}`}>{step.label}</span>
@@ -709,7 +709,7 @@ export default function OnboardingPage() {
                     <button
                       onClick={handlePage1Continue}
                       disabled={!canContinuePage1 || p1Loading}
-                      className="flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-[7px] bg-[#534AB7] px-4 py-2 text-[12px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-0 sm:w-auto sm:py-1.5 sm:text-[11px]"
+                      className="flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-[7px] bg-[#3d59e0] px-4 py-2 text-[12px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-0 sm:w-auto sm:py-1.5 sm:text-[11px]"
                     >
                       {p1Loading ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
                       Continue →

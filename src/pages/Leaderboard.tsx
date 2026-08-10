@@ -411,9 +411,9 @@ export default function Leaderboard() {
           </TabsContent>
 
           <TabsContent value="predictions" className="space-y-4">
-            <Card className="p-4 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
+            <Card className="p-4 bg-gradient-to-br from-blue-500/10 to-pink-500/10 border-blue-500/20">
               <div className="flex items-center gap-3">
-                <Target className="h-8 w-8 text-purple-500" />
+                <Target className="h-8 w-8 text-blue-500" />
                 <div>
                   <h3 className="font-bold">Prediction Leaderboard</h3>
                   <p className="text-xs text-muted-foreground">

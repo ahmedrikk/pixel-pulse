@@ -27,7 +27,7 @@ export default function Step1Identity() {
   const [avatar, setAvatar]           = useState<AvatarValue>(
     state.step1
       ? { type: state.step1.avatarType, initials: state.step1.avatarInitials, color: state.step1.avatarColor, url: state.step1.avatarUrl } as AvatarValue
-      : { type: 'initials', initials: 'GP', color: '#534AB7', url: null }
+      : { type: 'initials', initials: 'GP', color: '#3d59e0', url: null }
   );
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
   const [loading, setLoading] = useState(false);
@@ -114,7 +114,7 @@ export default function Step1Identity() {
             value={displayName}
             onChange={e => setDisplayName(e.target.value.slice(0, 30))}
             placeholder="GamerPulse99"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[#534AB7]"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[#3d59e0]"
           />
           {displayName.length > 0 && displayName.length < 2 && (
             <p className="text-xs text-red-500 mt-1">Name must be 2–30 characters</p>
@@ -130,7 +130,7 @@ export default function Step1Identity() {
               value={username}
               onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20))}
               placeholder="gamerpulse99"
-              className="w-full pl-7 pr-8 rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[#534AB7]"
+              className="w-full pl-7 pr-8 rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-[#3d59e0]"
             />
             <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium ${statusColor}`}>
               {statusIcon}
@@ -152,7 +152,7 @@ export default function Step1Identity() {
             onChange={e => setBio(e.target.value.slice(0, 120))}
             placeholder="Tell other gamers about yourself…"
             rows={2}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-[#534AB7]"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-[#3d59e0]"
           />
           <p className="text-xs text-gray-400 text-right mt-1">{bio.length}/120</p>
         </div>

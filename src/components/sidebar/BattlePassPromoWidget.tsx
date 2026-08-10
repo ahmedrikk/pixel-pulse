@@ -122,7 +122,7 @@ export function BattlePassPromoWidget({
   return (
     /*
      * Intentional brand-gradient promo card. It reads identically in light
-     * and dark mode (a deliberate violet→blue brand moment), so it never
+     * and dark mode (a deliberate brand-blue moment), so it never
      * looks like "the dark box in a light page". All inner text/surfaces use
      * white-alpha so contrast holds against the gradient in both themes.
      */

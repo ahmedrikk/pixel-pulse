@@ -65,7 +65,7 @@ export default function Step4Confirmation() {
 
           <button
             onClick={goToFeed}
-            className="w-full rounded-xl bg-[#534AB7] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#3C3489] transition-colors"
+            className="w-full rounded-xl bg-[#3d59e0] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#3d59e0] transition-colors"
           >
             Go to your feed →
           </button>

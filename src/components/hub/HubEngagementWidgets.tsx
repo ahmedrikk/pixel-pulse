@@ -80,7 +80,7 @@ export function HigherLowerSection() {
           <Comparison round={round} revealedValue={result?.actualValue} />
           <div className="grid grid-cols-2 gap-2 px-4 pb-4 sm:px-5">
             {result && !result.correct ? (
-              <button onClick={restart} className="col-span-2 flex h-10 items-center justify-center gap-2 rounded-xl bg-[#534AB7] text-sm font-bold text-white"><RotateCcw className="h-4 w-4" />New run</button>
+              <button onClick={restart} className="col-span-2 flex h-10 items-center justify-center gap-2 rounded-xl bg-[#3d59e0] text-sm font-bold text-white"><RotateCcw className="h-4 w-4" />New run</button>
             ) : (
               <>
                 <button disabled={isGuessing || !!result} onClick={() => choose("higher")} className="h-10 rounded-xl border border-primary bg-primary/10 text-xs font-bold text-primary hover:bg-primary/15">↑ Higher than {formatValue(round.category, round.itemA.value)}</button>

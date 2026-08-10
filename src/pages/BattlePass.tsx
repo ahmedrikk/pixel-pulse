@@ -349,7 +349,7 @@ function AuthenticatedBattlePass() {
         particleCount: 120,
         spread: 80,
         origin: { y: 0.6 },
-        colors: ['#a855f7', '#06b6d4', '#f59e0b'],
+        colors: ['#3d59e0', '#06b6d4', '#f59e0b'],
       });
       setModalOpen(false);
     } catch (e) {

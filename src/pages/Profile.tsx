@@ -534,14 +534,14 @@ export default function Profile() {
                     onClick={() => handleSelectProfileAsset("banner", asset.url)}
                     disabled={savingBanner}
                     className="relative h-20 overflow-hidden rounded-lg border-2 transition-all"
-                    style={{ borderColor: selected ? "#534AB7" : "transparent" }}
+                    style={{ borderColor: selected ? "#3d59e0" : "transparent" }}
                   >
                     <img src={asset.url} alt={asset.label} className="h-full w-full object-cover" />
                     <span className="absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-left text-[10px] font-medium text-white">
                       {asset.label}
                     </span>
                     {selected && (
-                      <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#534AB7] text-[10px] text-white">✓</span>
+                      <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#3d59e0] text-[10px] text-white">✓</span>
                     )}
                   </button>
                 );
@@ -559,7 +559,7 @@ export default function Profile() {
                     className="relative h-16 rounded-lg overflow-hidden border-2 transition-all"
                     style={{
                       background: gradient,
-                      borderColor: selected ? '#534AB7' : 'transparent',
+                      borderColor: selected ? '#3d59e0' : 'transparent',
                       boxShadow: selected ? '0 0 0 2px rgba(83,74,183,0.3)' : 'none',
                     }}
                   >
@@ -567,7 +567,7 @@ export default function Profile() {
                       {BANNER_LABELS[id]}
                     </span>
                     {selected && (
-                      <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#534AB7] flex items-center justify-center text-white text-[10px]">✓</span>
+                      <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#3d59e0] flex items-center justify-center text-white text-[10px]">✓</span>
                     )}
                   </button>
                 );

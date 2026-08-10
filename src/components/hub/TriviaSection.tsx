@@ -3,7 +3,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useTrivia, type TriviaCardData } from "@/hooks/useTrivia";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  "Action RPG": { bg: "#EEEDFE", text: "#3C3489" },
+  "Action RPG": { bg: "#eef1ff", text: "#3d59e0" },
   "FPS": { bg: "#FEF2F2", text: "#991B1B" },
   "Strategy": { bg: "#EAF3DE", text: "#166534" },
   "Racing": { bg: "#FAEEDA", text: "#633806" },
@@ -145,7 +145,7 @@ function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void
           <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))" }}>
             Refreshes every 24 hours
           </span>
-          <button style={{ fontSize: 9, color: "#534AB7", background: "#EEEDFE", border: "none", padding: "3px 7px", borderRadius: 5, cursor: "pointer" }}>
+          <button style={{ fontSize: 9, color: "#3d59e0", background: "#eef1ff", border: "none", padding: "3px 7px", borderRadius: 5, cursor: "pointer" }}>
             Share
           </button>
         </div>
@@ -171,7 +171,7 @@ export function TriviaSection() {
             5 questions today
           </span>
         </div>
-        <button onClick={() => navigate("/trivia")} style={{ fontSize: 11, color: "#534AB7", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
+        <button onClick={() => navigate("/trivia")} style={{ fontSize: 11, color: "#3d59e0", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
           All trivia →
         </button>
       </div>

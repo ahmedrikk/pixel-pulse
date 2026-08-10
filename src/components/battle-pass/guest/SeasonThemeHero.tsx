@@ -27,7 +27,7 @@ export default function SeasonThemeHero({ season }: { season: any }) {
       {/* Act Navigation Bar */}
       <div className="relative z-10 flex justify-between items-center px-6 py-3.5 border-b" style={{ borderBottomColor: 'rgba(255,255,255,0.06)' }}>
         <div className="flex items-center gap-4">
-          <span className="text-[10px] font-medium px-2.5 py-1 rounded-[10px]" style={{ background: '#534AB7', color: '#EEEDFE' }}>
+          <span className="text-[10px] font-medium px-2.5 py-1 rounded-[10px]" style={{ background: '#3d59e0', color: '#eef1ff' }}>
             Season {season.number}
           </span>
           <div className="flex gap-1.5">

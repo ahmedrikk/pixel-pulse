@@ -10,8 +10,8 @@ const PRESET_SEEDS = [
 ];
 
 const INITIALS_COLORS = [
-  '#534AB7','#3C3489','#e4000f','#107C10',
-  '#FF6900','#00B4D8','#1b2838','#9333ea',
+  '#3d59e0','#3d59e0','#e4000f','#107C10',
+  '#FF6900','#00B4D8','#1b2838','#3d59e0',
 ];
 
 function getInitialsColor(username: string): string {
@@ -69,7 +69,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
-      <div className="w-20 h-20 rounded-full ring-2 ring-[#534AB7] overflow-hidden bg-gray-100">
+      <div className="w-20 h-20 rounded-full ring-2 ring-[#3d59e0] overflow-hidden bg-gray-100">
         {preview}
       </div>
 
@@ -78,7 +78,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] transition-colors hover:border-[#534AB7] sm:min-h-10 sm:px-3 sm:text-xs"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] transition-colors hover:border-[#3d59e0] sm:min-h-10 sm:px-3 sm:text-xs"
         >
           <Camera className="w-3.5 h-3.5" /> {uploading ? 'Uploading…' : 'Upload'}
         </button>
@@ -87,7 +87,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] transition-colors hover:border-[#534AB7] sm:min-h-10 sm:px-3 sm:text-xs"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] transition-colors hover:border-[#3d59e0] sm:min-h-10 sm:px-3 sm:text-xs"
         >
           <Grid2x2 className="w-3.5 h-3.5" /> Choose avatar
         </button>
@@ -96,7 +96,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
           type="button"
           onClick={useInitials}
           className={`col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] transition-colors sm:col-auto sm:min-h-10 sm:text-xs ${
-            value.type === 'initials' ? 'border-[#534AB7] bg-purple-50 text-[#534AB7]' : 'border-gray-200 hover:border-[#534AB7]'
+            value.type === 'initials' ? 'border-[#3d59e0] bg-blue-50 text-[#3d59e0]' : 'border-gray-200 hover:border-[#3d59e0]'
           }`}
         >
           <Type className="w-3.5 h-3.5" /> Initials
@@ -115,7 +115,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
                 title={seed}
                 className={`w-12 h-12 rounded-full overflow-hidden ring-2 transition-all ${
                   value.type === 'preset' && (value as { seed?: string }).seed === seed
-                    ? 'ring-[#534AB7]' : 'ring-transparent hover:ring-purple-300'
+                    ? 'ring-[#3d59e0]' : 'ring-transparent hover:ring-blue-300'
                 }`}
               >
                 <img

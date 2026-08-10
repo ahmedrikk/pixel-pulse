@@ -160,7 +160,7 @@ export function AuthGatePopup() {
             `}
           >
             {/* Pastel pixelated gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200 dark:from-pink-900/40 dark:via-purple-900/40 dark:to-blue-900/40" />
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-100 via-blue-50 to-white dark:from-black dark:via-neutral-950 dark:to-black" />
             <div
               className="absolute inset-0 opacity-30 dark:opacity-20"
               style={{

@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const BANNER_GRADIENTS: Record<string, string> = {
   bn1: 'linear-gradient(135deg,#0A1628,#FB923C)',
-  bn2: 'linear-gradient(135deg,#0d1b2e,#534AB7)',
+  bn2: 'linear-gradient(135deg,#0d1b2e,#3d59e0)',
   bn3: 'linear-gradient(135deg,#001a0a,#0D9488)',
   bn4: 'linear-gradient(135deg,#1a0000,#DC2626)',
   bn5: 'linear-gradient(135deg,#1a0a1a,#7C3AED)',

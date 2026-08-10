@@ -7,7 +7,7 @@ export function StepProgressBar({ currentStep }: StepProgressBarProps) {
         <div
           key={n}
           className={`h-[3px] flex-1 rounded-full transition-colors duration-300 ${
-            n <= currentStep ? 'bg-[#534AB7]' : 'bg-gray-200'
+            n <= currentStep ? 'bg-[#3d59e0]' : 'bg-gray-200'
           }`}
         />
       ))}

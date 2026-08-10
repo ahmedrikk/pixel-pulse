@@ -1,12 +1,12 @@
 import React from 'react';
 
 function getTierPillStyle(tier: number, isFeatured: boolean) {
-  if (isFeatured) return { background: '#534AB7', color: '#FFFFFF' };
-  if (tier <= 3) return { background: '#EEEDFE', color: '#3C3489' };
+  if (isFeatured) return { background: '#3d59e0', color: '#FFFFFF' };
+  if (tier <= 3) return { background: '#eef1ff', color: '#3d59e0' };
   if (tier <= 6) return { background: '#FAEEDA', color: '#633806' };
   if (tier <= 12) return { background: '#EFF6FF', color: '#0C447C' };
   if (tier <= 20) return { background: '#FAEEDA', color: '#633806' };
-  return { background: '#534AB7', color: '#FFFFFF' };
+  return { background: '#3d59e0', color: '#FFFFFF' };
 }
 
 export default function FeaturedSeasonRewards({ season }: { season: any }) {
@@ -33,12 +33,12 @@ export default function FeaturedSeasonRewards({ season }: { season: any }) {
               key={i} 
               className="bg-background rounded-xl p-3.5 flex flex-col items-center text-center gap-1.5 transition-colors group cursor-default"
               style={{
-                border: reward.isFeatured ? '0.5px solid #534AB7' : '0.5px solid hsl(var(--border)/0.5)'
+                border: reward.isFeatured ? '0.5px solid #3d59e0' : '0.5px solid hsl(var(--border)/0.5)'
               }}
             >
               <div 
                 className="w-11 h-11 rounded-[11px] flex items-center justify-center text-2xl mb-1 shadow-sm group-hover:scale-105 transition-transform"
-                style={{ background: reward.iconBg || '#EEEDFE' }}
+                style={{ background: reward.iconBg || '#eef1ff' }}
               >
                 {reward.icon}
               </div>

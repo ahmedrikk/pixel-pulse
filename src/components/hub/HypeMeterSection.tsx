@@ -14,7 +14,7 @@ function formatVoteCount(count: number): string {
 
 // Ranks 1-3 have special colors, 4-6 use tertiary text color
 const RANK_COLORS = ["#D97706", "#94A3B8", "#C2773E", "hsl(var(--muted-foreground))", "hsl(var(--muted-foreground))", "hsl(var(--muted-foreground))"];
-const BAR_COLORS = ["#D97706", "#534AB7", "#0D9488", "hsl(var(--muted-foreground))", "hsl(var(--muted-foreground))", "hsl(var(--muted-foreground))"];
+const BAR_COLORS = ["#D97706", "#3d59e0", "#0D9488", "hsl(var(--muted-foreground))", "hsl(var(--muted-foreground))", "hsl(var(--muted-foreground))"];
 
 function HypeCard({ game }: { game: HypeGame }) {
   const { isAuthenticated, openAuthModal } = useAuthGate();
@@ -80,9 +80,9 @@ function HypeCard({ game }: { game: HypeGame }) {
           disabled={isVoting}
           style={{
             fontSize: 10, fontWeight: 500, padding: "5px 10px", borderRadius: 7,
-            border: game.userHyped ? "0.5px solid #534AB7" : "0.5px solid hsl(var(--border))",
-            background: game.userHyped ? "#EEEDFE" : "hsl(var(--secondary))",
-            color: game.userHyped ? "#534AB7" : "hsl(var(--muted-foreground))",
+            border: game.userHyped ? "0.5px solid #3d59e0" : "0.5px solid hsl(var(--border))",
+            background: game.userHyped ? "#eef1ff" : "hsl(var(--secondary))",
+            color: game.userHyped ? "#3d59e0" : "hsl(var(--muted-foreground))",
             cursor: isVoting ? "not-allowed" : "pointer", 
             transition: "all 0.15s", display: "block", marginBottom: 4, width: "100%",
           }}
@@ -140,7 +140,7 @@ export function HypeMeterSection() {
             Vote once per game
           </span>
         </div>
-        <button style={{ fontSize: 11, color: "#534AB7", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
+        <button style={{ fontSize: 11, color: "#3d59e0", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
           See all →
         </button>
       </div>

@@ -32,7 +32,7 @@ export function HubBanner({ activeTab, setActiveTab }: HubBannerProps) {
       <div
         style={{
           width: 220, height: 220,
-          background: "#534AB7", opacity: 0.09,
+          background: "#3d59e0", opacity: 0.09,
           position: "absolute", top: -80, right: 30,
           borderRadius: "50%", pointerEvents: "none",
         }}
@@ -70,13 +70,13 @@ export function HubBanner({ activeTab, setActiveTab }: HubBannerProps) {
                 color: activeTab === tab.id ? "#fff" : "rgba(255,255,255,0.35)",
                 fontWeight: activeTab === tab.id ? 500 : 400,
                 cursor: "pointer",
-                borderBottom: activeTab === tab.id ? "2px solid #534AB7" : "2px solid transparent",
+                borderBottom: activeTab === tab.id ? "2px solid #3d59e0" : "2px solid transparent",
                 whiteSpace: "nowrap",
                 background: "transparent",
                 border: "none",
                 borderBottomStyle: "solid",
                 borderBottomWidth: 2,
-                borderBottomColor: activeTab === tab.id ? "#534AB7" : "transparent",
+                borderBottomColor: activeTab === tab.id ? "#3d59e0" : "transparent",
                 position: "relative",
               }}
             >

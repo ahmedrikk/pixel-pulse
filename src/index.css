@@ -26,124 +26,116 @@
 
 @layer base {
   :root {
-    /* ───────────────────────────────────────────────────────────────
-       LIGHT MODE — purple-forward brand (violet primary, blue accent).
-       Same brand identity as dark mode, just on light surfaces.
-       ─────────────────────────────────────────────────────────────── */
-    --background: 264 40% 99%;
-    --foreground: 264 25% 12%;
+    /* LIGHT MODE — neutral white surfaces with one solid blue accent. */
+    --background: 220 33% 98%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 264 25% 12%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 264 25% 12%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Brand: violet primary */
-    --primary: 262 83% 58%;
+    /* #3d59e0 — the single light-theme brand color. */
+    --primary: 229.7 72.5% 55.9%;
     --primary-foreground: 0 0% 100%;
+    --heading: 229.7 72.5% 55.9%;
 
-    --secondary: 264 33% 96%;
-    --secondary-foreground: 264 20% 25%;
+    --secondary: 220 30% 96%;
+    --secondary-foreground: 222 30% 24%;
 
-    --muted: 264 30% 96%;
-    --muted-foreground: 264 10% 46%;
+    --muted: 220 25% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    /* Secondary accent: blue */
-    --accent: 221 83% 56%;
+    --accent: 229.7 72.5% 55.9%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 264 24% 91%;
-    --input: 264 24% 91%;
-    --ring: 262 83% 58%;
+    --border: 220 18% 89%;
+    --input: 220 18% 89%;
+    --ring: 229.7 72.5% 55.9%;
 
     --radius: 0.75rem;
 
     /* Custom tokens */
     --nav-bg: 0 0% 100%;
-    --nav-border: 264 24% 91%;
-    --card-hover: 264 33% 98%;
-    --tag-bg: 262 83% 96%;
-    --tag-text: 262 70% 48%;
+    --nav-border: 220 18% 89%;
+    --card-hover: 220 33% 98%;
+    --tag-bg: 230 72% 96%;
+    --tag-text: 230 72% 50%;
     --online-indicator: 142 71% 45%;
-    --neon-glow: 262 83% 58%;
+    --neon-glow: 229.7 72.5% 55.9%;
     --live-glow: 0 84% 60%;
     --win-color: 142 71% 42%;
     --loss-color: 0 72% 51%;
     --gold: 38 92% 50%;
 
-    /* Brand gradient — violet → indigo → blue (used on hero/promo/CTA surfaces) */
-    --brand-from: 262 83% 58%;
-    --brand-via: 250 83% 60%;
-    --brand-to: 221 83% 56%;
+    --brand-from: 229.7 72.5% 55.9%;
+    --brand-via: 229.7 72.5% 55.9%;
+    --brand-to: 229.7 72.5% 55.9%;
     --brand-foreground: 0 0% 100%;
 
     /* App background gradient (subtle, theme-aware) */
-    --app-grad-1: 262 70% 97%;
-    --app-grad-2: 264 40% 99%;
-    --app-grad-3: 221 70% 97%;
+    --app-grad-1: 220 33% 98%;
+    --app-grad-2: 0 0% 100%;
+    --app-grad-3: 225 55% 97%;
   }
 
   .dark {
-    /* ───────────────────────────────────────────────────────────────
-       DARK MODE — identical brand, dark surfaces. No separate palette.
-       ─────────────────────────────────────────────────────────────── */
-    --background: 264 28% 7%;
-    --foreground: 264 20% 96%;
+    /* DARK MODE — strictly neutral black, charcoal, and white. */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
 
-    --card: 264 22% 11%;
-    --card-foreground: 264 20% 96%;
+    --card: 0 0% 4%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 264 22% 11%;
-    --popover-foreground: 264 20% 96%;
+    --popover: 0 0% 4%;
+    --popover-foreground: 0 0% 100%;
 
-    /* Brand: violet primary (brighter for dark surfaces) */
-    --primary: 262 83% 67%;
+    --primary: 230 100% 72%;
     --primary-foreground: 0 0% 100%;
+    --heading: 230 100% 72%;
 
-    --secondary: 264 18% 17%;
-    --secondary-foreground: 264 15% 88%;
+    --secondary: 0 0% 8%;
+    --secondary-foreground: 0 0% 92%;
 
-    --muted: 264 16% 17%;
-    --muted-foreground: 264 12% 64%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 67%;
 
-    /* Secondary accent: blue (brighter for dark surfaces) */
-    --accent: 221 83% 66%;
+    --accent: 230 100% 72%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 264 16% 21%;
-    --input: 264 16% 21%;
-    --ring: 262 83% 67%;
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 230 100% 72%;
 
     /* Custom tokens */
-    --nav-bg: 264 26% 9%;
-    --nav-border: 264 16% 19%;
-    --card-hover: 264 18% 15%;
-    --tag-bg: 262 55% 22%;
-    --tag-text: 262 83% 82%;
+    --nav-bg: 0 0% 2%;
+    --nav-border: 0 0% 16%;
+    --card-hover: 0 0% 7%;
+    --tag-bg: 0 0% 10%;
+    --tag-text: 0 0% 100%;
     --online-indicator: 142 65% 50%;
-    --neon-glow: 262 83% 67%;
+    --neon-glow: 230 100% 72%;
     --live-glow: 0 84% 62%;
     --win-color: 142 65% 50%;
     --loss-color: 0 72% 58%;
     --gold: 38 92% 56%;
 
-    /* Brand gradient — same hues, tuned for dark */
-    --brand-from: 262 83% 62%;
-    --brand-via: 250 83% 60%;
-    --brand-to: 221 83% 58%;
+    --brand-from: 0 0% 5%;
+    --brand-via: 0 0% 5%;
+    --brand-to: 0 0% 5%;
     --brand-foreground: 0 0% 100%;
 
     /* App background gradient (deep, subtle) */
-    --app-grad-1: 264 32% 9%;
-    --app-grad-2: 264 28% 6%;
-    --app-grad-3: 230 35% 9%;
+    --app-grad-1: 0 0% 0%;
+    --app-grad-2: 0 0% 0%;
+    --app-grad-3: 0 0% 0%;
   }
 }
 
@@ -167,6 +159,11 @@
       hsl(var(--app-grad-3)) 100%
     );
     background-attachment: fixed;
+  }
+
+  h1,
+  h2 {
+    color: hsl(var(--heading)) !important;
   }
 }
 
@@ -210,7 +207,7 @@
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+    color: hsl(var(--heading));
   }
 
   /* ─── Brand gradient surfaces (cohesive across light & dark) ───────────
@@ -385,7 +382,7 @@
   pointer-events: none;
   z-index: 2;
 }
-.hero-orb.orb1 { width: 320px; height: 320px; background: #534AB7; opacity: 0.10; top: -100px; right: 80px; }
+.hero-orb.orb1 { width: 320px; height: 320px; background: #3d59e0; opacity: 0.10; top: -100px; right: 80px; }
 .hero-orb.orb2 { width: 220px; height: 220px; background: #EA580C; opacity: 0.08; top: 10px; right: 0; }
 .hero-orb.orb3 { width: 180px; height: 180px; background: #F59E0B; opacity: 0.06; bottom: -60px; right: 140px; }
 

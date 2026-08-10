@@ -20,7 +20,7 @@ const PAGE_CONFIG: Record<string, { icon: React.ReactNode; title: string; descri
     icon: <BookOpen className="h-16 w-16" />,
     title: "Guides",
     description: "Pro tips, walkthroughs, tier lists, and strategy guides for your favourite games.",
-    color: "text-purple-500",
+    color: "text-blue-500",
   },
 };
 

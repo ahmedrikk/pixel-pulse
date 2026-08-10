@@ -108,7 +108,7 @@ export default function Step3Games() {
       onContinue={handleContinue}
     >
       <div className="flex flex-col gap-6">
-        <p className={`text-sm font-medium ${selectedIds.length < 3 ? 'text-red-500' : 'text-[#534AB7]'}`}>
+        <p className={`text-sm font-medium ${selectedIds.length < 3 ? 'text-red-500' : 'text-[#3d59e0]'}`}>
           {selectedIds.length} selected · 3 minimum
         </p>
 

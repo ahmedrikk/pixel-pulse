@@ -93,7 +93,7 @@ export function BattlePassPanel({
       case "badge":
         return "from-yellow-500 to-amber-500";
       case "title":
-        return "from-purple-500 to-pink-500";
+        return "from-blue-500 to-pink-500";
       case "coupon":
         return "from-green-500 to-emerald-500";
       case "frame":
