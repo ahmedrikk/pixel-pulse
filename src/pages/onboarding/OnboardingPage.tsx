@@ -11,6 +11,7 @@ import {
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { useAuthGate } from '@/contexts/AuthGateContext';
 import { TalusLogo } from '@/components/TalusLogo';
+import { validateProfileContent } from '@/lib/profileModeration';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken';
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="block text-[10px] font-medium uppercase tracking-wider text-white/40 mb-1.5">
+    <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
       {children}
     </label>
   );
@@ -101,7 +102,7 @@ function StepCard({
 }) {
   return (
     <div
-      className="flex flex-col rounded-xl overflow-hidden"
+      className="onboarding-panel flex flex-col overflow-hidden rounded-xl"
       style={{
         background: 'rgba(255,255,255,0.03)',
         border: '0.5px solid rgba(255,255,255,0.08)',
@@ -116,8 +117,8 @@ function StepCard({
           {number}
         </div>
         <div>
-          <h3 className="text-[13px] font-semibold text-white leading-tight">{title}</h3>
-          <p className="text-[11px] text-white/40 mt-0.5">{sub}</p>
+          <h3 className="text-[13px] font-semibold leading-tight text-foreground">{title}</h3>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{sub}</p>
         </div>
       </div>
 
@@ -139,8 +140,8 @@ function StepCard({
 function ProgBar({ step, pct }: { step: string; pct: number }) {
   return (
     <div className="flex-1 sm:mr-3">
-      <p className="text-[9px] text-white/50 mb-1">{step}</p>
-      <div className="h-[3px] rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+      <p className="mb-1 text-[9px] text-muted-foreground">{step}</p>
+      <div className="h-[3px] overflow-hidden rounded-sm bg-secondary">
         <div className="h-full bg-[#3d59e0] rounded-sm" style={{ width: `${pct}%` }} />
       </div>
     </div>
@@ -247,6 +248,11 @@ export default function OnboardingPage() {
     if (!user || !canContinuePage1) return;
     setP1Loading(true);
     try {
+      const validation = await validateProfileContent({ displayName, username, aboutMe: bio });
+      if (!validation.isSafe) {
+        toast.error(validation.message || 'Please replace the unsafe wording before continuing.');
+        return;
+      }
       const s1 = {
         displayName, username, bio, bannerPreset,
         avatarUrl: avatar.url,
@@ -305,16 +311,13 @@ export default function OnboardingPage() {
   // ── Sidebar ─────────────────────────────────────────────────────────────
 
   const sidebar = (
-    <aside
-      className="flex flex-col gap-3 p-5 flex-shrink-0 overflow-y-auto"
-      style={{ background: '#080808', borderRight: '0.5px solid rgba(255,255,255,0.12)', width: 220 }}
-    >
-      <p className="text-[10px] font-medium uppercase tracking-widest text-white/60 mb-1">Why join?</p>
+    <aside className="onboarding-panel flex w-[220px] flex-shrink-0 flex-col gap-3 overflow-y-auto border-r p-5">
+      <p className="mb-1 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Why join?</p>
 
       {BENEFIT_CARDS.map(b => (
         <div
           key={b.label}
-          className="rounded-xl p-3"
+          className="onboarding-muted-surface rounded-xl p-3"
           style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)' }}
         >
           <div className="flex items-center gap-2 mb-1.5">
@@ -322,15 +325,15 @@ export default function OnboardingPage() {
                  style={{ background: b.iconBg }}>
               {b.icon}
             </div>
-            <span className="text-[12px] font-medium text-white">{b.label}</span>
+            <span className="text-[12px] font-medium text-foreground">{b.label}</span>
           </div>
-          <p className="text-[10px] text-white/65 leading-[1.4]">{b.desc}</p>
+          <p className="text-[10px] leading-[1.4] text-muted-foreground">{b.desc}</p>
         </div>
       ))}
 
       {/* Progress */}
-      <div className="mt-auto rounded-[9px] p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
-        <p className="text-[10px] text-white/60 mb-2">Your progress</p>
+      <div className="onboarding-muted-surface mt-auto rounded-[9px] p-3">
+        <p className="mb-2 text-[10px] text-muted-foreground">Your progress</p>
         <div className="flex flex-col gap-1.5">
           {[
             { n: 1, label: 'Identity' },
@@ -350,7 +353,7 @@ export default function OnboardingPage() {
                 }`}>
                   {done ? <Check className="w-2.5 h-2.5" /> : step.n}
                 </div>
-                <span className={`text-[11px] ${done || current ? 'text-white/60' : 'text-white/30'} ${current ? 'font-medium !text-white' : ''}`}>
+                <span className={`text-[11px] ${done || current ? 'text-white/60' : 'text-white/30'} ${current ? 'font-medium !text-foreground' : ''}`}>
                   {step.label}
                 </span>
               </div>
@@ -361,7 +364,7 @@ export default function OnboardingPage() {
     </aside>
   );
 
-  const inputCls = "min-h-11 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-base text-white outline-none placeholder:text-white/22 focus:border-[#3d59e0] sm:min-h-0 sm:text-[12px]";
+  const inputCls = "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary sm:min-h-0 sm:text-[12px]";
 
   // ── Step cards ───────────────────────────────────────────────────────────
 
@@ -404,7 +407,7 @@ export default function OnboardingPage() {
             </button>
           ))}
         </div>
-        <p className="text-[9px] text-white/25 mt-1">Unlock more banners through Battle Pass rewards</p>
+        <p className="mt-1 text-[9px] text-muted-foreground">You can change your banner from your profile at any time.</p>
       </div>
 
       {/* Display name */}
@@ -527,7 +530,7 @@ export default function OnboardingPage() {
             * min 3 · {selectedIds.length} selected
           </span>
         </FieldLabel>
-        <div className="[&_input]:!min-h-11 [&_input]:!border-white/10 [&_input]:!bg-white/5 [&_input]:!text-base [&_input]:!text-white [&_input]:!placeholder-white/22 [&_input:focus]:!border-[#3d59e0] [&_svg]:!text-white/30 sm:[&_input]:!text-sm">
+        <div className="[&_input]:!min-h-11 [&_input]:!border-input [&_input]:!bg-background [&_input]:!text-base [&_input]:!text-foreground [&_input]:!placeholder-muted-foreground [&_input:focus]:!border-primary [&_svg]:!text-muted-foreground sm:[&_input]:!text-sm">
           <GameSearchInput onResults={handleSearchResults} onClear={() => setSearchResults(null)} />
         </div>
         <div className="flex flex-wrap gap-1.5 mt-2">
@@ -629,21 +632,19 @@ export default function OnboardingPage() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex min-h-[100dvh] flex-col overflow-x-hidden" style={{ background: '#000000', fontFamily: 'var(--font-sans, system-ui, sans-serif)' }}>
+    <div className="talus-onboarding flex min-h-[100dvh] flex-col overflow-x-hidden bg-background text-foreground">
       {/* Nav */}
-      <nav className="flex min-h-[54px] flex-shrink-0 items-center justify-between gap-3 px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6"
-           style={{ background: '#080808', borderBottom: '0.5px solid rgba(255,255,255,0.12)' }}>
+      <nav className="onboarding-panel flex min-h-[54px] flex-shrink-0 items-center justify-between gap-3 border-b px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6">
         <TalusLogo size={34} />
         <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[9px] font-medium text-[#a5b4fc] sm:px-3 sm:text-[10px]"
               style={{ background: 'rgba(83,74,183,0.2)', border: '0.5px solid rgba(83,74,183,0.4)' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          Season 1 is live
+          Profile setup
         </span>
       </nav>
 
       {/* Page tabs */}
-      <div className="flex flex-shrink-0 overflow-x-auto px-2 sm:px-6"
-           style={{ background: '#080808', borderBottom: '0.5px solid rgba(255,255,255,0.12)' }}>
+      <div className="onboarding-panel flex flex-shrink-0 overflow-x-auto border-b px-2 sm:px-6">
         {([1, 2] as const).map(p => (
           <button
             key={p}
@@ -652,7 +653,7 @@ export default function OnboardingPage() {
             aria-current={page === p ? 'step' : undefined}
             className="min-h-11 min-w-0 flex-1 whitespace-nowrap border-b-2 px-2 py-2.5 text-[10px] transition-colors sm:min-h-0 sm:flex-none sm:px-[18px] sm:text-[11px]"
             style={{
-              color: page === p ? '#fff' : 'rgba(255,255,255,0.35)',
+              color: page === p ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
               fontWeight: page === p ? 500 : 400,
               borderColor: page === p ? '#3d59e0' : 'transparent',
             }}
@@ -664,7 +665,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Compact progress for phones and tablets (desktop uses the sidebar). */}
-      <div className="grid grid-cols-4 gap-1 border-b border-white/10 bg-[#080808] px-3 py-3 lg:hidden">
+      <div className="onboarding-panel grid grid-cols-4 gap-1 border-b px-3 py-3 lg:hidden">
         {[
           { n: 1, label: 'Identity' },
           { n: 2, label: 'Platforms' },
@@ -690,7 +691,7 @@ export default function OnboardingPage() {
         <div className="hidden lg:contents">{sidebar}</div>
 
         <main className="flex w-full flex-1 flex-col gap-4 px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 lg:overflow-y-auto">
-          <p className="px-1 text-[10px] uppercase tracking-[0.06em] text-white/30 sm:px-0 sm:text-[12px]">
+          <p className="px-1 text-[10px] uppercase tracking-[0.06em] text-muted-foreground sm:px-0 sm:text-[12px]">
             Step {page} of 2 — Page {page}
           </p>
 

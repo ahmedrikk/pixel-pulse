@@ -1,1267 +1,296 @@
-import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  User,
-  Mail,
-  Lock,
+  Camera,
   Gamepad2,
-  Newspaper,
-  Link as LinkIcon,
-  Save,
-  Edit2,
-  Trash2,
-  Plus,
-  Star,
-  X,
   Loader2,
-  CheckCircle2,
-  Trophy,
-  Clock,
-  Zap,
-  Shield,
-  ChevronRight,
+  Pencil,
+  Plus,
   Settings,
-  ArrowLeft,
-  Home,
-  AlertCircle,
-  Upload
+  Star,
+  Trash2,
+  Upload,
 } from "lucide-react";
+import { SiteLayout } from "@/components/SiteLayout";
+import { BottomNavBar } from "@/components/BottomNavBar";
 import { Button } from "@/components/ui/button";
-import { Footer } from "@/components/Footer";
-
-// Steam Icon Component
-const SteamIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M11.979 0C5.366 0 0 5.367 0 11.979c0 2.78.94 5.34 2.533 7.364l.834-1.308c-1.324-1.726-2.108-3.88-2.108-6.225 0-5.55 4.534-10.053 10.117-10.053 5.583 0 10.117 4.503 10.117 10.053 0 5.55-4.534 10.053-10.117 10.053-1.273 0-2.495-.242-3.62-.676l-1.388.973C8.762 23.696 10.316 24 11.98 24 18.592 24 24 18.632 24 12.02 24 5.408 18.592 0 11.98 0zm5.368 5.288a3.445 3.445 0 0 0-3.428 3.467 3.445 3.445 0 0 0 3.428 3.467 3.445 3.445 0 0 0 3.428-3.467 3.445 3.445 0 0 0-3.428-3.467zm0 1.403a2.064 2.064 0 0 1 2.025 2.064 2.064 2.064 0 0 1-2.025 2.064 2.064 2.064 0 0 1-2.025-2.064 2.064 2.064 0 0 1 2.025-2.064zM7.143 12.56l-3.96 5.65a7.63 7.63 0 0 0 2.644 1.982l4.358-4.443a3.48 3.48 0 0 1-.334-1.488c0-.81.28-1.556.747-2.147l-.465-1.51-2.99 1.957z" />
-  </svg>
-);
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useTheme } from "@/contexts/ThemeContext";
-import { useToast } from "@/components/ui/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Avatar } from "@/components/Avatar";
-import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import { useMyReviews, useDeleteReview } from "@/hooks/useGameReviews";
-import { ShareReviewButton } from "@/components/ShareReviewButton";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuthGate } from "@/contexts/AuthGateContext";
+import { useProfile } from "@/contexts/ProfileContext";
+import { useDeleteReview, useMyReviews } from "@/hooks/useGameReviews";
 import {
-  getCurrentUserProfile,
-  updateProfile,
-  getSocialAccounts,
-  getUserGames,
-  getNewsPreferences,
   addUserGame,
+  getUserGames,
   removeUserGame,
   toggleFavoriteGame,
-  addNewsPreference,
-  removeNewsPreference,
-  linkSocialAccount,
-  unlinkSocialAccount,
-  getSteamLoginUrl,
+  updateProfile,
   uploadAvatar,
-  syncSteamGames,
-  saveSteamProfile,
-  fetchSteamProfile,
   uploadBanner,
-  uploadNameplate,
-  type Profile as ProfileType,
-  type SocialAccount,
   type UserGame,
-  type UserNewsPreference
 } from "@/lib/profile";
-import { CATEGORIES } from "@/data/mockNews";
-import { BANNER_GRADIENTS } from "@/lib/onboardingService";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PROFILE_AVATARS, PROFILE_BANNERS } from "@/lib/profileAssets";
 import { validateProfileContent } from "@/lib/profileModeration";
 
-const BANNER_LABELS: Record<string, string> = {
-  bn1: 'Ember Dawn', bn2: 'Midnight Pulse', bn3: 'Teal Forest',
-  bn4: 'Crimson Night', bn5: 'Void Purple', bn6: 'Gold Surge',
-};
-
-const POPULAR_GAMES = [
-  "Counter-Strike 2", "Valorant", "League of Legends", "Dota 2",
-  "Apex Legends", "Fortnite", "Minecraft", "GTA V",
-  "Elden Ring", "Baldur's Gate 3", "Call of Duty", "Overwatch 2",
-  "Rocket League", "Rainbow Six Siege", "Genshin Impact", "Roblox"
-];
+type AssetPicker = "avatar" | "banner" | null;
 
 export default function Profile() {
-  const { theme, toggleTheme } = useTheme();
-  const { toast } = useToast();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<ProfileType | null>(null);
-  const { data: myReviews = [] } = useMyReviews(user?.id);
+  const { toast } = useToast();
+  const { user, isLoading: authLoading } = useAuthGate();
+  const { profile, isLoading: profileLoading, refreshProfile, setCachedProfile } = useProfile();
+  const { data: reviews = [] } = useMyReviews(user?.id);
   const deleteReview = useDeleteReview();
-  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [games, setGames] = useState<UserGame[]>([]);
-  const [preferences, setPreferences] = useState<UserNewsPreference[]>([]);
-
-  // Edit states
-  const [editMode, setEditMode] = useState(false);
-  const [editedProfile, setEditedProfile] = useState<Partial<ProfileType>>({});
-  const [moderationError, setModerationError] = useState<string | null>(null);
+  const [gamesLoading, setGamesLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [assetPicker, setAssetPicker] = useState<AssetPicker>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
   const [newGame, setNewGame] = useState("");
   const [showAddGame, setShowAddGame] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [syncingGames, setSyncingGames] = useState(false);
-  const [showManualSteamInput, setShowManualSteamInput] = useState(false);
-  const [manualSteamId, setManualSteamId] = useState('');
-  const [linkingManually, setLinkingManually] = useState(false);
-
-  // Gamification state
-  const [uploadingBanner, setUploadingBanner] = useState(false);
-  const [bannerPickerOpen, setBannerPickerOpen] = useState(false);
-  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
-  const [savingBanner, setSavingBanner] = useState(false);
-
-  async function handleSelectBannerPreset(presetId: string) {
-    if (!user) return;
-    setSavingBanner(true);
-    try {
-      const gradient = BANNER_GRADIENTS[presetId];
-      await updateProfile(user.id, { banner_url: gradient });
-      const updated = await getCurrentUserProfile();
-      setProfile(updated);
-      setBannerPickerOpen(false);
-    } finally {
-      setSavingBanner(false);
-    }
-  }
-
-  async function handleSelectProfileAsset(type: "avatar" | "banner", url: string) {
-    if (!user) return;
-    if (type === "avatar") setUploadingAvatar(true);
-    else setSavingBanner(true);
-    try {
-      const updated = await updateProfile(
-        user.id,
-        type === "avatar" ? { avatar_url: url } : { banner_url: url }
-      );
-      if (!updated) throw new Error("Profile asset update failed");
-      setProfile(updated);
-      setEditedProfile(updated);
-      if (type === "avatar") setAvatarPickerOpen(false);
-      else setBannerPickerOpen(false);
-      toast({
-        title: type === "avatar" ? "Avatar equipped" : "Banner equipped",
-        description: "Your profile customization is now live everywhere.",
-      });
-    } catch (error) {
-      console.error("Unable to equip profile asset:", error);
-      toast({
-        title: "Could not equip image",
-        description: "Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      if (type === "avatar") setUploadingAvatar(false);
-      else setSavingBanner(false);
-    }
-  }
-  const [uploadingNameplate, setUploadingNameplate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [moderationMessage, setModerationMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    checkUser();
-  }, []);
+    if (!authLoading && !user) navigate("/", { replace: true });
+  }, [authLoading, navigate, user]);
 
-  async function checkUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-    setUser(user);
-    await loadProfileData(user.id);
-  }
+  useEffect(() => {
+    if (!profile) return;
+    setDisplayName(profile.display_name ?? "");
+    setUsername(profile.username ?? "");
+    setBio(profile.about_me ?? "");
+  }, [profile]);
 
-  async function loadProfileData(userId: string) {
-    setLoading(true);
-    const [profileData, socialData, gamesData, prefsData] = await Promise.all([
-      getCurrentUserProfile(),
-      getSocialAccounts(userId),
-      getUserGames(userId),
-      getNewsPreferences(userId)
-    ]);
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    setGamesLoading(true);
+    getUserGames(user.id).then((rows) => {
+      if (active) setGames(rows);
+    }).finally(() => {
+      if (active) setGamesLoading(false);
+    });
+    return () => { active = false; };
+  }, [user?.id]);
 
-    setProfile(profileData);
-    setEditedProfile(profileData || {});
-    setSocialAccounts(socialData);
-    setGames(gamesData);
-    setPreferences(prefsData);
-    setLoading(false);
-  }
+  const favoriteGames = useMemo(() => {
+    const favorites = games.filter((game) => game.is_favorite);
+    return favorites.length ? favorites : games;
+  }, [games]);
 
-  async function handleSaveProfile() {
+  async function saveProfile() {
     if (!user) return;
     setSaving(true);
-    setModerationError(null);
+    setModerationMessage(null);
     try {
-      const validation = await validateProfileContent({
-        username: editedProfile.username,
-        displayName: editedProfile.display_name,
-        aboutMe: editedProfile.about_me,
-      });
+      const validation = await validateProfileContent({ displayName, username, aboutMe: bio });
       if (!validation.isSafe) {
-        const message = validation.message || "A harmful or inappropriate word exists. Please retype it to make your profile safer.";
-        setModerationError(message);
-        toast({
-          title: "Please retype your profile",
-          description: message,
-          variant: "destructive",
-        });
+        setModerationMessage(validation.message || "Please replace the unsafe wording before saving.");
         return;
       }
-
-      const updated = await updateProfile(user.id, editedProfile);
-      if (!updated) throw new Error("Profile update failed");
-      setProfile(updated);
-      setEditedProfile(updated);
-      setEditMode(false);
-      toast({ title: "Profile saved", description: "Your changes are visible across Talus." });
-    } catch (error) {
-      console.error("Profile save failed:", error);
-      toast({
-        title: "Profile not saved",
-        description: "Please check your name and bio, then try again.",
-        variant: "destructive",
+      const updated = await updateProfile(user.id, {
+        display_name: displayName.trim(),
+        username: username.trim().toLowerCase(),
+        about_me: bio.trim(),
       });
+      if (!updated) throw new Error("Profile update failed");
+      setCachedProfile(updated);
+      setEditOpen(false);
+      toast({ title: "Profile updated" });
+    } catch (error) {
+      toast({ title: "Could not save profile", description: error instanceof Error ? error.message : "Try again.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleAddGame(gameName: string) {
-    if (!user || !gameName.trim()) return;
-    const added = await addUserGame(user.id, gameName.trim());
-    if (added) {
-      const updatedGames = await getUserGames(user.id);
-      setGames(updatedGames);
-      setNewGame("");
-      setShowAddGame(false);
-    }
-  }
-
-  async function handleRemoveGame(gameId: string) {
+  async function equipAsset(type: Exclude<AssetPicker, null>, url: string) {
     if (!user) return;
-    const success = await removeUserGame(user.id, gameId);
-    if (success) {
-      setGames(games.filter(g => g.id !== gameId));
+    setUploading(true);
+    try {
+      const updated = await updateProfile(user.id, type === "avatar" ? { avatar_url: url } : { banner_url: url });
+      if (!updated) throw new Error("Image update failed");
+      setCachedProfile(updated);
+      setAssetPicker(null);
+    } finally {
+      setUploading(false);
     }
   }
 
-  async function handleToggleFavorite(gameId: string, currentStatus: boolean) {
-    if (!user) return;
-    const success = await toggleFavoriteGame(user.id, gameId, !currentStatus);
-    if (success) {
-      setGames(games.map(g =>
-        g.id === gameId ? { ...g, is_favorite: !currentStatus } : g
-      ));
-    }
-  }
-
-  async function handleAddPreference(tag: string) {
-    if (!user) return;
-    const added = await addNewsPreference(user.id, tag);
-    if (added) {
-      setPreferences([...preferences, added]);
-    }
-  }
-
-  async function handleRemovePreference(prefId: string) {
-    if (!user) return;
-    const success = await removeNewsPreference(user.id, prefId);
-    if (success) {
-      setPreferences(preferences.filter(p => p.id !== prefId));
-    }
-  }
-
-  async function handleSteamLink() {
-    const popup = window.open(
-      getSteamLoginUrl(window.location.origin),
-      'Steam Login',
-      'width=800,height=600'
-    );
-
-    window.addEventListener('message', async (e) => {
-      if (e.data.type === 'STEAM_LINKED' && user) {
-        const { steamId, personaName, profileUrl, avatarUrl } = e.data;
-        await linkSocialAccount(user.id, 'steam', steamId, personaName, avatarUrl, profileUrl);
-        const updated = await getSocialAccounts(user.id);
-        setSocialAccounts(updated);
-        // Reload profile to get synced avatar/name
-        const updatedProfile = await getCurrentUserProfile();
-        setProfile(updatedProfile);
-        setEditedProfile(updatedProfile || {});
-        popup?.close();
-
-        // Sync Steam games in background
-        setSyncingGames(true);
-        try {
-          // Save Steam profile data
-          const steamProfileData = await fetchSteamProfile(steamId);
-          if (steamProfileData && steamProfileData.steam_id) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await saveSteamProfile(user.id, steamProfileData as any);
-          }
-          // Import Steam games
-          await syncSteamGames(user.id, steamId);
-          // Reload games
-          const updatedGames = await getUserGames(user.id);
-          setGames(updatedGames);
-        } catch (err) {
-          console.error('Error syncing Steam data:', err);
-        } finally {
-          setSyncingGames(false);
-        }
-      }
-    });
-  }
-
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'banner' | 'nameplate') {
-    const file = e.target.files?.[0];
+  async function uploadAsset(type: Exclude<AssetPicker, null>, file?: File) {
     if (!file || !user) return;
-
-    if (type === 'avatar') setUploadingAvatar(true);
-    if (type === 'banner') setUploadingBanner(true);
-    if (type === 'nameplate') setUploadingNameplate(true);
-
+    setUploading(true);
     try {
-      let url: string | null = null;
-      if (type === 'avatar') url = await uploadAvatar(user.id, file);
-      if (type === 'banner') url = await uploadBanner(user.id, file);
-      if (type === 'nameplate') url = await uploadNameplate(user.id, file);
-
-      if (url) {
-        const updatedProfile = await getCurrentUserProfile();
-        setProfile(updatedProfile);
-        setEditedProfile(updatedProfile || {});
-        toast({
-          title: "Image Uploaded",
-          description: `Your ${type} has been updated successfully.`,
-        });
-      } else {
-        toast({
-          title: "Upload Failed",
-          description: `Failed to upload ${type}. The file might be too large or invalid.`,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast({
-        title: "Upload Error",
-        description: "An unexpected error occurred while uploading. Please try again.",
-        variant: "destructive",
-      });
+      const url = type === "avatar" ? await uploadAvatar(user.id, file) : await uploadBanner(user.id, file);
+      if (!url) throw new Error("Upload failed");
+      await refreshProfile();
+      setAssetPicker(null);
+    } catch {
+      toast({ title: "Could not upload image", description: "Use a JPG, PNG, or WebP file under 5 MB.", variant: "destructive" });
     } finally {
-      if (type === 'avatar') setUploadingAvatar(false);
-      if (type === 'banner') setUploadingBanner(false);
-      if (type === 'nameplate') setUploadingNameplate(false);
+      setUploading(false);
     }
   }
 
-  async function handleManualSteamLink() {
-    if (!user || !manualSteamId.trim()) return;
-    setLinkingManually(true);
-    try {
-      // Extract Steam ID from URL or use directly
-      let steamId = manualSteamId.trim();
-      // Handle profile URLs like https://steamcommunity.com/profiles/76561198xxxxx
-      const profileMatch = steamId.match(/steamcommunity\.com\/profiles\/(\d+)/);
-      if (profileMatch) steamId = profileMatch[1];
-      // Handle vanity URLs like https://steamcommunity.com/id/vanityname
-      const vanityMatch = steamId.match(/steamcommunity\.com\/id\/([^/]+)/);
-      if (vanityMatch) {
-        // Resolve vanity URL to Steam ID
-        try {
-          const res = await fetch(`/api/steam/ISteamUser/ResolveVanityURL/v1/?key=${import.meta.env.VITE_STEAM_API_KEY}&vanityurl=${vanityMatch[1]}`);
-          const data = await res.json();
-          if (data.response?.steamid) {
-            steamId = data.response.steamid;
-          }
-        } catch (err) {
-          console.error('Error resolving vanity URL:', err);
-        }
-      }
-
-      // Fetch Steam profile
-      const steamProfileData = await fetchSteamProfile(steamId);
-      if (!steamProfileData) {
-        alert('Could not find a Steam profile with that ID. Make sure your profile is public.');
-        return;
-      }
-
-      // Link the account
-      await linkSocialAccount(
-        user.id,
-        'steam',
-        steamId,
-        steamProfileData.persona_name || 'Steam User',
-        steamProfileData.avatar_full || undefined,
-        steamProfileData.profile_url || undefined
-      );
-
-      // Save Steam profile
-      if (steamProfileData.steam_id) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await saveSteamProfile(user.id, steamProfileData as any);
-      }
-
-      // Refresh social accounts and profile
-      const updated = await getSocialAccounts(user.id);
-      setSocialAccounts(updated);
-      const updatedProfile = await getCurrentUserProfile();
-      setProfile(updatedProfile);
-      setEditedProfile(updatedProfile || {});
-
-      // Sync games in background
-      setSyncingGames(true);
-      try {
-        await syncSteamGames(user.id, steamId);
-        const updatedGames = await getUserGames(user.id);
-        setGames(updatedGames);
-      } finally {
-        setSyncingGames(false);
-      }
-
-      setShowManualSteamInput(false);
-      setManualSteamId('');
-    } catch (err) {
-      console.error('Error linking Steam manually:', err);
-      alert('Something went wrong. Please check the Steam ID and try again.');
-    } finally {
-      setLinkingManually(false);
-    }
+  async function addGame() {
+    if (!user || !newGame.trim()) return;
+    const added = await addUserGame(user.id, newGame.trim(), undefined, games.length < 6);
+    if (!added) return;
+    setGames(await getUserGames(user.id));
+    setNewGame("");
+    setShowAddGame(false);
   }
 
-  async function handleUnlink(provider: string) {
+  async function toggleFavorite(game: UserGame) {
     if (!user) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const success = await unlinkSocialAccount(user.id, provider as any);
-    if (success) {
-      setSocialAccounts(socialAccounts.filter(s => s.provider !== provider));
+    if (await toggleFavoriteGame(user.id, game.id, !game.is_favorite)) {
+      setGames((current) => current.map((item) => item.id === game.id ? { ...item, is_favorite: !item.is_favorite } : item));
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+  async function deleteGame(game: UserGame) {
+    if (!user) return;
+    if (await removeUserGame(user.id, game.id)) setGames((current) => current.filter((item) => item.id !== game.id));
   }
 
-  const steamAccount = socialAccounts.find(s => s.provider === 'steam');
-  const totalPlaytime = games.reduce((sum, g) => sum + (g.playtime_hours || 0), 0);
+  if (authLoading || profileLoading || !user || !profile) {
+    return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-7 w-7 animate-spin" /></div>;
+  }
+
+  const bannerIsGradient = profile.banner_url?.startsWith("linear-gradient") || profile.banner_url?.startsWith("radial-gradient");
 
   return (
-    <div className="min-h-screen">
-      {/* ======================================== */}
-      {/* HERO BANNER                              */}
-      {/* ======================================== */}
-      <div className="relative overflow-hidden group/banner">
-        {/* Background Image or Gradient */}
-        {profile?.banner_url ? (
-          profile.banner_url.startsWith('linear-gradient') || profile.banner_url.startsWith('radial-gradient') ? (
-            <div
-              className="absolute inset-0"
-              style={{ background: profile.banner_url }}
-            />
-          ) : (
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${profile.banner_url})` }}
-            />
-          )
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-accent/20 to-primary/10 dark:from-primary/20 dark:via-accent/10 dark:to-transparent" />
-        )}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_hsl(var(--primary)/0.15),_transparent_60%)] pointer-events-none" />
+    <div className="min-h-screen pb-16 md:pb-0">
+      <SiteLayout>
+        <main className="overflow-hidden rounded-xl border bg-card">
+          <section className="relative">
+            <button type="button" onClick={() => setAssetPicker("banner")} className="group relative block h-44 w-full overflow-hidden bg-secondary sm:h-52" aria-label="Change profile banner">
+              {profile.banner_url ? (
+                bannerIsGradient
+                  ? <span className="absolute inset-0" style={{ background: profile.banner_url }} />
+                  : <img src={profile.banner_url} alt="Profile banner" className="h-full w-full object-cover" />
+              ) : <span className="absolute inset-0 bg-gradient-to-br from-primary/30 via-primary/10 to-secondary" />}
+              <span className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/15" />
+              <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-lg bg-card/90 px-2.5 py-1.5 text-xs font-semibold opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                <Camera className="h-3.5 w-3.5" /> Change banner
+              </span>
+            </button>
 
-        {/* Dark overlay for readability */}
-        <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px] pointer-events-none" />
+            <div className="relative px-5 pb-5 sm:px-7">
+              <button type="button" onClick={() => setAssetPicker("avatar")} className="group absolute -top-16 left-5 h-32 w-32 overflow-hidden rounded-full border-4 border-card bg-secondary shadow-md sm:left-7" aria-label="Change profile picture">
+                {profile.avatar_url ? <img src={profile.avatar_url} alt={profile.display_name || "Profile"} className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-3xl font-black">{(profile.display_name || profile.username || "T").slice(0, 2).toUpperCase()}</span>}
+                <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100"><Camera className="h-6 w-6" /></span>
+              </button>
 
-        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none" />
-
-        {/* Back to Home Button */}
-        <div className="absolute top-4 left-4 z-20">
-          <Link to="/">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="gap-2 backdrop-blur-md bg-background/60 hover:bg-background/90 border border-border/50 shadow-md"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <Home className="h-4 w-4" />
-              <span className="hidden sm:inline">Back to Home</span>
-            </Button>
-          </Link>
-        </div>
-
-        {/* Banner Picker Button — opens preset gradient dialog (matches onboarding step 1) */}
-        <div className="absolute top-4 right-4 z-20 opacity-0 group-hover/banner:opacity-100 transition-opacity">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="gap-2 backdrop-blur-md bg-background/50 hover:bg-background/80"
-            onClick={() => setBannerPickerOpen(true)}
-          >
-            {(uploadingBanner || savingBanner) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit2 className="h-4 w-4" />}
-            {profile?.banner_url ? 'Change Banner' : 'Add Profile Banner'}
-          </Button>
-        </div>
-
-        <Dialog open={bannerPickerOpen} onOpenChange={setBannerPickerOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Choose a banner</DialogTitle>
-              <DialogDescription>Equip a Talus banner, use a gradient, or upload your own.</DialogDescription>
-            </DialogHeader>
-            <div className="grid max-h-[42vh] grid-cols-2 gap-2 overflow-y-auto pr-1">
-              {PROFILE_BANNERS.map((asset) => {
-                const selected = profile?.banner_url === asset.url;
-                return (
-                  <button
-                    key={asset.id}
-                    type="button"
-                    onClick={() => handleSelectProfileAsset("banner", asset.url)}
-                    disabled={savingBanner}
-                    className="relative h-20 overflow-hidden rounded-lg border-2 transition-all"
-                    style={{ borderColor: selected ? "#3d59e0" : "transparent" }}
-                  >
-                    <img src={asset.url} alt={asset.label} className="h-full w-full object-cover" />
-                    <span className="absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-left text-[10px] font-medium text-white">
-                      {asset.label}
-                    </span>
-                    {selected && (
-                      <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#3d59e0] text-[10px] text-white">✓</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs font-semibold text-muted-foreground">Gradient banners</p>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {Object.entries(BANNER_GRADIENTS).map(([id, gradient]) => {
-                const selected = profile?.banner_url === gradient;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => handleSelectBannerPreset(id)}
-                    disabled={savingBanner}
-                    className="relative h-16 rounded-lg overflow-hidden border-2 transition-all"
-                    style={{
-                      background: gradient,
-                      borderColor: selected ? '#3d59e0' : 'transparent',
-                      boxShadow: selected ? '0 0 0 2px rgba(83,74,183,0.3)' : 'none',
-                    }}
-                  >
-                    <span className="absolute bottom-1 left-2 text-[10px] font-medium text-white drop-shadow">
-                      {BANNER_LABELS[id]}
-                    </span>
-                    {selected && (
-                      <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#3d59e0] flex items-center justify-center text-white text-[10px]">✓</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={() => document.getElementById("banner-upload")?.click()}
-            >
-              <Upload className="h-4 w-4" />
-              Upload your own
-            </Button>
-            <input
-              id="banner-upload"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => handleAvatarUpload(event, "banner")}
-            />
-          </DialogContent>
-        </Dialog>
-
-        <div className="relative container max-w-5xl mx-auto px-4 pt-16 pb-12">
-          <div className="flex flex-col md:flex-row items-center md:items-end gap-8">
-
-            {/* Avatar & Nameplate Container */}
-            <div className="relative flex justify-center items-center h-40 w-40 shrink-0">
-              {/* Avatar Box */}
-              <div className="group/avatar relative z-10">
-                <Avatar src={profile?.avatar_url} fallback={profile?.display_name || profile?.username} frameUrl={profile?.nameplate_url ?? undefined} size="xl" />
-
-                {/* Avatar Upload overlay */}
-                <div
-                  className="absolute inset-0 rounded-xl flex items-center justify-center bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
-                  onClick={() => setAvatarPickerOpen(true)}
-                >
-                  {uploadingAvatar ? (
-                    <Loader2 className="h-8 w-8 text-white animate-spin" />
-                  ) : (
-                    <Edit2 className="h-8 w-8 text-white" />
-                  )}
-                </div>
-                <input
-                  id="avatar-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleAvatarUpload(e, 'avatar')}
-                />
-
-                <Dialog open={avatarPickerOpen} onOpenChange={setAvatarPickerOpen}>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Choose an avatar</DialogTitle>
-                      <DialogDescription>Equip a Talus avatar or upload your own image.</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      {PROFILE_AVATARS.map((asset) => {
-                        const selected = profile?.avatar_url === asset.url;
-                        return (
-                          <button
-                            key={asset.id}
-                            type="button"
-                            onClick={() => handleSelectProfileAsset("avatar", asset.url)}
-                            disabled={uploadingAvatar}
-                            className="group/preset text-center"
-                          >
-                            <span className={`mx-auto block aspect-square overflow-hidden rounded-xl border-2 ${selected ? "border-primary ring-2 ring-primary/25" : "border-transparent"}`}>
-                              <img src={asset.url} alt={asset.label} className="h-full w-full object-cover transition-transform group-hover/preset:scale-105" />
-                            </span>
-                            <span className="mt-1 block text-[11px] font-medium">{asset.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="gap-2"
-                      onClick={() => {
-                        setAvatarPickerOpen(false);
-                        document.getElementById("avatar-upload")?.click();
-                      }}
-                    >
-                      <Upload className="h-4 w-4" />
-                      Upload your own
-                    </Button>
-                  </DialogContent>
-                </Dialog>
-
-                {/* Nameplate Upload overlay (Edit Mode Only) */}
-                {editMode && (
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute -bottom-3 -right-3 h-8 w-8 rounded-full shadow-lg z-20"
-                    onClick={() => document.getElementById('nameplate-upload')?.click()}
-                    title="Change Nameplate/Border"
-                  >
-                    {uploadingNameplate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                  </Button>
-                )}
-                <input
-                  id="nameplate-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleAvatarUpload(e, 'nameplate')}
-                />
-
-                {/* Online indicator */}
-                <div className="absolute -bottom-2 -left-2 h-6 w-6 rounded-full bg-green-500 border-4 border-background shadow-lg z-20" title="Online" />
+              <div className="flex justify-end pt-3">
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>
+              </div>
+              <div className="mt-9 text-center sm:text-left">
+                <h1 className="text-2xl font-bold normal-case sm:text-3xl">{profile.display_name || profile.username}</h1>
+                <p className="mt-0.5 text-sm text-muted-foreground">@{profile.username}</p>
+                <p className="mt-4 max-w-2xl whitespace-pre-wrap text-[15px] leading-6 text-foreground/80">{profile.about_me || "No information available right now."}</p>
               </div>
             </div>
+          </section>
 
-            {/* Profile Info */}
-            <div className="flex-1 text-center md:text-left">
-              {editMode ? (
-                <div className="space-y-3 max-w-md">
-                  <Input
-                    value={editedProfile.display_name || ''}
-                    onChange={(e) => {
-                      setModerationError(null);
-                      setEditedProfile({ ...editedProfile, display_name: e.target.value });
-                    }}
-                    placeholder="Display Name"
-                    className="text-xl font-bold bg-background/50 backdrop-blur-sm"
-                  />
-                  <Input
-                    value={editedProfile.username || ''}
-                    onChange={(e) => {
-                      setModerationError(null);
-                      setEditedProfile({ ...editedProfile, username: e.target.value });
-                    }}
-                    placeholder="Username"
-                    className="bg-background/50 backdrop-blur-sm"
-                  />
-                  <Textarea
-                    value={editedProfile.about_me || ''}
-                    onChange={(e) => {
-                      setModerationError(null);
-                      setEditedProfile({ ...editedProfile, about_me: e.target.value });
-                    }}
-                    placeholder="Tell us about yourself..."
-                    rows={2}
-                    className="bg-background/50 backdrop-blur-sm"
-                  />
-                  {moderationError && (
-                    <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-left text-sm text-destructive">
-                      <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
-                      <span>{moderationError}</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-                    {profile?.display_name || 'Set Your Name'}
-                  </h1>
-                  <p className="text-muted-foreground mt-1">
-                    @{profile?.username || 'username'}
-                  </p>
-                  <p className="text-sm text-foreground/70 mt-2 max-w-lg">
-                    {profile?.about_me || 'No bio yet. Click Edit Profile to add one!'}
-                  </p>
-                </>
-              )}
+          <div className="border-t px-5 py-6 sm:px-7">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-lg font-bold"><Gamepad2 className="h-5 w-5" /> My games</h2>
+              <Button size="sm" onClick={() => setShowAddGame((value) => !value)} className="gap-1.5"><Plus className="h-4 w-4" /> Add game</Button>
             </div>
-
-            {/* Profile actions */}
-            <div className="flex flex-col sm:flex-row gap-3 items-center">
-              {/* Edit Mode Toggles */}
-              {editMode ? (
-                <>
-                  <Button onClick={handleSaveProfile} disabled={saving} className="gap-2">
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Save Profile
-                  </Button>
-                  <Button variant="outline" onClick={() => { setEditMode(false); setEditedProfile(profile || {}); }}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </>
-              ) : (
-                <Button variant="outline" onClick={() => setEditMode(true)} className="gap-2 bg-background/50 backdrop-blur-sm">
-                  <Edit2 className="h-4 w-4" />
-                  Edit Profile
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ======================================== */}
-      {/* MAIN CONTENT                             */}
-      {/* ======================================== */}
-      <div className="container max-w-5xl mx-auto px-4 pb-16 space-y-8 relative z-10">
-
-        {/* ---- STATS ROW ---- */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            icon={<Trophy className="h-5 w-5 text-yellow-500" />}
-            label="Reviews"
-            value={String(myReviews.length)}
-            sub="community reviews"
-            highlight={true}
-          />
-          <StatCard
-            icon={<Star className="h-5 w-5 text-orange-500" />}
-            label="Favorites"
-            value={String(games.filter(g => g.is_favorite).length)}
-            sub="showcased games"
-          />
-          <StatCard
-            icon={<Gamepad2 className="h-5 w-5 text-primary" />}
-            label="Games"
-            value={String(games.length)}
-            sub={`${games.filter(g => g.is_favorite).length} favorites`}
-          />
-          <StatCard
-            icon={<SteamIcon className="h-5 w-5 text-[#1b2838] dark:text-white" />}
-            label="Steam"
-            value={steamAccount ? 'Connected' : 'Not Linked'}
-            sub={steamAccount ? `as ${steamAccount.username}` : 'Link your account'}
-            highlight={!!steamAccount}
-          />
-        </div>
-
-        {/* ---- CONNECTED ACCOUNTS ---- */}
-        <Section title="Connected Accounts" icon={<LinkIcon className="h-5 w-5" />}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Steam */}
-            <AccountCard
-              icon={<SteamIcon className="h-6 w-6 text-white" />}
-              name="Steam"
-              bgColor="bg-[#1b2838]"
-              connected={!!steamAccount}
-              username={steamAccount?.username}
-              onConnect={() => setShowManualSteamInput(!showManualSteamInput)}
-              onDisconnect={() => handleUnlink('steam')}
-              connectColor="bg-[#1b2838] hover:bg-[#2a475e] text-white"
-            />
-          </div>
-
-          {/* Manual Steam ID Input */}
-          {showManualSteamInput && !steamAccount && (
-            <div className="mt-4 p-4 rounded-lg border border-primary/30 bg-primary/5">
-              <p className="text-sm font-medium mb-2">Link your Steam account</p>
-              <p className="text-xs text-muted-foreground mb-3">
-                Paste your Steam profile URL or Steam ID (e.g., <code>76561198xxxxxxxxx</code>)
-              </p>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://steamcommunity.com/id/yourname or 76561198..."
-                  value={manualSteamId}
-                  onChange={(e) => setManualSteamId(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleManualSteamLink()}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleManualSteamLink}
-                  disabled={linkingManually || !manualSteamId.trim()}
-                  className="bg-[#1b2838] hover:bg-[#2a475e] text-white gap-2"
-                >
-                  {linkingManually ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <SteamIcon className="h-4 w-4" />
-                  )}
-                  {linkingManually ? 'Linking...' : 'Link'}
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => setShowManualSteamInput(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
+            {showAddGame && (
+              <div className="mb-4 flex gap-2 rounded-xl bg-secondary/60 p-3">
+                <Input value={newGame} onChange={(event) => setNewGame(event.target.value)} onKeyDown={(event) => event.key === "Enter" && addGame()} placeholder="Search or enter a game" />
+                <Button onClick={addGame} disabled={!newGame.trim()}>Add</Button>
               </div>
-              {syncingGames && (
-                <div className="flex items-center gap-2 mt-3 text-sm text-primary">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Syncing your Steam library...
-                </div>
-              )}
-            </div>
-          )}
-        </Section>
-
-        {/* ---- MY GAMES ---- */}
-        <Section
-          title="My Games"
-          icon={<Gamepad2 className="h-5 w-5" />}
-          action={
-            <Button size="sm" onClick={() => setShowAddGame(!showAddGame)} className="gap-1">
-              <Plus className="h-4 w-4" />
-              Add Game
-            </Button>
-          }
-        >
-          {/* Add Game Input */}
-          {showAddGame && (
-            <div className="flex gap-2 p-4 bg-secondary/30 rounded-lg border border-border/50 mb-4">
-              <Input
-                placeholder="Search for a game..."
-                value={newGame}
-                onChange={(e) => setNewGame(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddGame(newGame)}
-                className="flex-1"
-              />
-              <Button onClick={() => handleAddGame(newGame)}>Add</Button>
-              <Button variant="ghost" onClick={() => setShowAddGame(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          {/* Popular Games Quick Add */}
-          {showAddGame && (
-            <div className="mb-4 bg-card p-4 rounded-lg border border-border/50">
-              <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wider font-medium">Quick Add Favorites</p>
-              <div className="flex flex-wrap gap-2">
-                {POPULAR_GAMES.slice(0, 8).map(game => (
-                  <Badge
-                    key={game}
-                    variant="secondary"
-                    className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors py-1.5 px-3"
-                    onClick={() => handleAddGame(game)}
-                  >
-                    + {game}
-                  </Badge>
+            )}
+            {gamesLoading ? <div className="h-44 animate-pulse rounded-xl bg-secondary" /> : favoriteGames.length === 0 ? (
+              <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Add games to build your profile and personalize Talus.</div>
+            ) : (
+              <div className="flex snap-x gap-3 overflow-x-auto pb-2">
+                {favoriteGames.map((game) => (
+                  <article key={game.id} className="group relative w-36 shrink-0 snap-start overflow-hidden rounded-xl border bg-card">
+                    <div className="aspect-[4/3] bg-secondary">
+                      {game.image_url ? <img src={game.image_url} alt={game.game_name} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center"><Gamepad2 className="h-8 w-8 text-muted-foreground" /></span>}
+                    </div>
+                    <div className="p-3">
+                      <p className="truncate text-sm font-bold normal-case" title={game.game_name}>{game.game_name}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">{game.playtime_hours ? `${game.playtime_hours.toLocaleString()} hours` : game.platform || "Community game"}</p>
+                    </div>
+                    <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button onClick={() => toggleFavorite(game)} className="rounded-full bg-card/90 p-1.5 shadow" aria-label="Toggle favorite"><Star className={`h-3.5 w-3.5 ${game.is_favorite ? "fill-amber-400 text-amber-400" : ""}`} /></button>
+                      <button onClick={() => deleteGame(game)} className="rounded-full bg-card/90 p-1.5 text-destructive shadow" aria-label="Remove game"><Trash2 className="h-3.5 w-3.5" /></button>
+                    </div>
+                  </article>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Featured Showcase (Only show favorites at top) */}
-          {games.filter(g => g.is_favorite).length > 0 && (
-            <div className="mb-8 p-6 rounded-xl bg-gradient-to-br from-primary/10 to-transparent border border-primary/20">
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
-                <h3 className="font-semibold text-lg tracking-tight">Game Collector Showcase</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {games.filter(g => g.is_favorite).map(game => (
-                  <div key={`featured-${game.id}`} className="relative group overflow-hidden rounded-lg border border-border/50 bg-card text-center hover:border-primary/50 transition-colors h-48">
-                    {game.image_url ? (
-                      <div
-                        className="absolute inset-0 bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity duration-300"
-                        style={{ backgroundImage: `url(${game.image_url})` }}
-                      />
-                    ) : (
-                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 to-transparent" />
-                    )}
-                    {/* Content overlay */}
-                    <div className="relative z-10 flex flex-col h-full bg-background/50 p-6 backdrop-blur-sm">
-                      {!game.image_url && <Gamepad2 className="h-12 w-12 mx-auto mb-4 text-primary/40 group-hover:text-primary transition-colors duration-300" />}
-                      <div className="mt-auto">
-                        <p className="font-bold text-lg truncate drop-shadow-md" title={game.game_name}>{game.game_name}</p>
-                        {game.platform && (
-                          <span className="inline-block mt-2 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-secondary/80 text-secondary-foreground rounded-full backdrop-blur-md">
-                            {game.platform}
-                          </span>
-                        )}
-                        {game.playtime_hours ? (
-                          <p className="text-xs text-foreground mt-3 font-semibold drop-shadow-md">
-                            {game.playtime_hours.toLocaleString()} hrs played
-                          </p>
-                        ) : null}
-                      </div>
+          <div className="border-t px-5 py-6 sm:px-7">
+            <h2 className="mb-4 flex items-center gap-2 text-lg font-bold"><Star className="h-5 w-5" /> My reviews ({reviews.length})</h2>
+            {reviews.length === 0 ? <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">Your game reviews will appear here.</p> : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {reviews.slice(0, 6).map((review) => (
+                  <article key={review.id} className="flex gap-3 rounded-xl border p-3">
+                    <div className="h-14 w-12 shrink-0 overflow-hidden rounded-lg bg-secondary">
+                      {review.gameCover ? <img src={review.gameCover} alt="" className="h-full w-full object-cover" /> : <Gamepad2 className="m-3 h-6 w-6 text-muted-foreground" />}
                     </div>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-1 right-1 h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity bg-background/50 backdrop-blur-sm"
-                      onClick={() => handleToggleFavorite(game.id, true)}
-                      title="Remove from showcase"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="truncate text-sm font-bold normal-case">{review.gameName}</p>
+                        <button onClick={() => deleteReview.mutate(review.id)} aria-label="Delete review" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                      <p className="text-xs text-amber-500">{"★".repeat(Math.round(review.starRating))}{"☆".repeat(Math.max(0, 5 - Math.round(review.starRating)))}</p>
+                      {review.reviewText && <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{review.reviewText}</p>}
+                    </div>
+                  </article>
                 ))}
               </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-lg">All Games ({games.length})</h3>
-            <p className="text-sm text-muted-foreground">Click the star to add to your showcase</p>
+            )}
           </div>
 
-          {/* Games Grid */}
-          {games.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Gamepad2 className="h-16 w-16 mx-auto mb-4 opacity-15" />
-              <p className="text-lg font-medium">No games added yet</p>
-              <p className="text-sm">Add your favorite games to get personalized news</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {games.map(game => (
-                <div
-                  key={game.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card hover:bg-card-foreground/5 transition-colors group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <button
-                      className="shrink-0"
-                      onClick={() => handleToggleFavorite(game.id, game.is_favorite)}
-                    >
-                      <Star
-                        className={`h-5 w-5 transition-colors ${game.is_favorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/40 hover:text-yellow-400'
-                          }`}
-                      />
-                    </button>
-                    {game.image_url ? (
-                      <div
-                        className="h-12 w-12 rounded-md bg-cover bg-center shrink-0"
-                        style={{ backgroundImage: `url(${game.image_url})` }}
-                      />
-                    ) : (
-                      <div className="p-3 bg-secondary rounded-lg shrink-0">
-                        <Gamepad2 className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{game.game_name}</p>
-                      {game.platform && (
-                        <p className="text-xs text-muted-foreground">{game.platform}</p>
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                    onClick={() => handleRemoveGame(game.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </Section>
+          <Link to="/settings/account" className="flex items-center gap-2 border-t px-5 py-5 text-sm font-semibold transition-colors hover:bg-secondary/60 sm:px-7"><Settings className="h-4 w-4" /> Account settings</Link>
+        </main>
+      </SiteLayout>
 
-        {/* ---- NEWS PREFERENCES ---- */}
-        <Section title="News Preferences" icon={<Newspaper className="h-5 w-5" />}>
-          <p className="text-sm text-muted-foreground mb-4">
-            Select topics you're interested in. We'll prioritize news matching your preferences.
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map(cat => {
-              const isSelected = preferences.some(p => p.tag.toLowerCase() === cat.id.toLowerCase());
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => {
-                    if (isSelected) {
-                      const pref = preferences.find(p => p.tag.toLowerCase() === cat.id.toLowerCase());
-                      if (pref) handleRemovePreference(pref.id);
-                    } else {
-                      handleAddPreference(cat.id);
-                    }
-                  }}
-                  className={`
-                    inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium
-                    border transition-all duration-200
-                    ${isSelected
-                      ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
-                      : 'bg-secondary/50 text-secondary-foreground border-border/50 hover:border-primary/50 hover:bg-primary/10'
-                    }
-                  `}
-                >
-                  {isSelected && <CheckCircle2 className="h-3.5 w-3.5" />}
-                  <span>{cat.icon}</span>
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Edit profile</DialogTitle><DialogDescription>Update how other players see you on Talus.</DialogDescription></DialogHeader>
+          <div className="space-y-4">
+            <label className="block text-sm font-semibold">Display name<Input className="mt-1.5" value={displayName} onChange={(event) => setDisplayName(event.target.value.slice(0, 30))} /></label>
+            <label className="block text-sm font-semibold">Username<Input className="mt-1.5" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20))} /></label>
+            <label className="block text-sm font-semibold">Bio<Textarea className="mt-1.5" value={bio} onChange={(event) => setBio(event.target.value.slice(0, 160))} rows={4} /><span className="mt-1 block text-right text-xs font-normal text-muted-foreground">{bio.length}/160</span></label>
+            {moderationMessage && <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{moderationMessage}</p>}
+            <Button className="w-full" onClick={saveProfile} disabled={saving}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save profile</Button>
           </div>
+        </DialogContent>
+      </Dialog>
 
-          {preferences.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-border/50">
-              <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider font-medium">
-                Your selections ({preferences.length})
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {preferences.map(pref => (
-                  <Badge
-                    key={pref.id}
-                    className="cursor-pointer gap-1 hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                    onClick={() => handleRemovePreference(pref.id)}
-                  >
-                    {pref.tag}
-                    <X className="h-3 w-3" />
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-        </Section>
-
-        {/* ---- MY REVIEWS ---- */}
-        <Section title={`My Reviews (${myReviews.length})`} icon={<Star className="h-5 w-5" />}>
-          {myReviews.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">
-              No reviews yet — rate a game from a news article or the Reviews tab and it'll show up here.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {myReviews.map((rev) => (
-                <div key={rev.id} className="flex gap-3 p-3 rounded-lg border border-border/50 bg-card">
-                  {rev.gameCover ? (
-                    <img src={rev.gameCover} alt={rev.gameName} className="w-12 h-12 rounded-md object-cover flex-shrink-0" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-md bg-secondary flex items-center justify-center flex-shrink-0">
-                      <Gamepad2 className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold text-sm truncate">{rev.gameName}</h3>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <div className="flex items-center gap-0.5">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <Star
-                              key={s}
-                              className={`h-3.5 w-3.5 ${s <= Number(rev.starRating) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`}
-                            />
-                          ))}
-                        </div>
-                        <ShareReviewButton
-                          gameId={rev.gameId}
-                          gameName={rev.gameName}
-                          starRating={rev.starRating}
-                          reviewText={rev.reviewText}
-                          coverUrl={rev.gameCover}
-                          userName={profile?.username ?? undefined}
-                        />
-                        <button
-                          onClick={() => deleteReview.mutate(rev.id, {
-                            onSuccess: () => toast({ title: "Review deleted" }),
-                            onError: () => toast({ title: "Couldn't delete review", variant: "destructive" }),
-                          })}
-                          disabled={deleteReview.isPending}
-                          className="text-muted-foreground hover:text-destructive transition-colors p-1 -mr-1"
-                          title="Delete review"
-                          aria-label="Delete review"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    {rev.reviewText && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-3">{rev.reviewText}</p>
-                    )}
-                    {rev.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {rev.tags.map((t) => (
-                          <Badge key={t} variant="secondary" className="text-[10px] py-0 px-1.5 capitalize">{t}</Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Section>
-
-        {/* ---- ACCOUNT SETTINGS ---- */}
-        <Section title="Account" icon={<Settings className="h-5 w-5" />}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg border border-border/50 bg-card">
-              <div className="flex items-center gap-3 mb-1">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium text-muted-foreground">Email</p>
-              </div>
-              <p className="font-medium pl-7">{user?.email}</p>
-            </div>
-            <div className="p-4 rounded-lg border border-border/50 bg-card">
-              <div className="flex items-center gap-3 mb-1">
-                <Lock className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium text-muted-foreground">Password</p>
-              </div>
-              <div className="flex items-center justify-between pl-7">
-                <p className="font-medium">••••••••</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-primary"
-                  onClick={async () => {
-                    if (!user?.email) return;
-                    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-                      redirectTo: `${window.location.origin}/login`,
-                    });
-                    if (error) {
-                      toast({ title: "Reset failed", description: error.message, variant: "destructive" });
-                    } else {
-                      toast({ title: "Email sent", description: "Check your inbox for the password reset link." });
-                    }
-                  }}
-                >Change</Button>
-              </div>
-            </div>
+      <Dialog open={assetPicker !== null} onOpenChange={(open) => !open && setAssetPicker(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Choose {assetPicker}</DialogTitle><DialogDescription>Equip a Talus image or upload your own.</DialogDescription></DialogHeader>
+          <div className={assetPicker === "avatar" ? "grid grid-cols-2 gap-3 sm:grid-cols-4" : "grid max-h-[48vh] grid-cols-2 gap-3 overflow-y-auto"}>
+            {(assetPicker === "avatar" ? PROFILE_AVATARS : PROFILE_BANNERS).map((asset) => (
+              <button key={asset.id} type="button" disabled={uploading} onClick={() => assetPicker && equipAsset(assetPicker, asset.url)} className="overflow-hidden rounded-xl border bg-secondary text-left transition hover:border-primary">
+                <img src={asset.url} alt={asset.label} className={assetPicker === "avatar" ? "aspect-square w-full object-cover" : "h-24 w-full object-cover"} />
+                <span className="block truncate px-2 py-2 text-xs font-semibold">{asset.label}</span>
+              </button>
+            ))}
           </div>
-        </Section>
-      </div>
-    <Footer />
-    </div>
-  );
-}
-
-/* ======================================== */
-/* HELPER COMPONENTS                        */
-/* ======================================== */
-
-function StatCard({ icon, label, value, sub, highlight }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div className={`
-      p-4 rounded-xl border transition-all
-      ${highlight
-        ? 'border-primary/40 bg-primary/5 dark:bg-primary/10 shadow-sm shadow-primary/10'
-        : 'border-border/50 bg-card hover:border-border'
-      }
-    `}>
-      <div className="flex items-center gap-2 mb-2">
-        {icon}
-        <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{label}</span>
-      </div>
-      <p className="text-2xl font-bold tracking-tight">{value}</p>
-      <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
-    </div>
-  );
-}
-
-function Section({ title, icon, children, action }: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-border/50 bg-card p-6">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          {icon}
-          {title}
-        </h2>
-        {action}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function AccountCard({ icon, name, bgColor, connected, username, onConnect, onDisconnect, connectColor }: {
-  icon: React.ReactNode;
-  name: string;
-  bgColor: string;
-  connected: boolean;
-  username?: string | null;
-  onConnect: () => void;
-  onDisconnect: () => void;
-  connectColor: string;
-}) {
-  return (
-    <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:bg-card-foreground/5 transition-colors">
-      <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${bgColor}`}>
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-medium">{name}</p>
-        <p className="text-sm text-muted-foreground truncate">
-          {connected ? `Connected as ${username}` : 'Not connected'}
-        </p>
-      </div>
-      {connected ? (
-        <Button variant="ghost" size="sm" className="text-destructive shrink-0" onClick={onDisconnect}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      ) : (
-        <Button size="sm" className={`shrink-0 ${connectColor}`} onClick={onConnect}>
-          <LinkIcon className="h-4 w-4 mr-1" />
-          Link
-        </Button>
-      )}
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold hover:bg-secondary">
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Upload your own
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => assetPicker && uploadAsset(assetPicker, event.target.files?.[0])} />
+          </label>
+        </DialogContent>
+      </Dialog>
+      <BottomNavBar />
     </div>
   );
 }

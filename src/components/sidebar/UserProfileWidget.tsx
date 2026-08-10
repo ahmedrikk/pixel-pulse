@@ -1,11 +1,19 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useProfile } from "@/contexts/ProfileContext";
-import { User, LogIn } from "lucide-react";
+import { User, LogIn, UserCircle, Settings, UserPlus, LogOut, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function UserProfileWidget() {
-  const { isAuthenticated, user, openAuthModal } = useAuthGate();
+  const { isAuthenticated, user, openAuthModal, signOut } = useAuthGate();
   const { profile } = useProfile();
+  const navigate = useNavigate();
 
   if (!isAuthenticated || !user) {
     return (
@@ -78,16 +86,63 @@ export function UserProfileWidget() {
 
         {/* Content */}
         <div className="pt-10">
-          <Link to="/profile" className="block hover:underline">
-            <h3 className="font-bold text-sm text-foreground truncate">
-              {profile?.display_name || profile?.username || user.user_metadata?.display_name || "Player One"}
-            </h3>
-          </Link>
+          <h3 className="font-bold text-sm text-foreground truncate">
+            {profile?.display_name || profile?.username || user.user_metadata?.display_name || "Player One"}
+          </h3>
           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
             {profile?.about_me || "No bio set. Update your profile to add a bio!"}
           </p>
         </div>
       </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Open account menu"
+            className="absolute inset-0 z-10 rounded-xl outline-none ring-primary/30 focus-visible:ring-2"
+          >
+            <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-card/90 text-muted-foreground shadow-sm backdrop-blur-sm">
+              <MoreHorizontal className="h-4 w-4" />
+            </span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="bottom" className="w-[220px] p-2" sideOffset={8}>
+          <div className="mb-1 flex items-center gap-2 rounded-lg bg-secondary/70 px-2 py-2">
+            <div className="h-9 w-9 overflow-hidden rounded-full bg-secondary">
+              {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : <User className="m-2 h-5 w-5" />}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold">{profile?.display_name || profile?.username || "Player One"}</p>
+              <p className="truncate text-xs text-muted-foreground">@{profile?.username || "player"}</p>
+            </div>
+          </div>
+          <DropdownMenuItem onSelect={() => navigate("/profile")} className="gap-3 rounded-lg py-2.5">
+            <UserCircle className="h-4 w-4" /> Go to profile
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => navigate("/settings/account")} className="gap-3 rounded-lg py-2.5">
+            <Settings className="h-4 w-4" /> Account settings
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={async () => {
+              await signOut();
+              navigate("/login");
+            }}
+            className="gap-3 rounded-lg py-2.5"
+          >
+            <UserPlus className="h-4 w-4" /> Add another account
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={async () => {
+              await signOut();
+              navigate("/");
+            }}
+            className="gap-3 rounded-lg py-2.5 text-destructive focus:text-destructive"
+          >
+            <LogOut className="h-4 w-4" /> Sign out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

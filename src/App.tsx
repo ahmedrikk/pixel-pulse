@@ -22,6 +22,7 @@ function ScrollToTop() {
 // Route-level code splitting — each page becomes its own chunk.
 const Index          = lazy(() => import("./pages/Index"));
 const Profile        = lazy(() => import("./pages/Profile"));
+const AccountSettings = lazy(() => import("./pages/AccountSettings"));
 const Login          = lazy(() => import("./pages/Login"));
 const SteamCallback  = lazy(() => import("./pages/SteamCallback"));
 const PublicProfile  = lazy(() => import("./pages/PublicProfile"));
@@ -69,6 +70,7 @@ const App = () => (
                     {/* All other routes — guarded */}
                     <Route path="/" element={<OnboardingGuard><Index /></OnboardingGuard>} />
                     <Route path="/profile" element={<OnboardingGuard><Profile /></OnboardingGuard>} />
+                    <Route path="/settings/account" element={<OnboardingGuard><AccountSettings /></OnboardingGuard>} />
                     <Route path="/u/:username" element={<OnboardingGuard><PublicProfile /></OnboardingGuard>} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/trivia" element={<OnboardingGuard><DailyTrivia /></OnboardingGuard>} />

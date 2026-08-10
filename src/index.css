@@ -186,6 +186,28 @@
 }
 
 @layer utilities {
+  .talus-onboarding .onboarding-panel {
+    background: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .talus-onboarding .onboarding-muted-surface {
+    background: hsl(var(--secondary)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .talus-onboarding [class*="text-white/"] {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .talus-onboarding [class*="border-white/"] {
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .talus-onboarding [class*="bg-white/"] {
+    background-color: hsl(var(--secondary)) !important;
+  }
+
   .talus-shell {
     width: min(100%, 1264px);
     margin-inline: auto;

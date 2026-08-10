@@ -437,7 +437,31 @@ export async function getAllCachedArticles(
       });
 
       if (!rankedError) {
-        const rankedItems = ((rankedData ?? []) as CachedArticle[]).map(toNewsItem);
+        let rankedItems = ((rankedData ?? []) as CachedArticle[]).map(toNewsItem);
+
+        // The first feed page must always expose genuinely fresh reporting.
+        // Personalization and impression rotation still rank the rest, but
+        // they cannot bury every new story below cards the reader has seen.
+        if (offset === 0 && !tag) {
+          const freshnessCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+          let latestQuery = supabase
+            .from("cached_articles")
+            .select("*")
+            .eq("duplicate_flag", false)
+            .lt("report_count", 3)
+            .gte("article_date", freshnessCutoff)
+            .order("article_date", { ascending: false })
+            .limit(6);
+          if (category) latestQuery = latestQuery.eq("category", category);
+
+          const { data: latestRows, error: latestError } = await latestQuery;
+          if (!latestError && latestRows?.length) {
+            const latest = (latestRows as CachedArticle[]).map(toNewsItem);
+            const latestUrls = new Set(latest.map((item) => item.sourceUrl));
+            rankedItems = [...latest, ...rankedItems.filter((item) => !latestUrls.has(item.sourceUrl))];
+          }
+        }
+
         if (!useVideoCadence || videoSlots === 0) return rankedItems.slice(0, limit);
 
         const videoOffset = pageIndex * videoSlots;

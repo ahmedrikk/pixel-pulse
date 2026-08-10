@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchGameList, normalisePlatforms } from "@/lib/rawg";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { Gamepad2 } from "lucide-react";
 import {
   siCounterstrike,
   siDota2,
@@ -41,8 +42,22 @@ const BRAND_ICONS: Record<string, SimpleIcon> = {
 };
 
 const BRAND_IMAGE_URLS: Record<string, string> = {
-  "king of glory": "https://upload.wikimedia.org/wikipedia/en/7/7d/Honor_of_Kings_logo.png",
-  "honor of kings": "https://upload.wikimedia.org/wikipedia/en/7/7d/Honor_of_Kings_logo.png",
+  "king of glory": "https://cdn.gameboost.com/games/logos/honor-of-kings.png",
+  "honor of kings": "https://cdn.gameboost.com/games/logos/honor-of-kings.png",
+  "mobile legends bang bang": "https://esports.tunesf.tn/media/13933/1f5c1b161030045642b6353478b12f69.png",
+  "mobile legends": "https://esports.tunesf.tn/media/13933/1f5c1b161030045642b6353478b12f69.png",
+  "rocket league": "https://cdn.akamai.steamstatic.com/steam/apps/252950/header.jpg",
+  "rainbow six siege": "https://cdn.akamai.steamstatic.com/steam/apps/359550/header.jpg",
+  "rainbow 6 siege": "https://cdn.akamai.steamstatic.com/steam/apps/359550/header.jpg",
+  "tom clancy s rainbow six siege": "https://cdn.akamai.steamstatic.com/steam/apps/359550/header.jpg",
+  r6: "https://cdn.akamai.steamstatic.com/steam/apps/359550/header.jpg",
+  "overwatch": "https://cdn.akamai.steamstatic.com/steam/apps/2357570/header.jpg",
+  "overwatch 2": "https://cdn.akamai.steamstatic.com/steam/apps/2357570/header.jpg",
+  "apex legends": "https://cdn.akamai.steamstatic.com/steam/apps/1172470/header.jpg",
+  "call of duty": "https://cdn.akamai.steamstatic.com/steam/apps/1938090/header.jpg",
+  "starcraft ii": "https://upload.wikimedia.org/wikipedia/en/2/20/StarCraft_II_-_Box_Art.jpg",
+  "starcraft 2": "https://upload.wikimedia.org/wikipedia/en/2/20/StarCraft_II_-_Box_Art.jpg",
+  "hearthstone": "https://upload.wikimedia.org/wikipedia/en/5/5a/Hearthstone_2016_logo.png",
 };
 
 function searchName(name: string) {
@@ -135,23 +150,31 @@ export function GameArtwork({ name, src, className, fallbackClassName }: GameArt
 
   if (!src && brandImage) {
     return (
-      <img
-        src={brandImage}
-        alt={`${name} logo`}
-        loading="lazy"
-        className={cn("h-10 w-10 shrink-0 rounded-lg border border-border/60 bg-white object-contain p-1", className)}
-      />
+      <span className={cn("relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-secondary", className)}>
+        <Gamepad2 className="h-1/2 w-1/2 text-muted-foreground" aria-hidden="true" />
+        <img
+          src={brandImage}
+          alt={`${name} logo`}
+          loading="lazy"
+          onError={(event) => { event.currentTarget.style.display = "none"; }}
+          className="absolute inset-0 h-full w-full bg-white object-cover"
+        />
+      </span>
     );
   }
 
   if (artwork) {
     return (
-      <img
-        src={artwork}
-        alt={`${name} artwork`}
-        loading="lazy"
-        className={cn("h-10 w-10 shrink-0 rounded-lg border border-border/60 object-cover", className)}
-      />
+      <span className={cn("relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-secondary", className)}>
+        <Gamepad2 className="h-1/2 w-1/2 text-muted-foreground" aria-hidden="true" />
+        <img
+          src={artwork}
+          alt={`${name} artwork`}
+          loading="lazy"
+          onError={(event) => { event.currentTarget.style.display = "none"; }}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </span>
     );
   }
 
@@ -164,7 +187,7 @@ export function GameArtwork({ name, src, className, fallbackClassName }: GameArt
         fallbackClassName,
       )}
     >
-      {name.trim().slice(0, 2).toUpperCase() || "G"}
+      <Gamepad2 className="h-1/2 w-1/2" aria-hidden="true" />
     </span>
   );
 }
