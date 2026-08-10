@@ -43,7 +43,7 @@ const RSS_FEEDS: RssSourceConfig[] = [
   { id: "vg247", url: "https://www.vg247.com/feed", source: "VG247", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "game-informer", url: "https://gameinformer.com/rss.xml", source: "Game Informer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "wccftech", url: "https://wccftech.com/topic/games/feed/", source: "WCCFtech", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
-  { id: "gamesradar", url: "https://www.gamesradar.com/feeds/articles/rss/", source: "GamesRadar", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "gamesradar", url: "https://www.gamesradar.com/rss/", source: "GamesRadar", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   // Added 2026-07-07 (QA F10.5). Additive only: same parser, same gaming
   // filter; excess items drain on later cron runs.
   { id: "eurogamer", url: "https://www.eurogamer.net/feed", source: "Eurogamer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
@@ -236,7 +236,12 @@ function isGamingRelated(title: string, description: string): boolean {
 
 function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
   const items: RssItem[] = [];
-  for (const match of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)) {
+  const rssBlocks = [...xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi)];
+  const atomBlocks = rssBlocks.length === 0
+    ? [...xml.matchAll(/<entry(?:\s[^>]*)?>([\s\S]*?)<\/entry>/gi)]
+    : [];
+
+  for (const match of [...rssBlocks, ...atomBlocks]) {
     const block = match[1];
 
     const title = extractCDATA(block, "title");
@@ -260,11 +265,17 @@ function parseRSSItems(xml: string, source: string, maxItems = 5): RssItem[] {
       }
     }
 
-    const pubDate     = extractCDATA(block, "pubDate") || new Date().toISOString();
-    const author      = extractCDATA(block, "dc:creator") || extractCDATA(block, "author") || "Staff Writer";
+    const pubDate     = extractCDATA(block, "pubDate")
+                     || extractCDATA(block, "published")
+                     || extractCDATA(block, "updated")
+                     || new Date().toISOString();
+    const author      = extractCDATA(block, "dc:creator")
+                     || extractCDATA(block, "name")
+                     || extractCDATA(block, "author")
+                     || "Staff Writer";
     // Prefer content:encoded if it's significantly longer than description
-    const descRaw     = extractCDATA(block, "description") || "";
-    const contentRaw  = extractCDATA(block, "content:encoded") || "";
+    const descRaw     = extractCDATA(block, "description") || extractCDATA(block, "summary") || "";
+    const contentRaw  = extractCDATA(block, "content:encoded") || extractCDATA(block, "content") || "";
     const descWords   = descRaw.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
     const contentWords = contentRaw.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
     const description = contentWords > descWords + 10 ? contentRaw : (descRaw || contentRaw);
@@ -484,9 +495,18 @@ function allocateArticleSlots(
   targetTotal: number,
   alreadyPublishedBySource: Record<string, number>,
 ): AllocationResult {
+  // A small paced allowance means source order matters. Rotate the first source
+  // every 30 minutes so the same publishers do not claim every early slot.
+  const sourceOffset = sources.length > 0
+    ? Math.floor(Date.now() / (30 * 60 * 1000)) % sources.length
+    : 0;
+  const orderedSources = [
+    ...sources.slice(sourceOffset),
+    ...sources.slice(0, sourceOffset),
+  ];
   const ranked = new Map<string, RssItem[]>();
   const candidateCountBySource: Record<string, number> = {};
-  for (const source of sources) {
+  for (const source of orderedSources) {
     const sourceItems = candidates
       .filter((item) => item.source === source.source)
       .sort((a, b) => relevanceScore(b) - relevanceScore(a));
@@ -497,21 +517,29 @@ function allocateArticleSlots(
   const selected = new Map<string, RssItem[]>();
   let remaining = Math.max(0, targetTotal);
 
-  // Pass 1: each source receives the unfilled part of its base daily quota.
-  for (const source of sources) {
-    if (remaining <= 0) break;
-    const available = ranked.get(source.source) ?? [];
-    const already = alreadyPublishedBySource[source.source] ?? 0;
-    const baseRoom = Math.max(0, source.dailyQuota - already);
-    const take = Math.min(baseRoom, available.length, remaining);
-    selected.set(source.source, available.slice(0, take));
-    remaining -= take;
+  // Pass 1: fill base quotas round-robin. With the normal two-slot allowance,
+  // this selects two different publishers instead of two stories from one feed.
+  while (remaining > 0) {
+    let added = false;
+    for (const source of orderedSources) {
+      if (remaining <= 0) break;
+      const available = ranked.get(source.source) ?? [];
+      const chosen = selected.get(source.source) ?? [];
+      const already = alreadyPublishedBySource[source.source] ?? 0;
+      const baseRoom = Math.max(0, source.dailyQuota - already);
+      if (chosen.length >= available.length || chosen.length >= baseRoom) continue;
+      chosen.push(available[chosen.length]);
+      selected.set(source.source, chosen);
+      remaining--;
+      added = true;
+    }
+    if (!added) break;
   }
 
   // Pass 2: redistribute unused quota one slot at a time, respecting maxQuota.
   while (remaining > 0) {
     let added = false;
-    for (const source of sources) {
+    for (const source of orderedSources) {
       if (remaining <= 0) break;
       const available = ranked.get(source.source) ?? [];
       const chosen = selected.get(source.source) ?? [];
@@ -529,7 +557,7 @@ function allocateArticleSlots(
   const flat: RssItem[] = [];
   const maxDepth = Math.max(0, ...[...selected.values()].map((items) => items.length));
   for (let index = 0; index < maxDepth; index++) {
-    for (const source of sources) {
+    for (const source of orderedSources) {
       const item = selected.get(source.source)?.[index];
       if (!item) continue;
       flat.push(item);
@@ -1391,7 +1419,7 @@ serve(async (req) => {
           status: res.status,
           contentType: res.headers.get("content-type") ?? "",
           bytes: xml.length,
-          rawItemTags: (xml.match(/<item[\s>]/gi) ?? []).length,
+          rawItemTags: (xml.match(/<(?:item|entry)[\s>]/gi) ?? []).length,
           preview: xml.slice(0, 120).replace(/\s+/g, " "),
           error: null,
         };
@@ -1509,10 +1537,30 @@ serve(async (req) => {
   }
   const publishedLast24Hours = rollingArticleRows?.length ?? 0;
   const remainingArticleSlots = Math.max(0, ROLLING_ARTICLE_CAP - publishedLast24Hours);
+  let pacedArticleSlots = Math.min(2, remainingArticleSlots);
+  let pacingTokensRemaining: number | null = null;
+  let pacingFallback = false;
+  if (rssDedupe.items.length > 0 && remainingArticleSlots > 0) {
+    const { data: pacingRows, error: pacingError } = await supabase.rpc("claim_news_ingestion_budget", {
+      p_requested: Math.min(rssDedupe.items.length, ARTICLE_PROCESS_LIMIT),
+      p_rolling_count: publishedLast24Hours,
+      p_rolling_cap: ROLLING_ARTICLE_CAP,
+    });
+    const pacing = Array.isArray(pacingRows) ? pacingRows[0] : pacingRows;
+    if (pacingError || !pacing) {
+      pacingFallback = true;
+      console.warn(`  News pacing unavailable; using safe two-article fallback: ${pacingError?.message ?? "empty response"}`);
+    } else {
+      pacedArticleSlots = Math.max(0, Number(pacing.granted_slots) || 0);
+      pacingTokensRemaining = Number(pacing.tokens_remaining);
+    }
+  } else if (remainingArticleSlots === 0) {
+    pacedArticleSlots = 0;
+  }
   const allocation = allocateArticleSlots(
     rssDedupe.items,
     selectedFeeds,
-    remainingArticleSlots,
+    pacedArticleSlots,
     alreadyPublishedBySource,
   );
 
@@ -1525,7 +1573,7 @@ serve(async (req) => {
   const duplicateCount = existingUrls.size + similarityDuplicateCount;
   if (existingUrls.size > 0) console.log(`  Cache gate removed ${existingUrls.size} previously published URLs`);
   if (similarityDuplicateCount > 0) console.log(`  Similarity gate removed ${similarityDuplicateCount} duplicate candidates`);
-  console.log(`  RSS rolling budget: ${publishedLast24Hours}/${ROLLING_ARTICLE_CAP} published in the last 24 hours, ${allocation.items.length}/${remainingArticleSlots} slots allocated`);
+  console.log(`  RSS rolling budget: ${publishedLast24Hours}/${ROLLING_ARTICLE_CAP} published in the last 24 hours, paced allowance ${pacedArticleSlots}, ${allocation.items.length} slots allocated`);
   for (const source of selectedFeeds) {
     const allocated = allocation.allocatedBySource[source.source] ?? 0;
     const candidates = allocation.candidateCountBySource[source.source] ?? 0;
@@ -1803,6 +1851,9 @@ serve(async (req) => {
       windowHours: 24,
       publishedBeforeRun: publishedLast24Hours,
       remainingBeforeRun: remainingArticleSlots,
+      pacedAllowance: pacedArticleSlots,
+      pacingTokensRemaining,
+      pacingFallback,
       allocatedThisRun: allocation.items.length,
     },
     rssOutsideWindow,
