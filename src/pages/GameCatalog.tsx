@@ -295,12 +295,22 @@ export default function GameCatalog() {
     ? [...new Map([...canonicalSearchResults, ...searchResults].map((game) => [game.id, game])).values()]
     : [];
   const isLoading = searchActive && canonicalSearchLoading && searchLoading;
+  const genrePopularFallback = [...new Map(
+    genreRankings
+      .flatMap((group) => group.games)
+      .filter((game) => game.releaseDate !== "TBA" && !Number.isNaN(Date.parse(game.releaseDate)))
+      .sort((a, b) => b.popularity - a.popularity || Date.parse(b.releaseDate) - Date.parse(a.releaseDate))
+      .map((game) => [game.id, game]),
+  ).values()].slice(0, 6);
+  const trendingRecentFallback = trendingGames
+    .filter((game) => game.releaseDate && game.releaseDate !== "TBA" && !Number.isNaN(Date.parse(game.releaseDate)))
+    .sort((a, b) => Date.parse(b.releaseDate) - Date.parse(a.releaseDate))
+    .slice(0, 6);
   const recentPopularDisplay = recentPopularGames.length > 0
     ? recentPopularGames
-    : trendingGames
-        .filter((game) => game.releaseDate && game.releaseDate !== "TBA" && !Number.isNaN(Date.parse(game.releaseDate)))
-        .sort((a, b) => Date.parse(b.releaseDate) - Date.parse(a.releaseDate))
-        .slice(0, 6);
+    : trendingRecentFallback.length > 0
+      ? trendingRecentFallback
+      : genrePopularFallback;
 
   return (
     <>
@@ -384,7 +394,7 @@ export default function GameCatalog() {
             <section className="space-y-5">
               <div>
                 <h2 className="text-lg font-bold text-foreground">Top games by genre</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Community rating balanced by review volume; catalog order fills unrated genres.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Recent releases ranked by current player interest, review activity, and popularity.</p>
               </div>
               {genreRankingsLoading ? (
                 <div className="space-y-4">
