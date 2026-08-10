@@ -2,6 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchGameList, normalisePlatforms } from "@/lib/rawg";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  siCounterstrike,
+  siDota2,
+  siLeagueoflegends,
+  siPubg,
+  siValorant,
+  type SimpleIcon,
+} from "simple-icons";
 
 function normalizeName(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -15,6 +23,26 @@ const ARTWORK_SEARCH_ALIASES: Record<string, string> = {
   "rainbow six siege": "Tom Clancy's Rainbow Six Siege",
   r6: "Tom Clancy's Rainbow Six Siege",
   pubg: "PUBG: Battlegrounds",
+  "king of glory": "Honor of Kings",
+};
+
+const BRAND_ICONS: Record<string, SimpleIcon> = {
+  "league of legends": siLeagueoflegends,
+  lol: siLeagueoflegends,
+  cs2: siCounterstrike,
+  "counter strike": siCounterstrike,
+  "counter strike 2": siCounterstrike,
+  "counter-strike 2": siCounterstrike,
+  valorant: siValorant,
+  "dota 2": siDota2,
+  dota2: siDota2,
+  pubg: siPubg,
+  "pubg battlegrounds": siPubg,
+};
+
+const BRAND_IMAGE_URLS: Record<string, string> = {
+  "king of glory": "https://upload.wikimedia.org/wikipedia/en/7/7d/Honor_of_Kings_logo.png",
+  "honor of kings": "https://upload.wikimedia.org/wikipedia/en/7/7d/Honor_of_Kings_logo.png",
 };
 
 function searchName(name: string) {
@@ -64,11 +92,11 @@ async function findGameArtwork(name: string): Promise<string | null> {
   }
 }
 
-function useGameArtwork(name: string, suppliedUrl?: string | null) {
+function useGameArtwork(name: string, suppliedUrl?: string | null, hasBundledIcon = false) {
   return useQuery({
     queryKey: ["game-artwork", normalizeName(name)],
     queryFn: () => findGameArtwork(name),
-    enabled: !suppliedUrl && name.trim().length > 1,
+    enabled: !suppliedUrl && !hasBundledIcon && name.trim().length > 1,
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
     retry: 1,
@@ -83,7 +111,38 @@ interface GameArtworkProps {
 }
 
 export function GameArtwork({ name, src, className, fallbackClassName }: GameArtworkProps) {
-  const artwork = useGameArtwork(name, src);
+  const normalized = normalizeName(name);
+  const brandIcon = BRAND_ICONS[normalized];
+  const brandImage = BRAND_IMAGE_URLS[normalized];
+  const artwork = useGameArtwork(name, src, Boolean(brandIcon || brandImage));
+
+  if (!src && brandIcon) {
+    return (
+      <span
+        role="img"
+        aria-label={`${name} logo`}
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-white p-1.5",
+          className,
+        )}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-full w-full" fill={`#${brandIcon.hex}`}>
+          <path d={brandIcon.path} />
+        </svg>
+      </span>
+    );
+  }
+
+  if (!src && brandImage) {
+    return (
+      <img
+        src={brandImage}
+        alt={`${name} logo`}
+        loading="lazy"
+        className={cn("h-10 w-10 shrink-0 rounded-lg border border-border/60 bg-white object-contain p-1", className)}
+      />
+    );
+  }
 
   if (artwork) {
     return (
