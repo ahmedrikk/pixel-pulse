@@ -277,9 +277,13 @@ serve(async (req) => {
       // least-complete source. This keeps recent patches fast while building a
       // permanent archive in the background.
       for (const source of sources.slice(0, 24)) {
+        // Cron checks every 30 minutes. Allow one minute of tolerance so a
+        // source written at :17:10 is still considered due at the next :17:00
+        // hourly boundary instead of slipping to a 90-minute refresh.
+        const dueAfterMs = Math.max(1, source.poll_interval_minutes - 1) * 60_000;
         const due = !source.last_polled_at
           || Date.now() - new Date(source.last_polled_at).getTime()
-            >= source.poll_interval_minutes * 60_000;
+            >= dueAfterMs;
         if (due) results.push(await syncSource(supabase, source, "refresh", 1));
       }
       const backfillSource = sources

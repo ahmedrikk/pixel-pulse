@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getMonthBounds } from "@/lib/gameCalendar";
 import { normalisePlatforms, type RawgListResponse } from "@/lib/rawg";
@@ -17,55 +17,24 @@ export interface CalendarGame {
   reviewCount: number;
 }
 
-async function getGameCalendar(month: Date): Promise<CalendarGame[]> {
+function mapRawgGame(game: RawgListResponse["results"][number]): CalendarGame {
+  return {
+    id: game.slug,
+    slug: game.slug,
+    name: game.name,
+    coverImage: game.background_image,
+    platforms: normalisePlatforms(game.platforms),
+    genres: game.genres?.map((genre) => genre.slug) ?? [],
+    releaseDate: game.released!,
+    rawgRating: Math.round(Number(game.rating ?? 0) * 10) / 10,
+    metacriticScore: game.metacritic,
+    ourRating: 0,
+    reviewCount: 0,
+  };
+}
+
+async function getCachedGameCalendar(month: Date): Promise<CalendarGame[]> {
   const { start, end } = getMonthBounds(month);
-  const discovered = new Map<string, CalendarGame>();
-
-  // Fetch the month's most-followed confirmed releases, then upsert only their
-  // canonical metadata fields. Descriptions, reviews, free offers, and patches
-  // remain untouched on the shared Game record.
-  try {
-    const response = await fetch(`/api/game-calendar?startDate=${start}&endDate=${end}`);
-    if (!response.ok) throw new Error(`Calendar endpoint returned ${response.status}`);
-    const payload = await response.json() as RawgListResponse;
-    const rawGames = payload.results
-      .filter((game) => game.slug && game.name && game.released);
-    for (const game of rawGames) {
-      discovered.set(game.slug, {
-        id: game.slug,
-        slug: game.slug,
-        name: game.name,
-        coverImage: game.background_image,
-        platforms: normalisePlatforms(game.platforms),
-        genres: game.genres?.map((genre) => genre.slug) ?? [],
-        releaseDate: game.released!,
-        rawgRating: Math.round(Number(game.rating ?? 0) * 10) / 10,
-        metacriticScore: game.metacritic,
-        ourRating: 0,
-        reviewCount: 0,
-      });
-    }
-    if (rawGames.length > 0) {
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      const { error: cacheError } = await supabase.from("games").upsert(rawGames.map((game) => ({
-        id: game.slug,
-        slug: game.slug,
-        name: game.name,
-        cover_image: game.background_image,
-        rawg_rating: Math.round(Number(game.rating ?? 0) * 10) / 10,
-        metacritic_score: game.metacritic,
-        genres: game.genres?.map((genre) => genre.slug) ?? [],
-        platforms: normalisePlatforms(game.platforms),
-        release_date: game.released,
-        trending: Number(game.added ?? 0) >= 500,
-        expires_at: expiresAt,
-      })), { onConflict: "id" });
-      if (cacheError) console.warn("Game calendar cache update was unavailable", cacheError);
-    }
-  } catch (syncError) {
-    console.warn("RAWG calendar refresh was unavailable; showing cached releases", syncError);
-  }
-
   const { data, error } = await supabase
     .from("games")
     .select("id, slug, name, cover_image, platforms, genres, release_date, rawg_rating, metacritic_score, our_rating, review_count")
@@ -74,11 +43,9 @@ async function getGameCalendar(month: Date): Promise<CalendarGame[]> {
     .order("release_date", { ascending: true })
     .order("rawg_rating", { ascending: false, nullsFirst: false })
     .limit(500);
-  if (error && discovered.size === 0) throw error;
+  if (error) throw error;
 
-  for (const game of data ?? []) {
-    if (!game.release_date) continue;
-    discovered.set(game.id, {
+  return (data ?? []).filter((game) => game.release_date).map((game) => ({
       id: game.id,
       slug: game.slug,
       name: game.name,
@@ -90,17 +57,96 @@ async function getGameCalendar(month: Date): Promise<CalendarGame[]> {
       metacriticScore: game.metacritic_score,
       ourRating: Number(game.our_rating ?? 0),
       reviewCount: Number(game.review_count ?? 0),
-    });
+    })).sort((a, b) => a.releaseDate.localeCompare(b.releaseDate) || b.rawgRating - a.rawgRating);
+}
+
+async function refreshGameCalendar(month: Date): Promise<CalendarGame[]> {
+  const { start, end } = getMonthBounds(month);
+  const response = await fetch(`/api/game-calendar?startDate=${start}&endDate=${end}`);
+  if (!response.ok) throw new Error(`Calendar endpoint returned ${response.status}`);
+  const payload = await response.json() as RawgListResponse;
+  const rawGames = payload.results.filter((game) => game.slug && game.name && game.released);
+  const refreshed = rawGames.map(mapRawgGame);
+
+  // Update only canonical metadata. Descriptions, reviews, free offers, and
+  // patches remain untouched on the shared Game record.
+  if (rawGames.length > 0) {
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from("games").upsert(rawGames.map((game) => ({
+      id: game.slug,
+      slug: game.slug,
+      name: game.name,
+      cover_image: game.background_image,
+      rawg_rating: Math.round(Number(game.rating ?? 0) * 10) / 10,
+      metacritic_score: game.metacritic,
+      genres: game.genres?.map((genre) => genre.slug) ?? [],
+      platforms: normalisePlatforms(game.platforms),
+      release_date: game.released,
+      trending: Number(game.added ?? 0) >= 500,
+      expires_at: expiresAt,
+    })), { onConflict: "id" });
+    if (error) console.warn("Game calendar cache update was unavailable", error);
   }
-  return [...discovered.values()].sort((a, b) => a.releaseDate.localeCompare(b.releaseDate) || b.rawgRating - a.rawgRating);
+
+  return refreshed;
+}
+
+function mergeCalendarGames(cached: CalendarGame[], refreshed: CalendarGame[]): CalendarGame[] {
+  const merged = new Map(cached.map((game) => [game.id, game]));
+  for (const game of refreshed) {
+    const canonical = merged.get(game.id);
+    merged.set(game.id, canonical ? {
+      ...game,
+      ourRating: canonical.ourRating,
+      reviewCount: canonical.reviewCount,
+    } : game);
+  }
+  return [...merged.values()].sort((a, b) => a.releaseDate.localeCompare(b.releaseDate) || b.rawgRating - a.rawgRating);
 }
 
 export function useGameCalendar(month: Date) {
   const monthKey = `${month.getFullYear()}-${month.getMonth() + 1}`;
-  return useQuery({
-    queryKey: ["games", "calendar", monthKey],
-    queryFn: () => getGameCalendar(month),
+  const queryClient = useQueryClient();
+  const calendarKey = ["games", "calendar", monthKey] as const;
+  const cachedQuery = useQuery({
+    queryKey: calendarKey,
+    queryFn: () => getCachedGameCalendar(month),
     staleTime: 6 * 60 * 60 * 1000,
     gcTime: 2 * 60 * 60 * 1000,
   });
+  const refreshQuery = useQuery({
+    queryKey: ["games", "calendar-refresh", monthKey],
+    queryFn: async () => {
+      const refreshed = await refreshGameCalendar(month);
+      const cached = queryClient.getQueryData<CalendarGame[]>(calendarKey) ?? [];
+      const merged = mergeCalendarGames(cached, refreshed);
+      queryClient.setQueryData(calendarKey, merged);
+      return merged;
+    },
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 6 * 60 * 60 * 1000,
+    retry: 1,
+  });
+
+  const cachedGames = cachedQuery.data ?? [];
+  const games = refreshQuery.data ?? cachedGames;
+  const hasImmediateCache = cachedGames.length > 0;
+  const combinedError = games.length > 0
+    ? null
+    : cachedQuery.error ?? refreshQuery.error;
+
+  return {
+    ...cachedQuery,
+    data: games,
+    error: combinedError,
+    isLoading: cachedQuery.isLoading || (!hasImmediateCache && refreshQuery.isLoading),
+    isFetching: cachedQuery.isFetching || refreshQuery.isFetching,
+    refetch: async () => {
+      const [cachedResult, refreshResult] = await Promise.all([
+        cachedQuery.refetch(),
+        refreshQuery.refetch(),
+      ]);
+      return refreshResult.data ?? cachedResult.data;
+    },
+  };
 }
