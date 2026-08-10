@@ -1,22 +1,9 @@
+@import "@fontsource/noto-sans/400.css";
+@import "@fontsource/noto-sans/700.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@font-face {
-  font-family: "Graphie";
-  src: local("Graphie Bold"), local("Graphie-Bold"), local("Graphie");
-  font-style: normal;
-  font-weight: 700 900;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Sina Nova";
-  src: local("Sina Nova"), local("SinaNova-Regular"), local("SinaNova");
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-}
 
 /* Custom scrollbar styles */
 .scrollbar-thin {
@@ -55,13 +42,13 @@
     /* #3d59e0 — the single light-theme brand color. */
     --primary: 229.7 72.5% 55.9%;
     --primary-foreground: 0 0% 100%;
-    --heading: 229.7 72.5% 55.9%;
+    --heading: 0 0% 0%;
 
     --secondary: 220 30% 96%;
     --secondary-foreground: 0 0% 0%;
 
     --muted: 220 25% 96%;
-    --muted-foreground: 0 0% 35%;
+    --muted-foreground: 0 0% 0%;
 
     --accent: 229.7 72.5% 55.9%;
     --accent-foreground: 0 0% 100%;
@@ -162,7 +149,7 @@
 
   body {
     @apply text-foreground antialiased;
-    font-family: "Sina Nova", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     /* Cohesive app background: a soft diagonal brand-tinted gradient that
        sits behind the floating card columns (matches reference design).
        Theme-aware via the --app-grad-* tokens. */
@@ -179,10 +166,14 @@
 
   h1,
   h2,
-  h3 {
-    font-family: "Graphie", "Sina Nova", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-weight: 800;
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight: 700;
     color: hsl(var(--heading)) !important;
+    text-transform: capitalize;
   }
 
   .dark .text-primary,
