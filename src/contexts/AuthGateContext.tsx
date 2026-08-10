@@ -147,6 +147,45 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     return () => subscription?.unsubscribe();
   }, []); // ← empty array: run exactly once on mount
 
+  // The persisted profile flag is authoritative for every auth provider. This
+  // also covers OAuth callbacks that return to a public route outside the guard.
+  useEffect(() => {
+    if (!isAuthenticated || !user || isDemoMode()) return;
+    let cancelled = false;
+
+    const verifyOnboarding = async () => {
+      // The auth-user trigger creates profiles synchronously, but a short retry
+      // protects against a newly-created session reaching the browser first.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (cancelled) return;
+        if (error) {
+          console.error('Unable to verify onboarding after sign-in:', error);
+          return;
+        }
+        if (data) {
+          if (!data.onboarding_completed && !window.location.pathname.startsWith('/onboarding')) {
+            window.location.replace('/onboarding');
+          }
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+      }
+
+      if (!cancelled && !window.location.pathname.startsWith('/onboarding')) {
+        window.location.replace('/onboarding');
+      }
+    };
+
+    void verifyOnboarding();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, user]);
+
   const openAuthModal = useCallback((action: GatedAction, pendingData?: Omit<PendingAction, "type">) => {
     checkAndShowPopup(action, pendingData);
   }, [checkAndShowPopup]);

@@ -9,47 +9,58 @@ interface OnboardingGuardProps { children: ReactNode }
 
 export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const { isAuthenticated, isLoading, user } = useAuthGate();
-  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  const [onboardingState, setOnboardingState] = useState<'checking' | 'complete' | 'required' | 'error'>('checking');
   const [accountState, setAccountState] = useState<{ status: string; deletionDate: string | null } | null>(null);
   const [recovering, setRecovering] = useState(false);
-  // Show spinner for at most 2 seconds, then show children regardless
-  const [spinnerExpired, setSpinnerExpired] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setSpinnerExpired(true), 2000);
-    return () => clearTimeout(t);
-  }, []);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Profile check — re-runs whenever auth state resolves
   useEffect(() => {
     if (!isAuthenticated || !user) {
-      setOnboardingDone(null); // reset so we re-check if auth resolves later
+      setOnboardingState('checking');
+      setAccountState(null);
       return;
     }
     if (isDemoMode()) {
-      setOnboardingDone(true);
+      setOnboardingState('complete');
       return;
     }
 
-    setOnboardingDone(null); // show spinner while checking profile
+    let cancelled = false;
+    setOnboardingState('checking');
+    setAccountState(null);
 
-    supabase
+    void supabase
       .from('profiles')
-      .select('onboarding_completed, onboarding_step, account_status, scheduled_deletion_at')
+      .select('onboarding_completed, account_status, scheduled_deletion_at')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
       .then(({ data, error: sbError }) => {
-        if (sbError?.code === 'PGRST116') {
-          // No profile row yet (trigger may still be running) — treat as new user → onboarding
-          setOnboardingDone(false);
+        if (cancelled) return;
+        if (sbError) {
+          console.error('Unable to verify onboarding state:', sbError);
+          setOnboardingState('error');
           return;
         }
-        if (sbError) { setOnboardingDone(true); return; } // unknown error — let through
-        setAccountState({ status: data?.account_status ?? 'active', deletionDate: data?.scheduled_deletion_at ?? null });
-        setOnboardingDone(data?.onboarding_completed ?? false);
+
+        // A missing profile is a new/unboarded account. The auth trigger normally
+        // creates this row before the session becomes available.
+        if (!data) {
+          setOnboardingState('required');
+          return;
+        }
+
+        setAccountState({ status: data.account_status ?? 'active', deletionDate: data.scheduled_deletion_at ?? null });
+        setOnboardingState(data.onboarding_completed ? 'complete' : 'required');
       })
-      .catch(() => setOnboardingDone(true));
-  }, [isAuthenticated, user]);
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('Unable to verify onboarding state:', error);
+        setOnboardingState('error');
+      });
+
+    return () => { cancelled = true; };
+  }, [isAuthenticated, retryCount, user]);
 
   async function recoverAccount() {
     setRecovering(true);
@@ -76,15 +87,30 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
     );
   }
 
-  // Redirect authenticated user to onboarding — happens even after spinner expired
-  // so users who complete auth after the 2s window still get redirected correctly
-  if (isAuthenticated && onboardingDone === false) {
+  // The persisted flag, not the auth provider's "new user" status, decides this.
+  if (isAuthenticated && onboardingState === 'required') {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Spinner: only while auth or profile check is pending AND within 2-second window
-  const stillChecking = isLoading || (isAuthenticated && onboardingDone === null);
-  if (!spinnerExpired && stillChecking) {
+  if (isAuthenticated && onboardingState === 'error') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md rounded-2xl border bg-card p-7 text-center shadow-lg">
+          <h1 className="text-2xl font-bold">We Could Not Verify Your Profile</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Your account is signed in, but Talus could not confirm whether onboarding is complete. Retry to continue safely.
+          </p>
+          <Button className="mt-6 w-full gap-2" onClick={() => setRetryCount((count) => count + 1)}>
+            <RotateCcw className="h-4 w-4" /> Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Never expose an authenticated route until the persisted flag is resolved.
+  const stillChecking = isLoading || (isAuthenticated && onboardingState === 'checking');
+  if (stillChecking) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background z-50">
         <div className="flex flex-col items-center gap-4">
@@ -95,5 +121,5 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
     );
   }
 
-  return <>{children}</>;
+  return !isAuthenticated || onboardingState === 'complete' ? <>{children}</> : null;
 }

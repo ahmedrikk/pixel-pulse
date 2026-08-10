@@ -115,24 +115,30 @@ export async function saveStep3(userId: string, data: Step3Data): Promise<void> 
  */
 export async function completeOnboarding(userId: string): Promise<void> {
   // Check if already completed
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('onboarding_completed')
     .eq('id', userId)
     .single();
 
-  if (!profile || profile.onboarding_completed) return;
+  if (profileError || !profile) {
+    throw new Error(`completeOnboarding failed: ${profileError?.message ?? 'profile record was not found'}`);
+  }
+  if (profile.onboarding_completed) return;
 
-  const { error } = await supabase
+  const { data: completedProfile, error } = await supabase
     .from('profiles')
     .update({
       onboarding_completed: true,
       onboarding_completed_at: new Date().toISOString(),
       onboarding_step: 4,
     })
-    .eq('id', userId);
+    .eq('id', userId)
+    .select('onboarding_completed')
+    .single();
 
   if (error) throw new Error(`completeOnboarding failed: ${error.message}`);
+  if (!completedProfile?.onboarding_completed) throw new Error('completeOnboarding failed: the profile flag was not saved');
 }
 
 /** Upload avatar file to Supabase Storage, return public URL */

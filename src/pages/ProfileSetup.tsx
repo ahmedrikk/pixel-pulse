@@ -12,6 +12,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useProfile } from "@/contexts/ProfileContext";
 import { BANNER_GRADIENTS, checkUsernameAvailable, completeOnboarding, saveStep1, saveStep2, saveStep3 } from "@/lib/onboardingService";
 import { validateProfileContent } from "@/lib/profileModeration";
+import { supabase } from "@/integrations/supabase/client";
 
 const BANNERS = ["bn1", "bn2", "bn3", "bn4", "bn5", "bn6"];
 const PLAYER_TYPES = ["Casual", "Competitive", "Completionist", "Social"];
@@ -32,7 +33,7 @@ function SectionTitle({ number, title, subtitle }: { number: number; title: stri
 }
 
 export default function ProfileSetup() {
-  const { user } = useAuthGate();
+  const { user, isLoading: authLoading } = useAuthGate();
   const { refreshProfile } = useProfile();
   const navigate = useNavigate();
   const defaultName = user?.user_metadata?.display_name ?? user?.email?.split("@")[0] ?? "";
@@ -47,6 +48,47 @@ export default function ProfileSetup() {
   const [searchResults, setSearchResults] = useState<GameOption[]>([]);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
+  const [checkingFlag, setCheckingFlag] = useState(true);
+  const [flagError, setFlagError] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const identity = user.user_metadata?.display_name ?? user.email?.split("@")[0] ?? "";
+    setDisplayName((current) => current || identity);
+    setUsername((current) => current || identity.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20));
+  }, [user]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      navigate('/', { replace: true, state: { openAuth: true } });
+      return;
+    }
+
+    let cancelled = false;
+    setCheckingFlag(true);
+    setFlagError(false);
+    void supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.error('Unable to verify onboarding page access:', error);
+          setFlagError(true);
+          setCheckingFlag(false);
+          return;
+        }
+        if (data?.onboarding_completed) {
+          window.location.replace('/');
+          return;
+        }
+        setCheckingFlag(false);
+      });
+    return () => { cancelled = true; };
+  }, [authLoading, navigate, user]);
 
   useEffect(() => {
     const initials = (displayName || username || "T").slice(0, 2).toUpperCase();
@@ -74,11 +116,19 @@ export default function ProfileSetup() {
       await saveStep3(user.id, { favGameIds: selectedGames.map((game) => game.id), favGenres: genres, favGames: selectedGames.map((game) => ({ id: game.id, name: game.name, coverUrl: game.coverUrl })) });
       await completeOnboarding(user.id);
       await refreshProfile();
-      navigate("/", { replace: true });
       toast.success("Your Talus profile is ready.");
+      window.location.replace("/");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Profile setup could not be completed.");
     } finally { setSaving(false); }
+  }
+
+  if (authLoading || checkingFlag) {
+    return <div className="fixed inset-0 flex items-center justify-center bg-background"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
+  }
+
+  if (flagError) {
+    return <div className="fixed inset-0 flex items-center justify-center bg-background p-4"><div className="w-full max-w-md rounded-2xl border bg-card p-7 text-center"><h1 className="text-2xl font-bold">We Could Not Verify Your Profile</h1><p className="mt-3 text-sm text-muted-foreground">Refresh the page to try the onboarding check again.</p><Button className="mt-6 w-full" onClick={() => window.location.reload()}>Retry</Button></div></div>;
   }
 
   return <SiteLayout><main className="space-y-4 pb-8"><header className="border-b px-1 pb-4"><h1 className="text-2xl font-bold">Profile Setup</h1></header>
