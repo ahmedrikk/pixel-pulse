@@ -18,6 +18,7 @@ const ARTICLE_PROCESS_LIMIT = 15;
 const YOUTUBE_PROCESS_LIMIT = 10;
 const ARTICLE_SCRAPE_LIMIT = 25;
 const YOUTUBE_SCRAPE_LIMIT = 20;
+const PROCESS_CONCURRENCY = 3;
 const DAILY_ARTICLE_CAP = 100;
 const REMOVED_SOURCES = ["Sportskeeda", "Dexerto"];
 
@@ -926,8 +927,7 @@ function parseSummaryResult(raw: string, provider: string): SummarizeResult | nu
 
   const tags = sanitizeTopicTags(parsed.tags);
   if (tags.length !== 2) {
-    console.warn(`  ${provider}: rejected (expected exactly 2 specific topic tags, got ${tags.length})`);
-    return null;
+    console.warn(`  ${provider}: summary accepted with ${tags.length}/2 topic tags; grounded headline repair will complete them`);
   }
   const gameTags = (Array.isArray(parsed.gameTags) ? parsed.gameTags as unknown[] : [])
     .filter((tag): tag is string => typeof tag === "string" && tag.length > 1 && tag.length < 40)
@@ -1070,8 +1070,7 @@ Write 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with A
 
         const tags = sanitizeTopicTags(parsed.tags);
         if (tags.length !== 2) {
-          console.warn(`  [retry ${totalRetries}] ${model}: expected exactly 2 specific topic tags, got ${tags.length}`);
-          continue;
+          console.warn(`  [retry ${totalRetries}] ${model}: summary accepted with ${tags.length}/2 topic tags; grounded headline repair will complete them`);
         }
 
         const gameTags = (Array.isArray(parsed.gameTags) ? parsed.gameTags as unknown[] : [])
@@ -1130,6 +1129,48 @@ function toPascalEntity(value: string): string {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join("")
     .slice(0, 39);
+}
+
+const TITLE_ENTITY_BREAK_WORDS = new Set([
+  "a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "is", "its", "of", "on", "or", "the", "to", "with",
+  "adds", "after", "before", "best", "big", "could", "does", "free", "gets", "has", "have", "how", "launch", "launches",
+  "latest", "leads", "meets", "new", "news", "now", "official", "offers", "players", "reportedly", "reveals", "says", "studio",
+  "thanks", "top", "update", "updates", "why", "will",
+]);
+
+function groundedTitleTags(title: string): string[] {
+  const words = title.match(/[A-Za-z0-9][A-Za-z0-9'’.-]*/g) ?? [];
+  const candidates: string[] = [];
+  let run: string[] = [];
+
+  const flush = () => {
+    if (run.length === 0) return;
+    const candidate = toPascalEntity(run.slice(0, 4).join(" "));
+    if (candidate.length > 1 && !BANNED_TOPIC_TAGS.has(candidate.toLowerCase())) candidates.push(candidate);
+    run = [];
+  };
+
+  for (const word of words) {
+    const normalized = word.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const looksNamed = /^[A-Z0-9]/.test(word) || /^[A-Z0-9]{2,}$/.test(word.replace(/[^A-Za-z0-9]/g, ""));
+    if (!normalized || TITLE_ENTITY_BREAK_WORDS.has(normalized) || !looksNamed) {
+      flush();
+      continue;
+    }
+    run.push(word);
+  }
+  flush();
+  return candidates;
+}
+
+function completeGroundedTopicTags(title: string, gameTags: string[], aiTags: string[]): string[] {
+  // Every repair candidate is traceable to either the model's explicit game
+  // extraction or literal headline text. No generic or fabricated tag is used.
+  return sanitizeTopicTags([
+    ...aiTags,
+    ...gameTags,
+    ...groundedTitleTags(title),
+  ]);
 }
 
 function parseVideoSummary(
@@ -1579,7 +1620,8 @@ serve(async (req) => {
 
   console.log(`Scraped ${enrichedItems.length}/${newItems.length} articles successfully`);
 
-  // Step 4: Groq summarization sequentially (rate limit respect)
+  // Step 4: bounded concurrent summarization. Three simultaneous items keeps
+  // provider pressure modest while avoiding the previous four-card/run stall.
   // News is permanent — no artificial expiry.
   const expiresAt = new Date('2099-12-31T23:59:59.000Z');
   let processed = 0;
@@ -1592,7 +1634,6 @@ serve(async (req) => {
   // wall-time limit — unprocessed articles are picked up on the next run.
   const pipelineStart = Date.now();
   const TIME_BUDGET_MS = 110_000;
-  let consecutiveRateLimits = 0;
   const enrichedArticles = enrichedItems.filter((item) => item.mediaType !== "youtube");
   const enrichedYouTube = enrichedItems.filter((item) => item.mediaType === "youtube");
   const itemsToProcess = [
@@ -1604,16 +1645,15 @@ serve(async (req) => {
     + `(RSS ${Math.min(enrichedArticles.length, ARTICLE_PROCESS_LIMIT)}, YouTube ${Math.min(enrichedYouTube.length, YOUTUBE_PROCESS_LIMIT)})`,
   );
   const processedBySource: Record<string, number> = {};
-  for (const item of itemsToProcess) {
-    if (Date.now() - pipelineStart > TIME_BUDGET_MS) {
-      console.warn(`  Time budget exhausted — deferring remaining articles to next run`);
-      skip("time_budget");
-      break;
-    }
+
+  type ProcessOutcome = "published" | "rate_limited" | "skipped";
+  const processItem = async (item: EnrichedItem): Promise<ProcessOutcome> => {
     try {
-      const { headline, summary, gameTags, tags, rateLimited } = item.mediaType === "youtube"
+      const summaryResult = item.mediaType === "youtube"
         ? await summarizeVideo(item.title, item.description, item.content, item.source)
         : await summarizeArticle(item.title, item.content);
+      const { headline } = summaryResult;
+      let { summary, gameTags, tags, rateLimited } = summaryResult;
 
       if (!summary) {
         const sourceExcerpt = buildSourceExcerpt(item.content);
@@ -1626,33 +1666,27 @@ serve(async (req) => {
         }
       }
 
+      tags = completeGroundedTopicTags(item.title, gameTags, tags);
+
       // A publish-ready Talus article must have two specific, content-derived
       // hashtags. If the AI provider is unavailable or returns generic/invalid
       // topics, defer the article rather than showing fabricated fallback tags.
       if (tags.length !== 2) {
         skip("topic_tags");
         console.warn(`  Skipping "${item.title}" — exactly two verified topic tags are required`);
-        await new Promise(r => setTimeout(r, 500));
-        continue;
+        return "skipped";
       }
 
       const minimumSummaryLength = item.mediaType === "youtube" ? 60 : 100;
       if (!summary || summary.length < minimumSummaryLength) {
         if (rateLimited) {
-          consecutiveRateLimits++;
           skip("rate_limited");
-          if (consecutiveRateLimits >= 3) {
-            console.warn(`  3 consecutive rate-limit failures — stopping early, will retry next run`);
-            break;
-          }
         } else {
           skip(countWords(item.content) < 15 ? "thin_content" : "quality_gate");
         }
         console.warn(`  Skipping "${item.title}" — summary failed, will retry next run`);
-        await new Promise(r => setTimeout(r, 500));
-        continue;
+        return rateLimited ? "rate_limited" : "skipped";
       }
-      consecutiveRateLimits = 0;
 
       const { error } = await supabase.from("cached_articles").upsert({
         original_id:  item.mediaType === "youtube" && item.videoId
@@ -1679,18 +1713,40 @@ serve(async (req) => {
         expires_at:   expiresAt.toISOString(),
       }, { onConflict: "source_url" });
 
-      if (error) console.error(`DB upsert error for "${item.title}":`, error);
-      else {
-        processed++;
-        if (item.mediaType === "youtube") processedYouTube++;
-        else processedArticles++;
-        processedBySource[item.source] = (processedBySource[item.source] || 0) + 1;
+      if (error) {
+        console.error(`DB upsert error for "${item.title}":`, error);
+        skip("database");
+        return "skipped";
       }
 
-      await new Promise(r => setTimeout(r, 2000));
+      processed++;
+      if (item.mediaType === "youtube") processedYouTube++;
+      else processedArticles++;
+      processedBySource[item.source] = (processedBySource[item.source] || 0) + 1;
+      return "published";
     } catch (err) {
       console.error(`Error processing "${item.title}":`, err);
+      skip("processing_error");
+      return "skipped";
     }
+  };
+
+  for (let offset = 0; offset < itemsToProcess.length; offset += PROCESS_CONCURRENCY) {
+    if (Date.now() - pipelineStart > TIME_BUDGET_MS) {
+      console.warn(`  Time budget exhausted — deferring remaining items to next run`);
+      skip("time_budget");
+      break;
+    }
+
+    const batch = itemsToProcess.slice(offset, offset + PROCESS_CONCURRENCY);
+    const outcomes = await Promise.all(batch.map(processItem));
+    if (outcomes.every((outcome) => outcome === "rate_limited")) {
+      console.warn(`  Entire batch was rate limited — stopping early for the next run`);
+      break;
+    }
+
+    // A short batch pause smooths request bursts without serializing the work.
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   const usageDate = new Date().toISOString().slice(0, 10);
