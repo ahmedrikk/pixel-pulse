@@ -57,6 +57,7 @@ describe('saveStep1', () => {
       avatarInitials: 'GX',
       avatarColor: '#534AB7',
       bio: '',
+      bannerPreset: '/profile-assets/banners/cherry.jpg',
     });
 
     expect(supabase.from).toHaveBeenCalledWith('profiles');

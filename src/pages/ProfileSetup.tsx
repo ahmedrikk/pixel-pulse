@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useProfile } from "@/contexts/ProfileContext";
-import { BANNER_GRADIENTS, checkUsernameAvailable, completeOnboarding, saveStep1, saveStep2, saveStep3 } from "@/lib/onboardingService";
+import { checkUsernameAvailable, completeOnboarding, saveStep1, saveStep2, saveStep3 } from "@/lib/onboardingService";
 import { validateProfileContent } from "@/lib/profileModeration";
 import { supabase } from "@/integrations/supabase/client";
+import { PROFILE_BANNERS } from "@/lib/profileAssets";
 
-const BANNERS = ["bn1", "bn2", "bn3", "bn4", "bn5", "bn6"];
 const PLAYER_TYPES = ["Casual", "Competitive", "Completionist", "Social"];
 const GENRES = ["Action RPG", "FPS", "Strategy", "MOBA", "Racing", "Sports", "Indie", "Open World", "Horror", "Sandbox"];
 const POPULAR_GAMES: GameOption[] = [
@@ -40,7 +40,7 @@ export default function ProfileSetup() {
   const [displayName, setDisplayName] = useState(defaultName);
   const [username, setUsername] = useState(defaultName.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20));
   const [bio, setBio] = useState("");
-  const [bannerPreset, setBannerPreset] = useState("bn1");
+  const [bannerPreset, setBannerPreset] = useState(PROFILE_BANNERS[0].url);
   const [avatar, setAvatar] = useState<AvatarValue>({ type: "initials", initials: "T", color: "#3d59e0", url: null });
   const [playerType, setPlayerType] = useState("Casual");
   const [selectedGames, setSelectedGames] = useState<GameOption[]>([]);
@@ -136,7 +136,17 @@ export default function ProfileSetup() {
       <SectionTitle number={1} title="Your Profile" subtitle="Choose how you appear across Talus." />
       <div className="flex flex-col items-center gap-5">
         <AvatarPicker username={username} userId={user?.id ?? ""} value={avatar} onChange={setAvatar} />
-        <div className="grid w-full grid-cols-3 gap-2 sm:grid-cols-6">{BANNERS.map((banner) => <button key={banner} type="button" aria-label={`Choose ${banner} banner`} onClick={() => setBannerPreset(banner)} className="relative h-12 rounded-lg border-2" style={{ background: BANNER_GRADIENTS[banner], borderColor: bannerPreset === banner ? "#3d59e0" : "transparent" }}>{bannerPreset === banner && <Check className="absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full bg-primary p-0.5 text-white" />}</button>)}</div>
+        <div className="w-full">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Choose A Banner</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {PROFILE_BANNERS.map((banner) => (
+              <button key={banner.id} type="button" aria-label={`Choose ${banner.label} banner`} onClick={() => setBannerPreset(banner.url)} className={`group relative overflow-hidden rounded-lg border-2 transition ${bannerPreset === banner.url ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/50"}`}>
+                <img src={banner.url} alt={banner.label} className="aspect-[16/5] w-full object-cover transition-transform group-hover:scale-105" />
+                {bannerPreset === banner.url && <Check className="absolute bottom-1 right-1 h-4 w-4 rounded-full bg-primary p-0.5 text-white" />}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid w-full gap-4 sm:grid-cols-2"><label className="text-sm font-semibold">Display Name<Input className="mt-1.5" value={displayName} maxLength={30} onChange={(event) => setDisplayName(event.target.value)} /></label><label className="text-sm font-semibold">Username<div className="relative mt-1.5"><Input className="pr-9" value={username} maxLength={20} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} />{usernameAvailable && <Check className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />}</div></label></div>
         <label className="w-full text-sm font-semibold">Bio <span className="font-normal text-muted-foreground">(Optional)</span><Textarea className="mt-1.5" rows={3} value={bio} maxLength={160} onChange={(event) => setBio(event.target.value)} /></label>
       </div>

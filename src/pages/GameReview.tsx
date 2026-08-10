@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
+import { Button } from "@/components/ui/button";
 import { ShareReviewButton } from "@/components/ShareReviewButton";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useGameDetails } from "@/hooks/useGameDetails";

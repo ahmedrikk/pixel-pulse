@@ -59,7 +59,9 @@ export async function saveStep1(userId: string, data: Step1Data): Promise<void> 
       avatar_initials: data.avatarInitials,
       avatar_color: data.avatarColor,
       about_me: data.bio,
-      banner_url: BANNER_GRADIENTS[data.bannerPreset] ?? null,
+      // Legacy onboarding presets still resolve to gradients; the current
+      // setup sends a Talus banner asset URL directly.
+      banner_url: BANNER_GRADIENTS[data.bannerPreset] ?? data.bannerPreset ?? null,
       onboarding_step: 2,
     })
     .eq('id', userId);

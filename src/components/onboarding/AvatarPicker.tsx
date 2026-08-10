@@ -1,13 +1,8 @@
 import { useRef, useState } from 'react';
 import { Camera, Grid2x2, Type } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { uploadAvatar } from '@/lib/onboardingService';
-
-const PRESET_SEEDS = [
-  'knight','mage','sniper','racer','ninja','wizard','ranger','rogue',
-  'paladin','berserker','archer','bard','druid','monk','warlock','samurai',
-  'pirate','viking','assassin','guardian','mercenary','hunter','scout','shaman',
-];
+import { PROFILE_AVATARS } from '@/lib/profileAssets';
 
 const INITIALS_COLORS = [
   '#3d59e0','#3d59e0','#e4000f','#107C10',
@@ -52,9 +47,8 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
     }
   }
 
-  function selectPreset(seed: string) {
-    const url = `https://api.dicebear.com/9.x/pixel-art/svg?seed=${seed}`;
-    onChange({ type: 'preset', initials, color, url, seed });
+  function selectPreset(id: string, url: string) {
+    onChange({ type: 'preset', initials, color, url, seed: id });
     setPickerOpen(false);
   }
 
@@ -105,27 +99,38 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
 
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
         <DialogContent className="max-h-[85dvh] w-[calc(100vw-2rem)] max-w-md overflow-y-auto">
-          <DialogTitle>Choose your avatar</DialogTitle>
-          <div className="mt-2 grid grid-cols-4 place-items-center gap-3 sm:grid-cols-6">
-            {PRESET_SEEDS.map(seed => (
+          <DialogHeader>
+            <DialogTitle>Choose Avatar</DialogTitle>
+            <DialogDescription>Equip a Talus image or upload your own.</DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {PROFILE_AVATARS.map(asset => (
               <button
-                key={seed}
+                key={asset.id}
                 type="button"
-                onClick={() => selectPreset(seed)}
-                title={seed}
-                className={`w-12 h-12 rounded-full overflow-hidden ring-2 transition-all ${
-                  value.type === 'preset' && (value as { seed?: string }).seed === seed
-                    ? 'ring-[#3d59e0]' : 'ring-transparent hover:ring-blue-300'
+                onClick={() => selectPreset(asset.id, asset.url)}
+                className={`overflow-hidden rounded-xl border bg-secondary text-left transition-all ${
+                  value.type === 'preset' && (value as { seed?: string }).seed === asset.id
+                    ? 'border-[#3d59e0] ring-2 ring-[#3d59e0]/20' : 'hover:border-[#3d59e0]'
                 }`}
               >
                 <img
-                  src={`https://api.dicebear.com/9.x/pixel-art/svg?seed=${seed}`}
-                  alt={seed}
-                  className="w-full h-full"
+                  src={asset.url}
+                  alt={asset.label}
+                  className="aspect-square w-full object-cover"
                 />
+                <span className="block truncate px-2 py-2 text-xs font-semibold">{asset.label}</span>
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold hover:bg-secondary"
+          >
+            <Camera className="h-4 w-4" /> {uploading ? 'Uploading…' : 'Upload your own'}
+          </button>
         </DialogContent>
       </Dialog>
     </div>
