@@ -14,7 +14,7 @@ interface CommentRow {
 
 type ProfileLite = { username: string | null; avatar_url: string | null };
 
-function mapRow(r: CommentRow, profiles: Map<string, ProfileLite>): Comment {
+function mapRow(r: CommentRow, profiles: Map<string, ProfileLite>, votes: Array<{ comment_id: string; user_id: string; direction: string }>, currentUserId?: string): Comment {
   const p = profiles.get(r.user_id);
   return {
     id: r.id,
@@ -23,9 +23,9 @@ function mapRow(r: CommentRow, profiles: Map<string, ProfileLite>): Comment {
     parentCommentId: r.parent_comment_id,
     body: r.deleted_at ? "[deleted]" : r.body,
     depth: r.parent_comment_id ? 1 : 0,
-    upvotes: 0,
-    downvotes: 0,
-    score: 0,
+    upvotes: votes.filter((vote) => vote.comment_id === r.id && vote.direction === "up").length,
+    downvotes: votes.filter((vote) => vote.comment_id === r.id && vote.direction === "down").length,
+    score: votes.filter((vote) => vote.comment_id === r.id && vote.direction === "up").length - votes.filter((vote) => vote.comment_id === r.id && vote.direction === "down").length,
     createdAt: r.created_at,
     editedAt: r.edited_at,
     deletedAt: r.deleted_at,
@@ -34,7 +34,7 @@ function mapRow(r: CommentRow, profiles: Map<string, ProfileLite>): Comment {
       avatar: p?.avatar_url ?? undefined,
       tier: 1,
     },
-    userVote: null,
+    userVote: (votes.find((vote) => vote.comment_id === r.id && vote.user_id === currentUserId)?.direction as "up" | "down" | undefined) ?? null,
   };
 }
 
@@ -52,6 +52,10 @@ export async function fetchComments(articleId: string): Promise<Comment[]> {
 
   if (error || !data) return [];
   const rows = data as unknown as CommentRow[];
+  const [{ data: voteRows }, { data: session }] = await Promise.all([
+    supabase.from("article_comment_votes").select("comment_id,user_id,direction").in("comment_id", rows.map((row) => row.id)),
+    supabase.auth.getSession(),
+  ]);
 
   const userIds = [...new Set(rows.map((r) => r.user_id))];
   const profiles = new Map<string, ProfileLite>();
@@ -66,7 +70,12 @@ export async function fetchComments(articleId: string): Promise<Comment[]> {
     }
   }
 
-  return rows.map((r) => mapRow(r, profiles));
+  return rows.map((r) => mapRow(r, profiles, voteRows ?? [], session.session?.user.id));
+}
+
+export async function toggleCommentVote(commentId: string, direction: "up" | "down"): Promise<boolean> {
+  const { error } = await supabase.rpc("toggle_article_comment_vote", { p_comment_id: commentId, p_direction: direction });
+  return !error;
 }
 
 export async function insertComment(

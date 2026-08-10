@@ -33,12 +33,13 @@ export interface Step3Data {
 }
 
 /** Returns true if username is available */
-export async function checkUsernameAvailable(username: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('username', username)
-    .single();
+export async function checkUsernameAvailable(username: string, currentUserId?: string): Promise<boolean> {
+  if (currentUserId) {
+    const { data, error } = await supabase.from('profiles').select('id').eq('username', username).neq('id', currentUserId).maybeSingle();
+    if (error) return true;
+    return !data;
+  }
+  const { data, error } = await supabase.from('profiles').select('id').eq('username', username).single();
 
   // PGRST116 = no rows found = username is available
   if (error?.code === 'PGRST116') return true;

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Comment, COMMENT_CONSTANTS } from "@/types/feed";
 import { CommentThread } from "./CommentThread";
 import { useAuthGate } from "@/contexts/AuthGateContext";
-import { fetchComments, insertComment, updateComment, softDeleteComment } from "@/lib/comments";
+import { fetchComments, insertComment, updateComment, softDeleteComment, toggleCommentVote } from "@/lib/comments";
 import { toast } from "sonner";
 
 type SortMode = "top" | "new" | "hot";
@@ -114,7 +114,7 @@ export function EnhancedCommentSection({
   }, [comments, sortMode]);
 
   // Handle vote
-  const handleVote = useCallback((commentId: string, type: "up" | "down") => {
+  const handleVote = useCallback(async (commentId: string, type: "up" | "down") => {
     if (!isAuthenticated) {
       openAuthModal("comment", { commentId });
       return;
@@ -143,7 +143,8 @@ export function EnhancedCommentSection({
         userVote: currentVote === type ? null : type,
       };
     }));
-  }, [isAuthenticated, openAuthModal]);
+    if (!(await toggleCommentVote(commentId, type))) { toast.error("Couldn’t save that vote."); await reload(); }
+  }, [isAuthenticated, openAuthModal, reload]);
 
   // Handle reply — persisted to the DB
   const handleReply = useCallback(async (parentId: string, body: string) => {

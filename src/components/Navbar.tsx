@@ -1,8 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Sun, Moon } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { TalusLogo } from "@/components/TalusLogo";
+import { requestHomeFeedRefresh } from "@/lib/refreshFeed";
 
 interface NavbarProps {
   onMenuToggle?: () => void;
@@ -11,6 +12,7 @@ interface NavbarProps {
 
 export function Navbar(_props: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
+  const { pathname } = useLocation();
 
   return (
     <nav className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur-md">
@@ -21,6 +23,7 @@ export function Navbar(_props: NavbarProps) {
         {/* Centered Talus logo */}
         <Link
           to="/"
+          onClick={(event) => { if (pathname === "/") { event.preventDefault(); requestHomeFeedRefresh(); } }}
           aria-label="Talus home"
           className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
         >

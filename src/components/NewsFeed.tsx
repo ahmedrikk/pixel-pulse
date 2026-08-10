@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import type { RankedArticle } from "@/types/feed";
 import { prettifyTag } from "@/hooks/useTrendingCategories";
+import { REFRESH_FEED_EVENT } from "@/lib/refreshFeed";
 
 interface NewsFeedProps {
   onCardView?: (cardId: string) => void;
@@ -94,6 +95,12 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
   const exitFilter = () => navigate("/");
   const [displayedCount, setDisplayedCount] = useState(6);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const refresh = () => { setDisplayedCount(6); loadFeed(); };
+    window.addEventListener(REFRESH_FEED_EVENT, refresh);
+    return () => window.removeEventListener(REFRESH_FEED_EVENT, refresh);
+  }, [loadFeed]);
 
   // Filter articles by active tag — must be declared before the observer useEffect
   const normalizedActiveTag = activeTag ? normalizeTag(activeTag) : null;

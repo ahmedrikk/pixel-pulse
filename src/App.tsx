@@ -38,7 +38,8 @@ const GameCalendar    = lazy(() => import("./pages/GameCalendar"));
 const BackfillStatus  = lazy(() => import("./pages/BackfillStatus"));
 const NotFound       = lazy(() => import("./pages/NotFound"));
 const ComingSoon     = lazy(() => import("./pages/ComingSoon"));
-const OnboardingPage = lazy(() => import("./pages/onboarding/OnboardingPage"));
+const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
+const Notifications = lazy(() => import("./pages/Notifications"));
 const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const PrivacyPolicy  = lazy(() => import("./pages/PrivacyPolicy"));
 const CookiePolicy   = lazy(() => import("./pages/CookiePolicy"));
@@ -61,7 +62,7 @@ const App = () => (
                 <Suspense fallback={<RouteFallback />}>
                   <Routes>
                     {/* Onboarding — no guard */}
-                    <Route path="/onboarding" element={<OnboardingPage />} />
+                    <Route path="/onboarding" element={<ProfileSetup />} />
                     <Route path="/onboarding/step-1" element={<Navigate to="/onboarding" replace />} />
                     <Route path="/onboarding/step-2" element={<Navigate to="/onboarding" replace />} />
                     <Route path="/onboarding/step-3" element={<Navigate to="/onboarding" replace />} />
@@ -88,7 +89,7 @@ const App = () => (
                     <Route path="/backfill-status" element={<OnboardingGuard><BackfillStatus /></OnboardingGuard>} />
                     <Route path="/battle-pass" element={<Navigate to="/" replace />} />
                     <Route path="/hub" element={<Navigate to="/" replace />} />
-                    <Route path="/notifications" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
+                    <Route path="/notifications" element={<OnboardingGuard><Notifications /></OnboardingGuard>} />
                     <Route path="/guides" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                     <Route path="/hardware" element={<OnboardingGuard><ComingSoon /></OnboardingGuard>} />
                     {/* Legal pages — public */}

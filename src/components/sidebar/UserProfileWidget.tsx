@@ -1,4 +1,3 @@
-import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -15,15 +14,6 @@ export function UserProfileWidget() {
   const { isAuthenticated, user, openAuthModal, signOut } = useAuthGate();
   const { profile } = useProfile();
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openMenu = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    setMenuOpen(true);
-  };
-  const scheduleClose = () => {
-    closeTimer.current = setTimeout(() => setMenuOpen(false), 140);
-  };
 
   if (!isAuthenticated || !user) {
     return (
@@ -60,11 +50,7 @@ export function UserProfileWidget() {
   }
 
   return (
-    <div
-      className="group relative rounded-xl border bg-card"
-      onMouseEnter={openMenu}
-      onMouseLeave={scheduleClose}
-    >
+    <div className="group relative rounded-xl border bg-card">
       {/* Banner Image */}
       <div className="h-20 w-full bg-secondary overflow-hidden relative">
         {profile?.banner_url ? (
@@ -108,7 +94,7 @@ export function UserProfileWidget() {
           </p>
         </div>
       </div>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen} modal={false}>
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -118,11 +104,9 @@ export function UserProfileWidget() {
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"
-          side="bottom"
+          side="top"
           className="w-[220px] p-2"
-          sideOffset={4}
-          onMouseEnter={openMenu}
-          onMouseLeave={scheduleClose}
+          sideOffset={-8}
         >
           <div className="mb-1 flex items-center gap-2 rounded-lg bg-secondary/70 px-2 py-2">
             <div className="h-9 w-9 overflow-hidden rounded-full bg-secondary">

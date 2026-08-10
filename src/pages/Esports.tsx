@@ -16,6 +16,7 @@ import { useAuthGate } from "@/contexts/AuthGateContext";
 import { WatchLiveButton } from "@/components/esports/WatchLiveButton";
 import { SiteLayout } from "@/components/SiteLayout";
 import { GameArtwork } from "@/components/shared/GameArtwork";
+import { supabase } from "@/integrations/supabase/client";
 
 type TabType = "live" | "upcoming" | "results";
 
@@ -248,12 +249,30 @@ function MatchCard({
   gameFilters: GameFilter[];
   onWatchLive: (match: EsportsMatch) => void;
 }) {
-  const { isAuthenticated, openAuthModal } = useAuthGate();
+  const { isAuthenticated, openAuthModal, user } = useAuthGate();
+  const [reminderSet, setReminderSet] = useState(false);
   const gameId = getGameId(match);
   const gameFilter = gameFilters.find((g) => g.id === gameId);
   const status = getMatchStatus(match);
   const isWinner1 = status === "completed" && match.score1 > match.score2;
   const isWinner2 = status === "completed" && match.score2 > match.score1;
+
+  useEffect(() => {
+    if (!user || status !== "upcoming") return;
+    supabase.from("esports_reminders").select("match_id").eq("user_id", user.id).eq("match_id", String(match.id)).maybeSingle().then(({ data }) => setReminderSet(!!data));
+  }, [match.id, status, user]);
+
+  async function toggleReminder() {
+    if (!user) { openAuthModal("esports_reminder", { matchId: match.id }); return; }
+    if (reminderSet) {
+      const { error } = await supabase.from("esports_reminders").delete().eq("user_id", user.id).eq("match_id", String(match.id));
+      if (!error) { setReminderSet(false); toast.success("Reminder removed."); }
+      return;
+    }
+    const title = `${match.team1} vs ${match.team2}`;
+    const { error } = await supabase.from("esports_reminders").insert({ user_id: user.id, match_id: String(match.id), match_title: title, starts_at: match.begin_at });
+    if (error) toast.error("Couldn’t set that reminder."); else { setReminderSet(true); toast.success("Reminder added to Notifications."); }
+  }
 
   return (
     <motion.div
@@ -338,16 +357,10 @@ function MatchCard({
             size="sm"
             variant="outline"
             className="h-8 text-xs gap-1.5 rounded-lg"
-            onClick={() => {
-              if (!isAuthenticated) {
-                openAuthModal("esports_reminder", { matchId: match.id });
-                return;
-              }
-              toast.info("Reminder feature coming soon!");
-            }}
+            onClick={toggleReminder}
           >
             <Clock className="h-3.5 w-3.5" />
-            Set Reminder
+            {reminderSet ? "Reminder Set" : "Set Reminder"}
           </Button>
         )}
         {status === "completed" && (

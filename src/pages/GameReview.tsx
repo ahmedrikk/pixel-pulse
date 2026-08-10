@@ -3,6 +3,7 @@ import { format, formatDistanceToNowStrict } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Crown,
+  BellRing,
   ExternalLink,
   Gamepad2,
   Gift,
@@ -32,6 +33,7 @@ import {
   type UserReview,
 } from "@/hooks/useGameReviews";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 const platformIcons: Record<string, React.ReactNode> = {
   PC: <Monitor className="h-4 w-4" />,
@@ -210,6 +212,7 @@ export default function GameReview() {
   const [newReviewText, setNewReviewText] = useState("");
   const [newRating, setNewRating] = useState(0);
   const [sortBy, setSortBy] = useState<"helpful" | "recent">("helpful");
+  const [following, setFollowing] = useState(false);
 
   const gameQuery = useGameDetails(gameId);
   const reviewsQuery = useUserReviews(gameId, user?.id);
@@ -227,12 +230,26 @@ export default function GameReview() {
     toast.success("Your review draft is ready to submit.");
   }, [user, pendingAction, gameId, executePendingAction]);
 
+  useEffect(() => {
+    if (!user || !gameId) { setFollowing(false); return; }
+    supabase.from("game_follows").select("game_id").eq("user_id", user.id).eq("game_id", gameId).maybeSingle().then(({ data }) => setFollowing(!!data));
+  }, [gameId, user]);
+
   if (gameQuery.isLoading) {
     return <SiteLayout><div className="h-[520px] animate-pulse rounded-2xl bg-secondary" /></SiteLayout>;
   }
   if (gameQuery.error || !gameQuery.data) return <Navigate to="/reviews" replace />;
 
   const game = gameQuery.data;
+  async function toggleFollow() {
+    if (!user) return openAuthModal("react");
+    const request = following
+      ? supabase.from("game_follows").delete().eq("user_id", user.id).eq("game_id", game.id)
+      : supabase.from("game_follows").insert({ user_id: user.id, game_id: game.id });
+    const { error } = await request;
+    if (error) toast.error("Couldn’t update game notifications.");
+    else { setFollowing(!following); toast.success(following ? "Patch notifications turned off." : `You’ll be notified about ${game.name} patches.`); }
+  }
   const reviews = reviewsQuery.data ?? [];
   const myRating = reviews.find((review) => review.userId === user?.id)?.starRating ?? null;
   const sortedReviews = [...reviews].sort((a, b) => sortBy === "recent"
@@ -289,6 +306,7 @@ export default function GameReview() {
               <p className="mt-2 text-sm text-muted-foreground">
                 {[game.developer, game.releaseDate].filter(Boolean).join(" · ")}
               </p>
+              <Button variant={following ? "secondary" : "outline"} size="sm" onClick={toggleFollow} className="mt-3 w-fit gap-2 bg-card/90 backdrop-blur-sm"><BellRing className="h-4 w-4" />{following ? "Following Patches" : "Follow Game Updates"}</Button>
 
               <div className="mt-5 flex flex-wrap items-stretch gap-2">
                 <div className="rounded-xl border bg-card/90 px-4 py-2.5 backdrop-blur-sm">

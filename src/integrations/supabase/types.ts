@@ -181,6 +181,30 @@ export type Database = {
         }
         Relationships: []
       }
+      article_comment_votes: {
+        Row: { comment_id: string; user_id: string; direction: string; created_at: string; updated_at: string }
+        Insert: { comment_id: string; user_id: string; direction: string; created_at?: string; updated_at?: string }
+        Update: { comment_id?: string; user_id?: string; direction?: string; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      esports_reminders: {
+        Row: { user_id: string; match_id: string; match_title: string; starts_at: string | null; created_at: string }
+        Insert: { user_id: string; match_id: string; match_title: string; starts_at?: string | null; created_at?: string }
+        Update: { user_id?: string; match_id?: string; match_title?: string; starts_at?: string | null; created_at?: string }
+        Relationships: []
+      }
+      game_follows: {
+        Row: { user_id: string; game_id: string; created_at: string }
+        Insert: { user_id: string; game_id: string; created_at?: string }
+        Update: { user_id?: string; game_id?: string; created_at?: string }
+        Relationships: []
+      }
+      notifications: {
+        Row: { id: string; user_id: string; actor_id: string | null; type: string; title: string; message: string; link: string | null; image_url: string | null; metadata: Json; unique_key: string | null; available_at: string; read_at: string | null; created_at: string }
+        Insert: { id?: string; user_id: string; actor_id?: string | null; type: string; title: string; message?: string; link?: string | null; image_url?: string | null; metadata?: Json; unique_key?: string | null; available_at?: string; read_at?: string | null; created_at?: string }
+        Update: { id?: string; user_id?: string; actor_id?: string | null; type?: string; title?: string; message?: string; link?: string | null; image_url?: string | null; metadata?: Json; unique_key?: string | null; available_at?: string; read_at?: string | null; created_at?: string }
+        Relationships: []
+      }
       free_game_offers: {
         Row: {
           created_at: string
@@ -1211,6 +1235,10 @@ export type Database = {
       request_account_action: {
         Args: { p_action: string }
         Returns: Database["public"]["Tables"]["profiles"]["Row"]
+      }
+      toggle_article_comment_vote: {
+        Args: { p_comment_id: string; p_direction: string }
+        Returns: undefined
       }
       append_unlocked_title: {
         Args: { title: string; uid: string }
