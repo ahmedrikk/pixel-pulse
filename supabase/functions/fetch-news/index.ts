@@ -19,8 +19,8 @@ const YOUTUBE_PROCESS_LIMIT = 10;
 const ARTICLE_SCRAPE_LIMIT = 25;
 const YOUTUBE_SCRAPE_LIMIT = 20;
 const PROCESS_CONCURRENCY = 3;
-const DAILY_ARTICLE_CAP = 100;
-const REMOVED_SOURCES = ["Sportskeeda", "Dexerto"];
+const ROLLING_ARTICLE_CAP = 100;
+const INGESTION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 interface RssSourceConfig {
   id: string;
@@ -1312,14 +1312,6 @@ serve(async (req) => {
 
   console.log("=== fetch-news pipeline starting ===");
 
-  // Keep retired publishers out of the public feed, including rows collected
-  // before the source was removed from RSS_FEEDS.
-  const { error: removedSourceError } = await supabase
-    .from("cached_articles")
-    .delete()
-    .in("source", REMOVED_SOURCES);
-  if (removedSourceError) console.warn(`  Retired source cleanup error: ${removedSourceError.message}`);
-
   let requestedSources: string[] = [];
   let diagnosticOnly = false;
   try {
@@ -1363,47 +1355,6 @@ serve(async (req) => {
     if (!source.last_polled_at) return true;
     return now - new Date(source.last_polled_at).getTime() >= source.poll_interval_minutes * 60_000;
   });
-
-  // Step 0: Delete cached articles with bad summaries so they get re-fetched
-  const { data: badArticles } = await supabase
-    .from("cached_articles")
-    .select("source_url, ai_summary")
-    .eq("category", "Gaming");
-
-  const urlsToDelete: string[] = [];
-  for (const row of (badArticles ?? [])) {
-    const summary = (row.ai_summary || "").trim();
-    const words = summary.split(/\s+/).filter(Boolean).length;
-    const sentences = summary.split(/[.!?]+/).filter((s: string) => s.trim().length > 3).length;
-    const endsInEllipsis = /\.{2,}\s*$/.test(summary) || /…\s*$/.test(summary);
-    const lastChar = summary.slice(-1);
-    const endsCleanly = /[.!?"')]/.test(lastChar);
-    if (
-      row.source_url.startsWith("<![CDATA[") ||
-      words < 20 ||
-      words > 110 ||
-      sentences < 1 ||
-      endsInEllipsis ||
-      !endsCleanly ||
-      summary.startsWith("http") ||
-      summary.startsWith("Title:") ||
-      summary.startsWith("URL Source:") ||
-      summary.startsWith("Published Time:") ||
-      summary.startsWith("Markdown Content:") ||
-      /\[Skip to content\]/i.test(summary) ||
-      (summary.match(/https?:\/\//g) || []).length >= 3
-    ) {
-      urlsToDelete.push(row.source_url);
-    }
-  }
-  if (urlsToDelete.length > 0) {
-    console.log(`  Deleting ${urlsToDelete.length} articles with bad summaries for re-fetch`);
-    const { error: delErr } = await supabase
-      .from("cached_articles")
-      .delete()
-      .in("source_url", urlsToDelete);
-    if (delErr) console.warn(`  Delete error: ${delErr.message}`);
-  }
 
   // Step 1: Fetch all RSS feeds in parallel (each with its own 10s timeout)
   // so wall-clock time stays ~10s regardless of how many feeds we add.
@@ -1452,9 +1403,21 @@ serve(async (req) => {
       }
     })
   );
-  const rssItems: RssItem[] = feedResults.flatMap((r) =>
+  const fetchedRssItems: RssItem[] = feedResults.flatMap((r) =>
     r.status === "fulfilled" ? r.value.items : []
   );
+  const ingestionCutoffMs = Date.now() - INGESTION_WINDOW_MS;
+  const ingestionFutureToleranceMs = Date.now() + 15 * 60 * 1000;
+  const rssItems = fetchedRssItems.filter((item) => {
+    const publishedAt = Date.parse(item.pubDate);
+    return Number.isFinite(publishedAt)
+      && publishedAt >= ingestionCutoffMs
+      && publishedAt <= ingestionFutureToleranceMs;
+  });
+  const rssOutsideWindow = fetchedRssItems.length - rssItems.length;
+  if (rssOutsideWindow > 0) {
+    console.log(`  Rolling window rejected ${rssOutsideWindow} RSS items published outside the last 24 hours`);
+  }
   const youtubeResults = await Promise.all(
     selectedYouTubeSources.map(async (source) => {
       const result = await fetchYouTubeUploads(source);
@@ -1499,7 +1462,14 @@ serve(async (req) => {
   }))];
 
   if (diagnosticOnly) {
-    return new Response(JSON.stringify({ total: allItems.length, feeds: feedStats }), {
+    return new Response(JSON.stringify({
+      total: allItems.length,
+      rollingWindowHours: 24,
+      freshRssItems: rssItems.length,
+      rssOutsideWindow,
+      youtubeItems: youtubeItems.length,
+      feeds: feedStats,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
@@ -1524,19 +1494,21 @@ serve(async (req) => {
   const rssDedupe = deduplicateCandidates(uncachedRss, dedupTitles);
   const youtubeDedupe = deduplicateCandidates(uncachedYouTube, dedupTitles);
 
-  const utcDayStart = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
-  const { data: todayArticleRows, error: todayArticleError } = await supabase
+  const rollingWindowStart = new Date(Date.now() - INGESTION_WINDOW_MS).toISOString();
+  const configuredRssSourceNames = configuredFeeds.map((source) => source.source);
+  const { data: rollingArticleRows, error: rollingArticleError } = await supabase
     .from("cached_articles")
     .select("source")
     .eq("media_type", "article")
-    .gte("fetched_at", utcDayStart);
-  if (todayArticleError) console.warn(`  Daily article budget query failed: ${todayArticleError.message}`);
+    .in("source", configuredRssSourceNames)
+    .gte("fetched_at", rollingWindowStart);
+  if (rollingArticleError) console.warn(`  Rolling article budget query failed: ${rollingArticleError.message}`);
   const alreadyPublishedBySource: Record<string, number> = {};
-  for (const row of todayArticleRows ?? []) {
+  for (const row of rollingArticleRows ?? []) {
     alreadyPublishedBySource[row.source] = (alreadyPublishedBySource[row.source] ?? 0) + 1;
   }
-  const publishedToday = todayArticleRows?.length ?? 0;
-  const remainingArticleSlots = Math.max(0, DAILY_ARTICLE_CAP - publishedToday);
+  const publishedLast24Hours = rollingArticleRows?.length ?? 0;
+  const remainingArticleSlots = Math.max(0, ROLLING_ARTICLE_CAP - publishedLast24Hours);
   const allocation = allocateArticleSlots(
     rssDedupe.items,
     selectedFeeds,
@@ -1544,7 +1516,7 @@ serve(async (req) => {
     alreadyPublishedBySource,
   );
 
-  // YouTube is deliberately outside the 100-article daily budget. Every fresh
+  // YouTube is deliberately outside the 100-article rolling budget. Every fresh
   // 24-hour video remains eligible; only RSS candidates enter allocation.
   const youtubeQueue = interleaveBySource(youtubeDedupe.items);
   const articleQueue = allocation.items;
@@ -1553,7 +1525,7 @@ serve(async (req) => {
   const duplicateCount = existingUrls.size + similarityDuplicateCount;
   if (existingUrls.size > 0) console.log(`  Cache gate removed ${existingUrls.size} previously published URLs`);
   if (similarityDuplicateCount > 0) console.log(`  Similarity gate removed ${similarityDuplicateCount} duplicate candidates`);
-  console.log(`  RSS daily budget: ${publishedToday}/${DAILY_ARTICLE_CAP} published, ${allocation.items.length}/${remainingArticleSlots} slots allocated`);
+  console.log(`  RSS rolling budget: ${publishedLast24Hours}/${ROLLING_ARTICLE_CAP} published in the last 24 hours, ${allocation.items.length}/${remainingArticleSlots} slots allocated`);
   for (const source of selectedFeeds) {
     const allocated = allocation.allocatedBySource[source.source] ?? 0;
     const candidates = allocation.candidateCountBySource[source.source] ?? 0;
@@ -1827,11 +1799,13 @@ serve(async (req) => {
     processedArticles,
     processedYouTube,
     articleBudget: {
-      cap: DAILY_ARTICLE_CAP,
-      publishedBeforeRun: publishedToday,
+      cap: ROLLING_ARTICLE_CAP,
+      windowHours: 24,
+      publishedBeforeRun: publishedLast24Hours,
       remainingBeforeRun: remainingArticleSlots,
       allocatedThisRun: allocation.items.length,
     },
+    rssOutsideWindow,
     allocation: allocation.allocatedBySource,
     processedBySource,
     feeds: feedStats,
