@@ -55,6 +55,10 @@ const RSS_FEEDS: RssSourceConfig[] = [
   { id: "dot-esports", url: "https://dotesports.com/feed", source: "Dot Esports", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
   { id: "gamesindustry", url: "https://www.gamesindustry.biz/feed", source: "GamesIndustry.biz", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
   { id: "game-rant", url: "https://gamerant.com/feed/", source: "Game Rant", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
+  { id: "esports-insider", url: "https://esportsinsider.com/feed", source: "Esports Insider", dailyQuota: 4, minQuota: 1, maxQuota: 7 },
+  { id: "sheep-esports", url: "https://www.sheepesports.com/feed", source: "Sheep Esports", dailyQuota: 4, minQuota: 1, maxQuota: 7 },
+  { id: "hltv", url: "https://www.hltv.org/rss/news", source: "HLTV", dailyQuota: 4, minQuota: 1, maxQuota: 7 },
+  { id: "vlr", url: "https://www.vlr.gg/rss", source: "VLR", dailyQuota: 4, minQuota: 1, maxQuota: 7 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -853,6 +857,15 @@ function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+function cachedArticleIsPublishReady(row: {
+  ai_summary?: string | null;
+  summary?: string | null;
+  media_type?: string | null;
+}): boolean {
+  const words = countWords(row.ai_summary || row.summary || "");
+  return words >= (row.media_type === "youtube" ? 20 : 30);
+}
+
 function extractJsonObject(text: string): Record<string, unknown> | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -1506,15 +1519,20 @@ serve(async (req) => {
   const urls = allItems.map(i => i.link);
   const { data: existing } = await supabase
     .from("cached_articles")
-    .select("source_url")
+    .select("source_url, ai_summary, summary, media_type")
     .in("source_url", urls);
 
-  const existingUrls = new Set((existing ?? []).map(e => e.source_url));
+  // Old esports ingestion copied tiny RSS teasers straight into the card.
+  // Treat those rows as unfinished so the unified scrape + AI pipeline can
+  // replace them instead of preserving a one-line placeholder forever.
+  const existingUrls = new Set(
+    (existing ?? []).filter(cachedArticleIsPublishReady).map(e => e.source_url),
+  );
   const { data: recentTitles } = await supabase
     .from("cached_articles")
-    .select("title, ai_title")
+    .select("title, ai_title, ai_summary, summary, media_type")
     .gte("article_date", new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString());
-  const dedupTitles = (recentTitles ?? []).flatMap((row) =>
+  const dedupTitles = (recentTitles ?? []).filter(cachedArticleIsPublishReady).flatMap((row) =>
     [row.ai_title, row.title].filter((value): value is string => typeof value === "string" && value.length > 0)
   );
   const uncachedRss = rssItems.filter((item) => !existingUrls.has(item.link));
@@ -1728,7 +1746,9 @@ serve(async (req) => {
         source_url:   item.link,
         image_url:    item.imageUrl,
         og_image_url: item.ogImage,
-        category:     "Gaming",
+        category:     ["Esports Insider", "Sheep Esports", "Dot Esports", "HLTV", "VLR"].includes(item.source)
+          ? "esports"
+          : "Gaming",
         source:       item.source,
         author:       item.author,
         ai_title:     headline || item.title,

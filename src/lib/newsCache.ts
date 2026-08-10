@@ -427,78 +427,70 @@ export async function getAllCachedArticles(
         return ((frozenRows ?? []) as CachedArticle[]).map(toNewsItem);
       }
 
-      const useVideoCadence =
-        !tag
-        && limit >= 5
-        && (!category || category.toLowerCase() === "gaming");
-      const videoSlots = useVideoCadence ? Math.floor(limit / 5) : 0;
-      const articleSlots = limit - videoSlots;
-      const pageIndex = Math.floor(offset / limit);
-      const rankedOffset = useVideoCadence ? pageIndex * articleSlots : offset;
+      // Rank the live 72-hour window, then continue into the permanent archive.
+      // Previously each page reserved four YouTube positions. When fewer than
+      // four videos existed, an 18-card response was mistaken for the true end
+      // of the database and infinite scrolling stopped early.
+      const freshnessCutoff = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+      const safeTag = tag?.replace(/[^a-zA-Z0-9]/g, '');
+      let recentCountQuery = supabase
+        .from('cached_articles')
+        .select('*', { count: 'exact', head: true })
+        .eq('duplicate_flag', false)
+        .lt('report_count', 3)
+        .gte('article_date', freshnessCutoff);
+      if (category) recentCountQuery = recentCountQuery.eq('category', category);
+      if (safeTag) {
+        recentCountQuery = recentCountQuery.or(`tags.cs.{${safeTag}},game_tags.cs.{${safeTag}}`);
+      }
+      const { count: recentCount, error: recentCountError } = await recentCountQuery;
+      const recentTotal = recentCountError ? 0 : (recentCount ?? 0);
+      const recentLimit = Math.max(0, Math.min(limit, recentTotal - offset));
 
-      const { data: rankedData, error: rankedError } = await supabase.rpc("get_ranked_feed", {
-        p_tracking_id: getFeedTrackingId(),
-        p_offset: rankedOffset,
-        p_limit: limit,
-        p_category: category ?? null,
-        p_tag: tag ?? null,
-      });
+      const rankedResult = recentLimit > 0
+        ? await supabase.rpc("get_ranked_feed", {
+          p_tracking_id: getFeedTrackingId(),
+          p_offset: offset,
+          p_limit: recentLimit,
+          p_category: category ?? null,
+          p_tag: tag ?? null,
+        })
+        : { data: [], error: null };
+      const { data: rankedData, error: rankedError } = rankedResult;
 
-      if (!rankedError) {
-        let rankedItems = ((rankedData ?? []) as CachedArticle[]).map(toNewsItem);
+      if (!rankedError && !recentCountError) {
+        const rankedItems = ((rankedData ?? []) as CachedArticle[]).map(toNewsItem);
+        const remaining = limit - rankedItems.length;
+        let archiveItems: NewsItem[] = [];
 
-        // The first feed page must always expose genuinely fresh reporting.
-        // Personalization and impression rotation still rank the rest, but
-        // they cannot bury every new story below cards the reader has seen.
-        if (offset === 0 && !tag) {
-          const freshnessCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-          let latestQuery = supabase
-            .from("cached_articles")
-            .select("*")
-            .eq("duplicate_flag", false)
-            .lt("report_count", 3)
-            .gte("article_date", freshnessCutoff)
-            .order("article_date", { ascending: false })
-            .limit(6);
-          if (category) latestQuery = latestQuery.eq("category", category);
-
-          const { data: latestRows, error: latestError } = await latestQuery;
-          if (!latestError && latestRows?.length) {
-            const latest = (latestRows as CachedArticle[]).map(toNewsItem);
-            const latestUrls = new Set(latest.map((item) => item.sourceUrl));
-            rankedItems = [...latest, ...rankedItems.filter((item) => !latestUrls.has(item.sourceUrl))];
+        if (remaining > 0) {
+          const archiveOffset = Math.max(0, offset - recentTotal);
+          let archiveQuery = supabase
+            .from('cached_articles')
+            .select('*')
+            .eq('duplicate_flag', false)
+            .lt('report_count', 3)
+            .lt('article_date', freshnessCutoff)
+            .order('article_date', { ascending: false })
+            .order('id', { ascending: true })
+            .range(archiveOffset, archiveOffset + remaining - 1);
+          if (category) archiveQuery = archiveQuery.eq('category', category);
+          if (safeTag) {
+            archiveQuery = archiveQuery.or(`tags.cs.{${safeTag}},game_tags.cs.{${safeTag}}`);
+          }
+          const { data: archiveRows, error: archiveError } = await archiveQuery;
+          if (archiveError) {
+            console.warn('Archived news unavailable:', archiveError.message);
+          } else {
+            archiveItems = ((archiveRows ?? []) as CachedArticle[]).map(toNewsItem);
           }
         }
 
-        if (!useVideoCadence || videoSlots === 0) return rankedItems.slice(0, limit);
-
-        const videoOffset = pageIndex * videoSlots;
-        const freshnessCutoff = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
-        const { data: videoRows, error: videoError } = await supabase
-          .from("cached_articles")
-          .select("*")
-          .eq("category", category ?? "Gaming")
-          .eq("media_type", "youtube")
-          .eq("duplicate_flag", false)
-          .lt("report_count", 3)
-          .gte("article_date", freshnessCutoff)
-          .order("article_date", { ascending: false })
-          .range(videoOffset, videoOffset + videoSlots - 1);
-
-        if (videoError) {
-          console.warn("YouTube cadence query unavailable:", videoError.message);
-          return rankedItems.slice(0, limit);
-        }
-
-        const rankedVideos = rankedItems.filter((item) => item.mediaType === "youtube");
-        const selectedVideos = [
-          ...rankedVideos,
-          ...((videoRows ?? []) as CachedArticle[]).map(toNewsItem),
-        ].slice(0, videoSlots);
-
+        const pageItems = [...rankedItems, ...archiveItems];
+        if (tag || limit < 5) return pageItems.slice(0, limit);
         return interleaveVideoCards(
-          rankedItems,
-          selectedVideos,
+          pageItems,
+          pageItems.filter((item) => item.mediaType === 'youtube'),
           4,
           limit,
         );
@@ -518,7 +510,6 @@ export async function getAllCachedArticles(
       if (category) {
         query = query.eq('category', category);
       }
-      const safeTag = tag?.replace(/[^a-zA-Z0-9]/g, '');
       if (safeTag) {
         query = query.or(`tags.cs.{${safeTag}},game_tags.cs.{${safeTag}}`);
       }
