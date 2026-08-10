@@ -14,7 +14,6 @@ import {
   Star,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import { motion } from "framer-motion";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
@@ -133,37 +132,13 @@ export default function GameCalendar() {
     setPlatforms((current) => current.includes(platform) ? current.filter((item) => item !== platform) : [...current, platform]);
   };
 
-  const nextRelease = filteredGames.find((game) => game.releaseDate >= format(new Date(), "yyyy-MM-dd"));
-  const platformCount = new Set(filteredGames.flatMap((game) => game.platforms)).size;
-
   return (
     <>
       <SiteLayout>
         <main className="space-y-5 pb-16 md:pb-0">
-          <motion.section
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-2xl border bg-card p-5 card-shadow sm:p-6"
-          >
-            <div className="absolute -right-14 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
-            <div className="relative flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-                <CalendarDays className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Plan what to play next</p>
-                <h1 className="mt-1 text-2xl font-black text-foreground sm:text-3xl">Game Calendar</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                  Your next obsession already has a date. Browse confirmed releases month by month, filter by platform, then open any game for Talus reviews, free offers, and patch history.
-                </p>
-              </div>
-            </div>
-            <div className="relative mt-5 grid grid-cols-3 gap-2">
-              <div className="rounded-xl bg-secondary/70 p-3"><p className="text-lg font-black text-foreground">{filteredGames.length}</p><p className="text-[10px] text-muted-foreground">releases shown</p></div>
-              <div className="rounded-xl bg-secondary/70 p-3"><p className="truncate text-sm font-black text-foreground">{nextRelease ? format(parseISO(nextRelease.releaseDate), "MMM d") : "—"}</p><p className="text-[10px] text-muted-foreground">next release</p></div>
-              <div className="rounded-xl bg-secondary/70 p-3"><p className="text-lg font-black text-foreground">{platformCount}</p><p className="text-[10px] text-muted-foreground">platforms</p></div>
-            </div>
-          </motion.section>
+          <header className="px-1 py-2">
+            <h1 className="text-3xl font-black sm:text-4xl">Game Calendar</h1>
+          </header>
 
           <section className="overflow-hidden rounded-2xl border bg-card card-shadow">
             <div className="flex items-center justify-between border-b p-3 sm:p-4">

@@ -33,6 +33,7 @@ import {
 } from "@/lib/profile";
 import { PROFILE_AVATARS, PROFILE_BANNERS } from "@/lib/profileAssets";
 import { validateProfileContent } from "@/lib/profileModeration";
+import { supabase } from "@/integrations/supabase/client";
 
 type AssetPicker = "avatar" | "banner" | null;
 
@@ -44,6 +45,7 @@ export default function Profile() {
   const { data: reviews = [] } = useMyReviews(user?.id);
   const deleteReview = useDeleteReview();
   const [games, setGames] = useState<UserGame[]>([]);
+  const [canonicalGames, setCanonicalGames] = useState<Record<string, { id: string; cover: string | null }>>({});
   const [gamesLoading, setGamesLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [assetPicker, setAssetPicker] = useState<AssetPicker>(null);
@@ -78,6 +80,17 @@ export default function Profile() {
     });
     return () => { active = false; };
   }, [user?.id]);
+
+  useEffect(() => {
+    const names = [...new Set(games.map((game) => game.game_name).filter(Boolean))];
+    if (names.length === 0) {
+      setCanonicalGames({});
+      return;
+    }
+    supabase.from("games").select("id, name, cover_image").in("name", names).then(({ data }) => {
+      setCanonicalGames(Object.fromEntries((data ?? []).map((game) => [game.name.toLowerCase(), { id: game.id, cover: game.cover_image }])));
+    });
+  }, [games]);
 
   const favoriteGames = useMemo(() => {
     const favorites = games.filter((game) => game.is_favorite);
@@ -183,7 +196,7 @@ export default function Profile() {
             </button>
 
             <div className="relative px-5 pb-5 sm:px-7">
-              <button type="button" onClick={() => setAssetPicker("avatar")} className="group absolute -top-16 left-5 h-32 w-32 overflow-hidden rounded-full border-4 border-card bg-secondary shadow-md sm:left-7" aria-label="Change profile picture">
+              <button type="button" onClick={() => setAssetPicker("avatar")} className="group absolute -top-16 left-1/2 h-32 w-32 -translate-x-1/2 overflow-hidden rounded-full border-4 border-card bg-secondary shadow-md" aria-label="Change profile picture">
                 {profile.avatar_url ? <img src={profile.avatar_url} alt={profile.display_name || "Profile"} className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center text-3xl font-black">{(profile.display_name || profile.username || "T").slice(0, 2).toUpperCase()}</span>}
                 <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-white opacity-0 transition-opacity group-hover:opacity-100"><Camera className="h-6 w-6" /></span>
               </button>
@@ -191,10 +204,10 @@ export default function Profile() {
               <div className="flex justify-end pt-3">
                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-2"><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>
               </div>
-              <div className="mt-9 text-center sm:text-left">
+              <div className="mt-9 text-center">
                 <h1 className="text-2xl font-bold normal-case sm:text-3xl">{profile.display_name || profile.username}</h1>
                 <p className="mt-0.5 text-sm text-muted-foreground">@{profile.username}</p>
-                <p className="mt-4 max-w-2xl whitespace-pre-wrap text-[15px] leading-6 text-foreground/80">{profile.about_me || "No information available right now."}</p>
+                <p className="mx-auto mt-4 max-w-2xl whitespace-pre-wrap text-[15px] leading-6 text-foreground/80">{profile.about_me || "No information available right now."}</p>
               </div>
             </div>
           </section>
@@ -214,21 +227,25 @@ export default function Profile() {
               <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Add games to build your profile and personalize Talus.</div>
             ) : (
               <div className="flex snap-x gap-3 overflow-x-auto pb-2">
-                {favoriteGames.map((game) => (
+                {favoriteGames.map((game) => {
+                  const canonical = canonicalGames[game.game_name.toLowerCase()];
+                  return (
                   <article key={game.id} className="group relative w-36 shrink-0 snap-start overflow-hidden rounded-xl border bg-card">
+                    <Link to={`/reviews/${canonical?.id ?? encodeURIComponent(game.game_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))}`} className="block">
                     <div className="aspect-[4/3] bg-secondary">
-                      {game.image_url ? <img src={game.image_url} alt={game.game_name} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center"><Gamepad2 className="h-8 w-8 text-muted-foreground" /></span>}
+                      {(canonical?.cover || game.image_url) ? <img src={canonical?.cover || game.image_url || ""} alt={game.game_name} className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center"><Gamepad2 className="h-8 w-8 text-muted-foreground" /></span>}
                     </div>
                     <div className="p-3">
                       <p className="truncate text-sm font-bold normal-case" title={game.game_name}>{game.game_name}</p>
                       <p className="mt-1 text-[11px] text-muted-foreground">{game.playtime_hours ? `${game.playtime_hours.toLocaleString()} hours` : game.platform || "Community game"}</p>
                     </div>
+                    </Link>
                     <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                       <button onClick={() => toggleFavorite(game)} className="rounded-full bg-card/90 p-1.5 shadow" aria-label="Toggle favorite"><Star className={`h-3.5 w-3.5 ${game.is_favorite ? "fill-amber-400 text-amber-400" : ""}`} /></button>
                       <button onClick={() => deleteGame(game)} className="rounded-full bg-card/90 p-1.5 text-destructive shadow" aria-label="Remove game"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </article>
-                ))}
+                )})}
               </div>
             )}
           </div>
@@ -238,18 +255,20 @@ export default function Profile() {
             {reviews.length === 0 ? <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">Your game reviews will appear here.</p> : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {reviews.slice(0, 6).map((review) => (
-                  <article key={review.id} className="flex gap-3 rounded-xl border p-3">
+                  <article key={review.id} className="relative rounded-xl border p-3">
+                    <Link to={`/reviews/${review.gameId}`} className="flex gap-3 pr-5">
                     <div className="h-14 w-12 shrink-0 overflow-hidden rounded-lg bg-secondary">
                       {review.gameCover ? <img src={review.gameCover} alt="" className="h-full w-full object-cover" /> : <Gamepad2 className="m-3 h-6 w-6 text-muted-foreground" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="truncate text-sm font-bold normal-case">{review.gameName}</p>
-                        <button onClick={() => deleteReview.mutate(review.id)} aria-label="Delete review" className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                       <p className="text-xs text-amber-500">{"★".repeat(Math.round(review.starRating))}{"☆".repeat(Math.max(0, 5 - Math.round(review.starRating)))}</p>
                       {review.reviewText && <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{review.reviewText}</p>}
                     </div>
+                    </Link>
+                    <button onClick={() => deleteReview.mutate(review.id)} aria-label="Delete review" className="absolute right-3 top-3 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                   </article>
                 ))}
               </div>

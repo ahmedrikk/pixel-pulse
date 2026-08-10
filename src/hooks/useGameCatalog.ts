@@ -199,6 +199,22 @@ async function getRecentPopularGames(signal?: AbortSignal): Promise<CatalogGame[
   start.setFullYear(start.getFullYear() - 1);
   const date = (value: Date) => value.toISOString().slice(0, 10);
 
+  const { data: savedRows } = await supabase
+    .from("games")
+    .select("*")
+    .not("release_date", "is", null)
+    .neq("release_date", "TBA")
+    .lte("release_date", date(today))
+    .gte("release_date", date(start))
+    .order("review_count", { ascending: false })
+    .order("rawg_rating", { ascending: false })
+    .limit(60);
+  const saved = (savedRows ?? []).map(mapCanonicalToCatalog).filter((game) => game.coverImage);
+  if (saved.length >= 6) {
+    const score = (game: CatalogGame) => game.ratingCount * 10 + game.rawgRating * 20 + (game.metacriticScore ?? 0);
+    return saved.sort((a, b) => score(b) - score(a) || Date.parse(b.releaseDate) - Date.parse(a.releaseDate)).slice(0, 6);
+  }
+
   try {
     const result = await fetchGameList({
       page_size: 20,
@@ -231,10 +247,26 @@ async function getRecentPopularGames(signal?: AbortSignal): Promise<CatalogGame[
 }
 
 export function useRecentPopularGames() {
+  const cacheKey = "talus:recent-popular-games:v1";
+  const maxAge = 21 * 24 * 60 * 60 * 1000;
   return useQuery({
     queryKey: ["games", "recent-popular"],
-    queryFn: ({ signal }) => getRecentPopularGames(signal),
-    staleTime: 6 * 60 * 60 * 1000,
+    queryFn: async ({ signal }) => {
+      const games = await getRecentPopularGames(signal);
+      try { localStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), games })); } catch { /* storage unavailable */ }
+      return games;
+    },
+    initialData: () => {
+      try {
+        const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null") as { savedAt: number; games: CatalogGame[] } | null;
+        return cached && Date.now() - cached.savedAt < maxAge ? cached.games : undefined;
+      } catch { return undefined; }
+    },
+    initialDataUpdatedAt: () => {
+      try { return (JSON.parse(localStorage.getItem(cacheKey) ?? "null") as { savedAt?: number } | null)?.savedAt; } catch { return undefined; }
+    },
+    staleTime: maxAge,
+    gcTime: maxAge,
   });
 }
 

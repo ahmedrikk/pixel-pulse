@@ -176,6 +176,14 @@
     text-transform: capitalize;
   }
 
+  h1 {
+    color: hsl(var(--primary)) !important;
+  }
+
+  .dark h1 {
+    color: hsl(var(--foreground)) !important;
+  }
+
   .dark .text-primary,
   .dark .text-gradient,
   .dark .text-blue-400,

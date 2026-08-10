@@ -20,6 +20,10 @@ export interface Profile {
   banner_url: string | null;
   nameplate_url: string | null;
   daily_streak: number;
+  account_status: "active" | "deactivated" | "pending_deletion";
+  deactivated_at: string | null;
+  deletion_requested_at: string | null;
+  scheduled_deletion_at: string | null;
 }
 
 export interface SocialAccount {

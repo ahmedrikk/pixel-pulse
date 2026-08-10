@@ -648,11 +648,14 @@ export type Database = {
       profiles: {
         Row: {
           about_me: string | null
+          account_status: string
           avatar_url: string | null
           banner_url: string | null
           created_at: string | null
           daily_bonus_claimed_at: string | null
           daily_streak: number | null
+          deactivated_at: string | null
+          deletion_requested_at: string | null
           display_name: string | null
           email: string | null
           freeze_window_start: string | null
@@ -660,6 +663,7 @@ export type Database = {
           last_active_day: string | null
           level: number | null
           nameplate_url: string | null
+          scheduled_deletion_at: string | null
           streak_frozen: boolean
           tier: number
           updated_at: string | null
@@ -682,11 +686,14 @@ export type Database = {
         }
         Insert: {
           about_me?: string | null
+          account_status?: string
           avatar_url?: string | null
           banner_url?: string | null
           created_at?: string | null
           daily_bonus_claimed_at?: string | null
           daily_streak?: number | null
+          deactivated_at?: string | null
+          deletion_requested_at?: string | null
           display_name?: string | null
           email?: string | null
           freeze_window_start?: string | null
@@ -694,6 +701,7 @@ export type Database = {
           last_active_day?: string | null
           level?: number | null
           nameplate_url?: string | null
+          scheduled_deletion_at?: string | null
           streak_frozen?: boolean
           tier?: number
           updated_at?: string | null
@@ -715,11 +723,14 @@ export type Database = {
         }
         Update: {
           about_me?: string | null
+          account_status?: string
           avatar_url?: string | null
           banner_url?: string | null
           created_at?: string | null
           daily_bonus_claimed_at?: string | null
           daily_streak?: number | null
+          deactivated_at?: string | null
+          deletion_requested_at?: string | null
           display_name?: string | null
           email?: string | null
           freeze_window_start?: string | null
@@ -727,6 +738,7 @@ export type Database = {
           last_active_day?: string | null
           level?: number | null
           nameplate_url?: string | null
+          scheduled_deletion_at?: string | null
           streak_frozen?: boolean
           tier?: number
           updated_at?: string | null
@@ -1196,6 +1208,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      request_account_action: {
+        Args: { p_action: string }
+        Returns: Database["public"]["Tables"]["profiles"]["Row"]
+      }
       append_unlocked_title: {
         Args: { title: string; uid: string }
         Returns: undefined

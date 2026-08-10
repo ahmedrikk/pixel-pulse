@@ -29,27 +29,15 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-          <div className="max-w-2xl w-full bg-white border rounded-lg p-6 shadow-lg">
-            <h1 className="text-2xl font-bold text-red-500 mb-4">Something went wrong</h1>
-            <p className="text-gray-600 mb-4">
-              The application encountered an error. Please try refreshing the page.
-            </p>
-            
-            {/* Error Details - Always Visible */}
-            <div className="bg-gray-100 p-4 rounded-md mb-4">
-              <h3 className="font-semibold text-red-600 mb-2">Error Details:</h3>
-              <pre className="whitespace-pre-wrap break-all text-sm text-gray-800 overflow-auto max-h-96">
-                {this.state.error?.toString()}
-                {this.state.errorInfo?.componentStack}
-              </pre>
-            </div>
-
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center text-foreground shadow-lg">
+            <h1 className="text-3xl font-bold mb-3">Content Doesn’t Exist</h1>
+            <p className="mb-6 text-muted-foreground">This content may have moved or is temporarily unavailable.</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => window.location.assign("/")}
               className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
-              Refresh Page
+              Return To Home
             </button>
           </div>
         </div>

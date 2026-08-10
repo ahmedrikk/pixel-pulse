@@ -1,7 +1,8 @@
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useProfile } from "@/contexts/ProfileContext";
-import { User, LogIn, UserCircle, Settings, UserPlus, LogOut, MoreHorizontal } from "lucide-react";
+import { User, LogIn, UserCircle, Settings, UserPlus, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,15 @@ export function UserProfileWidget() {
   const { isAuthenticated, user, openAuthModal, signOut } = useAuthGate();
   const { profile } = useProfile();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openMenu = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setMenuOpen(true);
+  };
+  const scheduleClose = () => {
+    closeTimer.current = setTimeout(() => setMenuOpen(false), 140);
+  };
 
   if (!isAuthenticated || !user) {
     return (
@@ -50,7 +60,11 @@ export function UserProfileWidget() {
   }
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border bg-card">
+    <div
+      className="group relative rounded-xl border bg-card"
+      onMouseEnter={openMenu}
+      onMouseLeave={scheduleClose}
+    >
       {/* Banner Image */}
       <div className="h-20 w-full bg-secondary overflow-hidden relative">
         {profile?.banner_url ? (
@@ -94,19 +108,22 @@ export function UserProfileWidget() {
           </p>
         </div>
       </div>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen} modal={false}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             aria-label="Open account menu"
             className="absolute inset-0 z-10 rounded-xl outline-none ring-primary/30 focus-visible:ring-2"
-          >
-            <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-card/90 text-muted-foreground shadow-sm backdrop-blur-sm">
-              <MoreHorizontal className="h-4 w-4" />
-            </span>
-          </button>
+          />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="bottom" className="w-[220px] p-2" sideOffset={8}>
+        <DropdownMenuContent
+          align="start"
+          side="bottom"
+          className="w-[220px] p-2"
+          sideOffset={4}
+          onMouseEnter={openMenu}
+          onMouseLeave={scheduleClose}
+        >
           <div className="mb-1 flex items-center gap-2 rounded-lg bg-secondary/70 px-2 py-2">
             <div className="h-9 w-9 overflow-hidden rounded-full bg-secondary">
               {profile?.avatar_url ? <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" /> : <User className="m-2 h-5 w-5" />}

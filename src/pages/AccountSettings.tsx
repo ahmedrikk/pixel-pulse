@@ -5,20 +5,19 @@ import {
   BadgeCheck,
   ChevronRight,
   FileText,
-  Globe2,
   KeyRound,
   Loader2,
   Lock,
   Mail,
-  MessageSquareWarning,
   Shield,
-  TerminalSquare,
-  UserRound,
+  UserX,
+  Trash2,
 } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuthGate } from "@/contexts/AuthGateContext";
@@ -48,7 +47,7 @@ function SettingRow({ icon, label, value, onClick, to, accent = false }: {
 export default function AccountSettings() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, isLoading } = useAuthGate();
+  const { user, isLoading, signOut } = useAuthGate();
   const [emailDialog, setEmailDialog] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [saving, setSaving] = useState(false);
@@ -91,6 +90,18 @@ export default function AccountSettings() {
       : { title: "Password reset sent", description: "Check your email for the secure reset link." });
   }
 
+  async function requestAccountAction(action: "deactivate" | "delete") {
+    setSaving(true);
+    const { error } = await supabase.rpc("request_account_action", { p_action: action });
+    setSaving(false);
+    if (error) {
+      toast({ title: "Account could not be updated", description: error.message, variant: "destructive" });
+      return;
+    }
+    await signOut();
+    navigate("/", { replace: true });
+  }
+
   if (isLoading || !user) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-7 w-7 animate-spin" /></div>;
 
   return (
@@ -107,9 +118,8 @@ export default function AccountSettings() {
 
           <div className="space-y-6 p-4 sm:p-6">
             <section>
-              <h2 className="mb-2 px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">Account</h2>
+              <h2 className="mb-2 px-3 text-sm font-bold">Profile</h2>
               <div className="rounded-xl border p-1">
-                <SettingRow icon={<UserRound className="h-4 w-4" />} label="Profile" to="/profile" />
                 <SettingRow icon={<Mail className="h-4 w-4" />} label="Email" value={user.email ?? ""} />
                 {!user.email_confirmed_at && <SettingRow icon={<BadgeCheck className="h-4 w-4" />} label="Verify Your Email" onClick={verifyEmail} accent />}
                 <SettingRow icon={<KeyRound className="h-4 w-4" />} label="Update Email" onClick={() => setEmailDialog(true)} />
@@ -118,21 +128,27 @@ export default function AccountSettings() {
             </section>
 
             <section>
-              <h2 className="mb-2 px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">About</h2>
+              <h2 className="mb-2 px-3 text-sm font-bold">Terms Of Service</h2>
               <div className="rounded-xl border p-1">
-                <SettingRow icon={<FileText className="h-4 w-4" />} label="Terms Of Service" to="/terms" />
+                <SettingRow icon={<FileText className="h-4 w-4" />} label="Read Terms Of Service" to="/terms" />
                 <SettingRow icon={<Shield className="h-4 w-4" />} label="Privacy Policy" to="/privacy" />
-                <SettingRow icon={<Globe2 className="h-4 w-4" />} label="Status Page" value="All systems operational" />
-                <SettingRow icon={<TerminalSquare className="h-4 w-4" />} label="System Log" value={`Web · ${navigator.platform || "Browser"}`} />
-                <SettingRow icon={<MessageSquareWarning className="h-4 w-4" />} label="Send Error Report" onClick={() => window.location.assign("mailto:support@talus.gg?subject=Talus%20error%20report")} />
                 <SettingRow icon={<BadgeCheck className="h-4 w-4" />} label="Version" value="Talus web beta" />
               </div>
             </section>
 
             <section className="rounded-xl border border-destructive/25 bg-destructive/5 p-4">
               <h2 className="text-sm font-bold text-destructive">Account Safety</h2>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">Account deactivation and permanent deletion require a verified support request while Talus is in beta, preventing accidental loss of reviews and profile data.</p>
-              <a href="mailto:support@talus.gg?subject=Talus%20account%20request" className="mt-3 inline-flex text-sm font-semibold text-destructive hover:underline">Request Account Removal</a>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Manage your account yourself. A deleted account remains recoverable for 30 days before permanent removal.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><Button variant="outline" className="gap-2"><UserX className="h-4 w-4" /> Deactivate Account</Button></AlertDialogTrigger>
+                  <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Deactivate Your Account?</AlertDialogTitle><AlertDialogDescription>Your profile will be hidden and you will be signed out. Signing back in lets you reactivate it.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => requestAccountAction("deactivate")}>Deactivate</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                </AlertDialog>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><Button variant="destructive" className="gap-2"><Trash2 className="h-4 w-4" /> Delete Account</Button></AlertDialogTrigger>
+                  <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Schedule Account Deletion?</AlertDialogTitle><AlertDialogDescription>Your account will be permanently deleted after 30 days. You can sign back in during that period to recover it.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => requestAccountAction("delete")}>Delete In 30 Days</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+                </AlertDialog>
+              </div>
             </section>
           </div>
         </main>
