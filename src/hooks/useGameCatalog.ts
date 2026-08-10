@@ -448,14 +448,14 @@ async function getGenreRankings(): Promise<GenreRankingGroup[]> {
       coverImage: row.cover_image ?? "",
       rating: Number(row.our_rating ?? 0),
       ratingCount: Number(row.review_count ?? 0),
-      rawgRating: 0,
+      rawgRating: Number(row.rawg_rating ?? 0),
       metacriticScore: null,
       genres: [row.genre],
       platforms: row.platforms ?? [],
-      releaseDate: "TBA",
+      releaseDate: row.release_date ?? "TBA",
       trending: false,
       description: "",
-      popularity: 0,
+      popularity: Number(row.popularity_score ?? 0),
       externalReviewCount: 0,
     });
     grouped.set(row.genre, items);

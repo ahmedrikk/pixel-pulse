@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { icon: Gift, label: "Free Games", href: "/free-games" },
   { icon: ScrollText, label: "Game Patch", href: "/game-patch" },
   { icon: CalendarDays, label: "Game Calendar", href: "/game-calendar" },
-  { icon: Star, label: "Reviews", href: "/reviews" },
+  { icon: Star, label: "Game Ratings", href: "/reviews" },
 ];
 
 export function LeftSidebar() {

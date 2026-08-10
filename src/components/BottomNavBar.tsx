@@ -7,7 +7,7 @@ const BOTTOM_NAV_ITEMS = [
   { icon: Gift, label: "Free", href: "/free-games" },
   { icon: ScrollText, label: "Patches", href: "/game-patch" },
   { icon: CalendarDays, label: "Calendar", href: "/game-calendar" },
-  { icon: Star, label: "Reviews", href: "/reviews" },
+  { icon: Star, label: "Ratings", href: "/reviews" },
 ];
 
 export function BottomNavBar() {

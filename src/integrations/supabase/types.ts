@@ -1258,7 +1258,10 @@ export type Database = {
           name: string
           our_rating: number
           platforms: string[]
+          popularity_score: number
           rank_score: number
+          rawg_rating: number
+          release_date: string | null
           review_count: number
         }[]
       }

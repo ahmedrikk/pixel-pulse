@@ -1,17 +1,67 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchGameList } from "@/lib/rawg";
+import { fetchGameList, normalisePlatforms } from "@/lib/rawg";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 function normalizeName(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+const ARTWORK_SEARCH_ALIASES: Record<string, string> = {
+  cs2: "Counter-Strike 2",
+  "counter strike": "Counter-Strike 2",
+  lol: "League of Legends",
+  dota2: "Dota 2",
+  "rainbow six siege": "Tom Clancy's Rainbow Six Siege",
+  r6: "Tom Clancy's Rainbow Six Siege",
+  pubg: "PUBG: Battlegrounds",
+};
+
+function searchName(name: string) {
+  return ARTWORK_SEARCH_ALIASES[normalizeName(name)] ?? name;
+}
+
 async function findGameArtwork(name: string): Promise<string | null> {
-  const response = await fetchGameList({ search: name, page_size: 5 });
-  const normalized = normalizeName(name);
-  const candidates = response.results ?? [];
-  const exact = candidates.find((game) => normalizeName(game.name) === normalized);
-  return exact?.background_image ?? candidates.find((game) => game.background_image)?.background_image ?? null;
+  const lookup = searchName(name);
+  const normalized = normalizeName(lookup);
+  const words = normalized.split(" ").filter((word) => word.length > 2);
+  const searchTerm = words.slice(0, 2).join(" ") || normalized;
+
+  const { data: stored } = await supabase
+    .from("games")
+    .select("id, name, cover_image")
+    .ilike("name", `%${searchTerm.replace(/[%_]/g, "")}%`)
+    .not("cover_image", "is", null)
+    .limit(10);
+  const storedExact = (stored ?? []).find((game) => normalizeName(game.name) === normalized);
+  const storedMatch = storedExact ?? stored?.[0];
+  if (storedMatch?.cover_image) return storedMatch.cover_image;
+
+  try {
+    const response = await fetchGameList({ search: lookup, page_size: 5 });
+    const candidates = response.results ?? [];
+    const exact = candidates.find((game) => normalizeName(game.name) === normalized);
+    const resolved = exact ?? candidates.find((game) => game.background_image);
+    if (!resolved?.background_image) return null;
+
+    await supabase.from("games").upsert({
+      id: resolved.slug,
+      slug: resolved.slug,
+      name: resolved.name,
+      cover_image: resolved.background_image,
+      genres: resolved.genres?.map((genre) => genre.slug) ?? [],
+      platforms: normalisePlatforms(resolved.platforms),
+      release_date: resolved.released ?? "TBA",
+      rawg_rating: resolved.rating,
+      metacritic_score: resolved.metacritic,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" });
+
+    return resolved.background_image;
+  } catch {
+    return null;
+  }
 }
 
 function useGameArtwork(name: string, suppliedUrl?: string | null) {

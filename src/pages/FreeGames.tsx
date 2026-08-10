@@ -144,7 +144,7 @@ export default function FreeGames() {
             animate={{ opacity: 1, y: 0 }}
           >
             <h1 className="text-3xl font-black text-foreground md:text-4xl">
-              Free Game to Claim
+              Free Games to Claim
             </h1>
           </motion.header>
 

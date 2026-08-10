@@ -8,7 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { supabase } from "@/integrations/supabase/client";
 
 const NAV_LINKS = [
-  { icon: Star, label: "Reviews", href: "/reviews" },
+  { icon: Star, label: "Game Ratings", href: "/reviews" },
   { icon: Trophy, label: "Esports", href: "/esports" },
 ];
 

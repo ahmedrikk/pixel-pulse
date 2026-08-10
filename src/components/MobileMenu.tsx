@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
   { icon: Home, label: "Home", href: "/" },
-  { icon: Star, label: "Reviews", href: "/reviews" },
+  { icon: Star, label: "Game Ratings", href: "/reviews" },
   { icon: Gift, label: "Free Games", href: "/free-games" },
   { icon: ScrollText, label: "Game Patch", href: "/game-patch" },
   { icon: CalendarDays, label: "Game Calendar", href: "/game-calendar" },

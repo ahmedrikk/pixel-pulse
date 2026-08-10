@@ -61,6 +61,11 @@ function genreLabel(genre: string) {
   return genreLabels[genre] ?? genre.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function releaseYear(releaseDate: string) {
+  const match = releaseDate.match(/^\d{4}/);
+  return match?.[0] ?? null;
+}
+
 function GenreRankCard({ game, rank }: { game: CatalogGame; rank: number }) {
   return (
     <Link
@@ -85,6 +90,9 @@ function GenreRankCard({ game, rank }: { game: CatalogGame; rank: number }) {
             <span>Awaiting Talus reviews</span>
           )}
         </div>
+        {releaseYear(game.releaseDate) && (
+          <div className="mt-1 text-[10px] text-muted-foreground">Released {releaseYear(game.releaseDate)}</div>
+        )}
       </div>
     </Link>
   );
@@ -301,7 +309,7 @@ export default function GameCatalog() {
           {/* Page Header */}
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="text-3xl md:text-4xl font-black text-foreground">
-              Video Game Reviews
+              Video Game Ratings
             </h1>
           </motion.div>
 
