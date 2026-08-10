@@ -862,8 +862,11 @@ function cachedArticleIsPublishReady(row: {
   summary?: string | null;
   media_type?: string | null;
 }): boolean {
-  const words = countWords(row.ai_summary || row.summary || "");
-  return words >= (row.media_type === "youtube" ? 20 : 30);
+  const summary = (row.ai_summary || row.summary || "").trim();
+  const words = countWords(summary);
+  return words >= (row.media_type === "youtube" ? 20 : 30)
+    && /[.!?"']$/.test(summary)
+    && !/\.{2,}$|…$/.test(summary);
 }
 
 function extractJsonObject(text: string): Record<string, unknown> | null {
