@@ -21,6 +21,7 @@ export function AuthGatePopup() {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [emailRateLimited, setEmailRateLimited] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
 
@@ -32,6 +33,7 @@ export function AuthGatePopup() {
       setEmail("");
       setPassword("");
       setAuthError(null);
+      setEmailRateLimited(false);
       setEmailSent(false);
       setIsLoading(null);
     }
@@ -71,6 +73,7 @@ export function AuthGatePopup() {
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
+    setEmailRateLimited(false);
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
       setAuthError("Please enter a valid email");
       return;
@@ -100,8 +103,16 @@ export function AuthGatePopup() {
         closeAuthModal("login_success");
         window.location.reload();
       }
-    } catch (e: any) {
-      setAuthError(e.message || "Something went wrong");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Something went wrong";
+      if (/email rate limit exceeded/i.test(message)) {
+        setEmailRateLimited(true);
+        setAuthError("Talus has temporarily reached its confirmation-email limit. Please wait and try again, or use Google, Facebook, or Apple to continue now.");
+      } else if (/email address not authorized/i.test(message)) {
+        setAuthError("Email signup is temporarily unavailable for this address. Please use Google, Facebook, or Apple while email delivery is being configured.");
+      } else {
+        setAuthError(message);
+      }
     } finally {
       setIsLoading(null);
     }
@@ -344,7 +355,18 @@ export function AuthGatePopup() {
                         className="h-11 rounded-xl"
                       />
                       {authError && (
-                        <p className="text-xs text-red-500 leading-tight">{authError}</p>
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-left dark:border-red-900/60 dark:bg-red-950/30">
+                          <p className="text-xs leading-relaxed text-red-600 dark:text-red-300">{authError}</p>
+                          {emailRateLimited && (
+                            <button
+                              type="button"
+                              onClick={() => { setMode("main"); setAuthError(null); setEmailRateLimited(false); }}
+                              className="mt-2 text-xs font-semibold text-primary hover:underline"
+                            >
+                              Use another sign-up method
+                            </button>
+                          )}
+                        </div>
                       )}
                       <Button
                         type="submit"

@@ -167,8 +167,10 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
     setError(null);
     try {
       // Refresh the ranked view immediately. Ingestion runs independently on
-      // its cron, so a user refresh never spends AI tokens.
+      // its cron, so a user refresh never spends AI tokens. Shuffle after the
+      // cache reload so the newest-story injection cannot pin card one.
       await loadFromDB(true, true);
+      setNews(current => spotifyShuffle(current));
     } finally {
       setIsRefreshing(false);
     }

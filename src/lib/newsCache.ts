@@ -293,6 +293,14 @@ export function spotifyShuffle(articles: NewsItem[]): NewsItem[] {
     round++;
   }
 
+  // A user-triggered refresh should visibly refresh the feed. The random
+  // shuffle can legitimately put the same article first again, so move a
+  // different card into the lead when there is another choice available.
+  if (result.length > 1 && result[0].id === articles[0].id) {
+    const swapIndex = 1 + Math.floor(Math.random() * (result.length - 1));
+    [result[0], result[swapIndex]] = [result[swapIndex], result[0]];
+  }
+
   return result;
 }
 
