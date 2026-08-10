@@ -16,31 +16,42 @@ const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY") ?? "";
 const PROCESS_LIMIT = 20;
 const SCRAPE_LIMIT = 30;
+const DAILY_ARTICLE_CAP = 100;
 const REMOVED_SOURCES = ["Sportskeeda", "Dexerto"];
 
-const RSS_FEEDS = [
-  { url: "https://www.ign.com/rss/articles/feed?tags=news", source: "IGN" },
-  { url: "https://www.gamespot.com/feeds/news/",            source: "GameSpot" },
-  { url: "https://kotaku.com/feed",                         source: "Kotaku" },
-  { url: "https://www.polygon.com/rss/index.xml",           source: "Polygon" },
-  { url: "https://www.dexerto.com/twitch/feed/",            source: "Dexerto Twitch" },
-  { url: "https://www.gamedeveloper.com/rss.xml",           source: "Game Developer" },
-  { url: "https://www.pcgamer.com/rss/",                    source: "PCGamer" },
-  { url: "https://www.gematsu.com/feed",                    source: "Gematsu" },
-  { url: "https://www.vg247.com/feed",                      source: "VG247" },
-  { url: "https://gameinformer.com/rss.xml",                source: "Game Informer" },
-  { url: "https://wccftech.com/topic/games/feed/",          source: "WCCFtech" },
-  { url: "https://www.gamesradar.com/feeds/articles/rss/",  source: "GamesRadar" },
+interface RssSourceConfig {
+  id: string;
+  url: string;
+  source: string;
+  dailyQuota: number;
+  minQuota: number;
+  maxQuota: number;
+}
+
+const RSS_FEEDS: RssSourceConfig[] = [
+  { id: "ign", url: "https://www.ign.com/rss/articles/feed?tags=news", source: "IGN", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "gamespot", url: "https://www.gamespot.com/feeds/news/", source: "GameSpot", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "kotaku", url: "https://kotaku.com/feed", source: "Kotaku", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "polygon", url: "https://www.polygon.com/rss/index.xml", source: "Polygon", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "dexerto-twitch", url: "https://www.dexerto.com/twitch/feed/", source: "Dexerto Twitch", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "game-developer", url: "https://www.gamedeveloper.com/rss.xml", source: "Game Developer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "pc-gamer", url: "https://www.pcgamer.com/rss/", source: "PCGamer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "gematsu", url: "https://www.gematsu.com/feed", source: "Gematsu", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "vg247", url: "https://www.vg247.com/feed", source: "VG247", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "game-informer", url: "https://gameinformer.com/rss.xml", source: "Game Informer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "wccftech", url: "https://wccftech.com/topic/games/feed/", source: "WCCFtech", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "gamesradar", url: "https://www.gamesradar.com/feeds/articles/rss/", source: "GamesRadar", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   // Added 2026-07-07 (QA F10.5). Additive only: same parser, same gaming
   // filter, same PROCESS_LIMIT — excess items drain on later cron runs.
-  { url: "https://www.eurogamer.net/feed",                  source: "Eurogamer" },
-  { url: "https://www.rockpapershotgun.com/feed",           source: "Rock Paper Shotgun" },
-  { url: "https://www.destructoid.com/feed/",               source: "Destructoid" },
-  { url: "https://www.siliconera.com/feed/",                source: "Siliconera" },
-  { url: "https://www.nintendolife.com/feeds/latest",       source: "Nintendo Life" },
-  { url: "https://www.pushsquare.com/feeds/latest",         source: "Push Square" },
-  { url: "https://dotesports.com/feed",                     source: "Dot Esports" },
-  { url: "https://www.gamesindustry.biz/feed",              source: "GamesIndustry.biz" },
+  { id: "eurogamer", url: "https://www.eurogamer.net/feed", source: "Eurogamer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "rock-paper-shotgun", url: "https://www.rockpapershotgun.com/feed", source: "Rock Paper Shotgun", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "destructoid", url: "https://www.destructoid.com/feed/", source: "Destructoid", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "siliconera", url: "https://www.siliconera.com/feed/", source: "Siliconera", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
+  { id: "nintendo-life", url: "https://www.nintendolife.com/feeds/latest", source: "Nintendo Life", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
+  { id: "push-square", url: "https://www.pushsquare.com/feeds/latest", source: "Push Square", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
+  { id: "dot-esports", url: "https://dotesports.com/feed", source: "Dot Esports", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
+  { id: "gamesindustry", url: "https://www.gamesindustry.biz/feed", source: "GamesIndustry.biz", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
+  { id: "game-rant", url: "https://gamerant.com/feed/", source: "Game Rant", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -402,15 +413,128 @@ function normalizedTitleTokens(title: string): Set<string> {
   );
 }
 
-function isNearDuplicateTitle(title: string, existingTitles: string[]): boolean {
-  const candidate = normalizedTitleTokens(title);
-  if (candidate.size < 2) return false;
-  return existingTitles.some((existingTitle) => {
-    const existing = normalizedTitleTokens(existingTitle);
-    const intersection = [...candidate].filter((token) => existing.has(token)).length;
-    const union = new Set([...candidate, ...existing]).size;
-    return union > 0 && intersection / union >= 0.75;
-  });
+function titleSimilarity(left: string, right: string): number {
+  const a = normalizedTitleTokens(left);
+  const b = normalizedTitleTokens(right);
+  if (a.size < 2 || b.size < 2) return 0;
+  const intersection = [...a].filter((token) => b.has(token)).length;
+  const union = new Set([...a, ...b]).size;
+  return union > 0 ? intersection / union : 0;
+}
+
+interface DedupeResult {
+  items: RssItem[];
+  duplicateCount: number;
+  duplicatesBySource: Record<string, number>;
+  nearMissesBySource: Record<string, number>;
+}
+
+function deduplicateCandidates(items: RssItem[], existingTitles: string[]): DedupeResult {
+  const acceptedTitles = [...existingTitles];
+  const unique: RssItem[] = [];
+  const duplicatesBySource: Record<string, number> = {};
+  const nearMissesBySource: Record<string, number> = {};
+  let duplicateCount = 0;
+
+  for (const item of interleaveBySource(items)) {
+    let highestSimilarity = 0;
+    for (const title of acceptedTitles) {
+      highestSimilarity = Math.max(highestSimilarity, titleSimilarity(item.title, title));
+      if (highestSimilarity >= 0.85) break;
+    }
+    if (highestSimilarity >= 0.85) {
+      duplicateCount++;
+      duplicatesBySource[item.source] = (duplicatesBySource[item.source] ?? 0) + 1;
+      continue;
+    }
+    if (highestSimilarity >= 0.7) {
+      nearMissesBySource[item.source] = (nearMissesBySource[item.source] ?? 0) + 1;
+      console.log(`  [DEDUPE NEAR MISS ${highestSimilarity.toFixed(2)}] ${item.source}: ${item.title}`);
+    }
+    unique.push(item);
+    acceptedTitles.push(item.title);
+  }
+
+  return { items: unique, duplicateCount, duplicatesBySource, nearMissesBySource };
+}
+
+function relevanceScore(item: RssItem): number {
+  const title = item.title.toLowerCase();
+  let score = 0;
+  if (/\b(announce|announced|launch|launched|release|released|reveal|revealed)\b/.test(title)) score += 3;
+  if (/\b(update|patch|dlc|expansion|trailer|gameplay|showcase|delay|acquisition)\b/.test(title)) score += 2;
+  if (/\b(playstation|xbox|nintendo|steam|epic|twitch|esports|switch|pc)\b/.test(title)) score += 1;
+  const ageHours = Math.max(0, (Date.now() - new Date(item.pubDate).getTime()) / 3_600_000);
+  score += Math.max(0, 3 - ageHours / 24);
+  return score;
+}
+
+interface AllocationResult {
+  items: RssItem[];
+  allocatedBySource: Record<string, number>;
+  candidateCountBySource: Record<string, number>;
+}
+
+function allocateArticleSlots(
+  candidates: RssItem[],
+  sources: RssSourceConfig[],
+  targetTotal: number,
+  alreadyPublishedBySource: Record<string, number>,
+): AllocationResult {
+  const ranked = new Map<string, RssItem[]>();
+  const candidateCountBySource: Record<string, number> = {};
+  for (const source of sources) {
+    const sourceItems = candidates
+      .filter((item) => item.source === source.source)
+      .sort((a, b) => relevanceScore(b) - relevanceScore(a));
+    ranked.set(source.source, sourceItems);
+    candidateCountBySource[source.source] = sourceItems.length;
+  }
+
+  const selected = new Map<string, RssItem[]>();
+  let remaining = Math.max(0, targetTotal);
+
+  // Pass 1: each source receives the unfilled part of its base daily quota.
+  for (const source of sources) {
+    if (remaining <= 0) break;
+    const available = ranked.get(source.source) ?? [];
+    const already = alreadyPublishedBySource[source.source] ?? 0;
+    const baseRoom = Math.max(0, source.dailyQuota - already);
+    const take = Math.min(baseRoom, available.length, remaining);
+    selected.set(source.source, available.slice(0, take));
+    remaining -= take;
+  }
+
+  // Pass 2: redistribute unused quota one slot at a time, respecting maxQuota.
+  while (remaining > 0) {
+    let added = false;
+    for (const source of sources) {
+      if (remaining <= 0) break;
+      const available = ranked.get(source.source) ?? [];
+      const chosen = selected.get(source.source) ?? [];
+      const already = alreadyPublishedBySource[source.source] ?? 0;
+      if (chosen.length >= available.length || already + chosen.length >= source.maxQuota) continue;
+      chosen.push(available[chosen.length]);
+      selected.set(source.source, chosen);
+      remaining--;
+      added = true;
+    }
+    if (!added) break;
+  }
+
+  const allocatedBySource: Record<string, number> = {};
+  const flat: RssItem[] = [];
+  const maxDepth = Math.max(0, ...[...selected.values()].map((items) => items.length));
+  for (let index = 0; index < maxDepth; index++) {
+    for (const source of sources) {
+      const item = selected.get(source.source)?.[index];
+      if (!item) continue;
+      flat.push(item);
+      allocatedBySource[source.source] = (allocatedBySource[source.source] ?? 0) + 1;
+    }
+  }
+
+  return { items: flat, allocatedBySource, candidateCountBySource };
 }
 
 // ---------------------------------------------------------------------------
@@ -646,26 +770,22 @@ async function scrapeArticle(url: string): Promise<ScrapeResult> {
 // ---------------------------------------------------------------------------
 // AI summary + exactly two content-derived topic hashtags
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = talusSystemPrompt(`Condense gaming news into tight, informative summaries.
+const SYSTEM_PROMPT = talusSystemPrompt(`Condense gaming news into a concise, curiosity-led Talus news card.
 
 WRITING STYLE:
-- Confident and specific — like a knowledgeable friend telling you what happened
-- Direct, news-wire style. No filler phrases.
+- Confident, specific, natural, and useful. Lead with the strongest verified development.
+- Build curiosity through concrete stakes or consequences, never by withholding the core fact.
+- Use 2 or 3 complete sentences and 50-60 words total.
+- Vary sentence rhythm while keeping every sentence informative.
 - Never use: "dives into", "it's worth noting", "in conclusion", "comprehensive",
-  "significantly", "moreover", "furthermore", "according to", "in a statement"
+  "significantly", "moreover", "furthermore", "according to", "in a statement",
+  "delve", "in today's gaming world"
 - Never start with: "In this article", "This article discusses", "This news covers"
-
-SUMMARY STRUCTURE (exactly 4 sentences, ~20 words each):
-- Sentence 1: What happened (the core news fact) — max 22 words
-- Sentence 2: Key details or context — max 22 words
-- Sentence 3: Why it matters — max 22 words
-- Sentence 4: Reaction or what comes next — max 22 words
-
-TOTAL: 4 sentences x ~20 words = ~80 words. HARD MAXIMUM: 90 words. Never exceed 90 words.
+- Never use rhetorical questions, exclamation points, or em dashes.
 
 OUTPUT FORMAT — return ONLY valid JSON with exactly these three keys:
 {
-  "summary": "4-sentence summary here",
+  "summary": "50-60 word summary here",
   "gameTags": ["GameTitle1", "GameTitle2"],
   "tags": ["PrimaryTopic", "SecondaryTopic"]
 }
@@ -797,7 +917,7 @@ function parseSummaryResult(raw: string, provider: string): SummarizeResult | nu
 
   const wc = countWords(summary);
   const sentences = countSentences(summary);
-  if (wc < 50 || wc > 100 || sentences < 3 || summary.startsWith("http") || !/[.!?"']/.test(summary.slice(-1))) {
+  if (wc < 45 || wc > 65 || sentences < 2 || summary.startsWith("http") || !/[.!?"']/.test(summary.slice(-1))) {
     console.warn(`  ${provider}: rejected (${wc}w, ${sentences}s)`);
     return null;
   }
@@ -820,7 +940,7 @@ async function summarizeWithGemini(title: string, content: string): Promise<Summ
   try {
     const contentJson = await generateGeminiJson(
       SYSTEM_PROMPT,
-      `Article Title: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nWrite a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with summary, gameTags, and tags.`,
+      `Article Title: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nWrite 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with summary, gameTags, and tags.`,
       { maxOutputTokens: 1200, timeoutMs: 60_000, service: "news-ingestion", operation: "summarize-article" },
     );
     return parseSummaryResult(contentJson, "Gemini")
@@ -841,7 +961,7 @@ async function summarizeWithGroq(title: string, content: string): Promise<Summar
 Article Content:
 ${content.substring(0, 2800)}
 
-Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid JSON with ALL THREE keys:
+Write 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with ALL THREE keys:
 {
   "summary": "your summary here",
   "gameTags": ["GameTitle1", "GameTitle2"],
@@ -934,10 +1054,10 @@ Write a 4-sentence summary. HARD RULE: maximum 90 words total. Return ONLY valid
         const lastChar = summary.slice(-1);
         const endsCleanly = /[.!?"']/.test(lastChar);
 
-        // Quality gate: 50-100 words, 3+ sentences, ends in punctuation, not a URL
-        const tooShort = wc < 50;
-        const tooLong = wc > 100;
-        const tooFewSentences = sentences < 3;
+        // Allow a small tolerance around the locked 50-60 word target.
+        const tooShort = wc < 45;
+        const tooLong = wc > 65;
+        const tooFewSentences = sentences < 2;
         const malformed = summary.startsWith("http") || !endsCleanly;
 
         if (tooShort || tooLong || tooFewSentences || malformed) {
@@ -984,7 +1104,8 @@ Return ONLY valid JSON with exactly these keys:
 Rules:
 - Preserve the actual game name and content type. Do not invent features, dates, platforms, verdicts, or claims.
 - Headline: 6-14 words. State the video's main newsworthy point, not merely that a creator uploaded a video.
-- Summary: 25-70 words and 2-3 complete sentences. Attribute opinions or recommendations to the creator and separate them from verified facts.
+- Summary: 40-60 words and 2-3 complete sentences. Attribute opinions or recommendations to the creator and separate them from verified facts.
+- Use no rhetorical questions, exclamation points, em dashes, or filler transitions.
 - gameTags: game titles only, PascalCase, maximum 3.
 - tags: exactly 2 specific named entities supported by the source.
 - The first tag MUST be the primary game title or gaming topic and match gameTags[0].
@@ -1042,7 +1163,7 @@ function parseVideoSummary(
     || toPascalEntity(fallbackSource);
   const tags = [primaryTag, secondaryTag];
   const words = countWords(summary);
-  if (!headline || words < 20 || words > 75 || countSentences(summary) < 2) {
+  if (!headline || words < 35 || words > 65 || countSentences(summary) < 2) {
     console.warn(`  ${provider} video result rejected (${words}w, ${tags.length} tags)`);
     return null;
   }
@@ -1167,9 +1288,25 @@ serve(async (req) => {
   } catch {
     // Cron calls may omit a JSON body.
   }
-  const selectedFeeds = requestedSources.length
-    ? RSS_FEEDS.filter((feed) => requestedSources.includes(feed.source))
+  const { data: rssSourceRows, error: rssSourceError } = await supabase
+    .from("news_rss_sources")
+    .select("id, source_name, rss_url, daily_quota, min_quota, max_quota")
+    .eq("active", true)
+    .order("display_order", { ascending: true });
+  if (rssSourceError) console.warn(`  RSS source config error; using bundled fallback: ${rssSourceError.message}`);
+  const configuredFeeds: RssSourceConfig[] = rssSourceRows?.length
+    ? rssSourceRows.map((row) => ({
+        id: row.id,
+        source: row.source_name,
+        url: row.rss_url,
+        dailyQuota: row.daily_quota,
+        minQuota: row.min_quota,
+        maxQuota: row.max_quota,
+      }))
     : RSS_FEEDS;
+  const selectedFeeds = requestedSources.length
+    ? configuredFeeds.filter((feed) => requestedSources.includes(feed.source))
+    : configuredFeeds;
   const { data: youtubeSourceRows, error: youtubeSourceError } = await supabase
     .from("youtube_content_sources")
     .select("*")
@@ -1339,19 +1476,48 @@ serve(async (req) => {
   const dedupTitles = (recentTitles ?? []).flatMap((row) =>
     [row.ai_title, row.title].filter((value): value is string => typeof value === "string" && value.length > 0)
   );
-  const uniqueCandidates = allItems.filter((item) =>
-    !existingUrls.has(item.link) && !isNearDuplicateTitle(item.title, dedupTitles)
+  const uncachedRss = rssItems.filter((item) => !existingUrls.has(item.link));
+  const uncachedYouTube = youtubeItems.filter((item) => !existingUrls.has(item.link));
+  const rssDedupe = deduplicateCandidates(uncachedRss, dedupTitles);
+  const youtubeDedupe = deduplicateCandidates(uncachedYouTube, dedupTitles);
+
+  const utcDayStart = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
+  const { data: todayArticleRows, error: todayArticleError } = await supabase
+    .from("cached_articles")
+    .select("source")
+    .eq("media_type", "article")
+    .gte("fetched_at", utcDayStart);
+  if (todayArticleError) console.warn(`  Daily article budget query failed: ${todayArticleError.message}`);
+  const alreadyPublishedBySource: Record<string, number> = {};
+  for (const row of todayArticleRows ?? []) {
+    alreadyPublishedBySource[row.source] = (alreadyPublishedBySource[row.source] ?? 0) + 1;
+  }
+  const publishedToday = todayArticleRows?.length ?? 0;
+  const remainingArticleSlots = Math.max(0, DAILY_ARTICLE_CAP - publishedToday);
+  const allocation = allocateArticleSlots(
+    rssDedupe.items,
+    selectedFeeds,
+    remainingArticleSlots,
+    alreadyPublishedBySource,
   );
-  const duplicateCount = allItems.length - existingUrls.size - uniqueCandidates.length;
-  // YouTube has naturally low volume and no daily publishing quota. Drain all
-  // fresh video candidates before the high-volume RSS pool; anything beyond
-  // the per-run processing budget remains eligible on the next cron run.
+
+  // YouTube is deliberately outside the 100-article daily budget. Every fresh
+  // 24-hour video remains eligible; only RSS candidates enter allocation.
   const newItems = [
-    ...interleaveBySource(uniqueCandidates.filter((item) => item.mediaType === "youtube")),
-    ...interleaveBySource(uniqueCandidates.filter((item) => item.mediaType !== "youtube")),
+    ...interleaveBySource(youtubeDedupe.items),
+    ...allocation.items,
   ];
-  if (duplicateCount > 0) console.log(`  Quality gate removed ${duplicateCount} near-duplicate candidates`);
-  console.log(`${existingUrls.size} already cached, ${newItems.length} new articles to process`);
+  const similarityDuplicateCount = rssDedupe.duplicateCount + youtubeDedupe.duplicateCount;
+  const duplicateCount = existingUrls.size + similarityDuplicateCount;
+  if (existingUrls.size > 0) console.log(`  Cache gate removed ${existingUrls.size} previously published URLs`);
+  if (similarityDuplicateCount > 0) console.log(`  Similarity gate removed ${similarityDuplicateCount} duplicate candidates`);
+  console.log(`  RSS daily budget: ${publishedToday}/${DAILY_ARTICLE_CAP} published, ${allocation.items.length}/${remainingArticleSlots} slots allocated`);
+  for (const source of selectedFeeds) {
+    const allocated = allocation.allocatedBySource[source.source] ?? 0;
+    const candidates = allocation.candidateCountBySource[source.source] ?? 0;
+    console.log(`  [ALLOCATION] ${source.source}: ${allocated} allocated from ${candidates} candidates`);
+  }
+  console.log(`${existingUrls.size} already cached, ${newItems.length} allocated items to process`);
   // Step 3: Scrape all new articles in parallel
   interface EnrichedItem extends RssItem {
     content: string;
@@ -1410,6 +1576,8 @@ serve(async (req) => {
   // News is permanent — no artificial expiry.
   const expiresAt = new Date('2099-12-31T23:59:59.000Z');
   let processed = 0;
+  let processedArticles = 0;
+  let processedYouTube = 0;
   const skipReasons: Record<string, number> = {};
   const skip = (reason: string) => { skipReasons[reason] = (skipReasons[reason] || 0) + 1; };
 
@@ -1499,6 +1667,8 @@ serve(async (req) => {
       if (error) console.error(`DB upsert error for "${item.title}":`, error);
       else {
         processed++;
+        if (item.mediaType === "youtube") processedYouTube++;
+        else processedArticles++;
         processedBySource[item.source] = (processedBySource[item.source] || 0) + 1;
       }
 
@@ -1506,6 +1676,38 @@ serve(async (req) => {
     } catch (err) {
       console.error(`Error processing "${item.title}":`, err);
     }
+  }
+
+  const usageDate = new Date().toISOString().slice(0, 10);
+  const { data: existingUsageRows } = await supabase
+    .from("news_source_daily_usage")
+    .select("source_id, fetched_count, candidate_count, allocated_count, published_count, duplicate_count, near_miss_count")
+    .eq("run_date", usageDate);
+  const existingUsage = new Map((existingUsageRows ?? []).map((row) => [row.source_id, row]));
+  const sourceUsageRows = selectedFeeds.map((source, index) => ({
+    ...(existingUsage.get(source.id) ?? {}),
+    run_date: usageDate,
+    source_id: source.id,
+    source_name: source.source,
+    fetched_count: Number(existingUsage.get(source.id)?.fetched_count ?? 0)
+      + (feedResults[index]?.status === "fulfilled" ? feedResults[index].value.items.length : 0),
+    candidate_count: Number(existingUsage.get(source.id)?.candidate_count ?? 0)
+      + (allocation.candidateCountBySource[source.source] ?? 0),
+    allocated_count: Number(existingUsage.get(source.id)?.allocated_count ?? 0)
+      + (allocation.allocatedBySource[source.source] ?? 0),
+    published_count: Number(existingUsage.get(source.id)?.published_count ?? 0)
+      + (processedBySource[source.source] ?? 0),
+    duplicate_count: Number(existingUsage.get(source.id)?.duplicate_count ?? 0)
+      + (rssDedupe.duplicatesBySource[source.source] ?? 0),
+    near_miss_count: Number(existingUsage.get(source.id)?.near_miss_count ?? 0)
+      + (rssDedupe.nearMissesBySource[source.source] ?? 0),
+    updated_at: new Date().toISOString(),
+  }));
+  if (sourceUsageRows.length > 0) {
+    const { error: usageError } = await supabase
+      .from("news_source_daily_usage")
+      .upsert(sourceUsageRows, { onConflict: "run_date,source_id" });
+    if (usageError) console.warn(`  Daily source-allocation log failed: ${usageError.message}`);
   }
 
   // Mark a YouTube source fully polled only when every candidate still inside
@@ -1551,6 +1753,15 @@ serve(async (req) => {
     new:       newItems.length,
     scraped:   enrichedItems.length,
     processed,
+    processedArticles,
+    processedYouTube,
+    articleBudget: {
+      cap: DAILY_ARTICLE_CAP,
+      publishedBeforeRun: publishedToday,
+      remainingBeforeRun: remainingArticleSlots,
+      allocatedThisRun: allocation.items.length,
+    },
+    allocation: allocation.allocatedBySource,
     processedBySource,
     feeds: feedStats,
     youtube: youtubeResults.map(({ source, result }) => ({
