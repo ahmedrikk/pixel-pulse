@@ -142,13 +142,10 @@ export default function FreeGames() {
           <motion.header
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border bg-card p-5 sm:p-7"
           >
-            <div>
-              <h1 className="text-3xl font-black text-foreground md:text-4xl">
-                Free Game to Claim
-              </h1>
-            </div>
+            <h1 className="text-3xl font-black text-foreground md:text-4xl">
+              Free Game to Claim
+            </h1>
           </motion.header>
 
           <div className="space-y-3">

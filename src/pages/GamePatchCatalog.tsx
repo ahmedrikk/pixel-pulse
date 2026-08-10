@@ -110,13 +110,10 @@ export default function GamePatchCatalog() {
           <motion.header
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-2xl border bg-card p-5 sm:p-7"
           >
-            <div className="relative">
-              <h1 className="text-3xl font-black text-foreground md:text-4xl">
-                Recent Video Game Patches
-              </h1>
-            </div>
+            <h1 className="text-3xl font-black text-foreground md:text-4xl">
+              Recent Video Game Patches
+            </h1>
           </motion.header>
 
           <div className="relative max-w-md">
