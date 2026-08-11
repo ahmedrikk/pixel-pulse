@@ -22,44 +22,22 @@ type FeedEntry =
 
 function buildFeedEntries(articles: RankedArticle[], isAuthenticated: boolean): FeedEntry[] {
   const entries: FeedEntry[] = [];
-  const deferredVideos: Array<{ article: RankedArticle; index: number }> = [];
   let articlePosition = 0;
-  let previousGapOccupied = false;
 
   articles.forEach((article, index) => {
+    entries.push({ type: "article", article, index });
+
     if (article.mediaType === "youtube") {
-      if (previousGapOccupied) deferredVideos.push({ article, index });
-      else {
-        entries.push({ type: "article", article, index });
-        previousGapOccupied = true;
-      }
       return;
     }
 
     articlePosition += 1;
     const position = articlePosition;
-    entries.push({ type: "article", article, index });
 
     const showSignup = !isAuthenticated && position % 3 === 0;
-    let gapOccupied = false;
     if (showSignup) {
       entries.push({ type: "signup", key: `signup-${position}` });
-      gapOccupied = true;
     }
-
-    // If a signup occupied the intended YouTube gap, move that
-    // video to the next clear article gap instead of stacking two widgets.
-    if (!gapOccupied && deferredVideos.length > 0) {
-      const deferred = deferredVideos.shift()!;
-      entries.push({
-        type: "article",
-        article: deferred.article,
-        index: deferred.index,
-      });
-      gapOccupied = true;
-    }
-
-    previousGapOccupied = gapOccupied;
   });
   return entries;
 }

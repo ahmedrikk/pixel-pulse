@@ -14,7 +14,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { NewsItem } from "@/data/mockNews";
 import { supabase } from "@/integrations/supabase/client";
-import { getAllCachedArticles, getCachedArticleCount, spotifyShuffle } from "@/lib/newsCache";
+import { getAllCachedArticles, getCachedArticleCount } from "@/lib/newsCache";
+import { createFeedSessionId } from "@/lib/feedTracking";
 
 const MINIMUM_ARTICLE_FLOOR = 10;
 
@@ -29,6 +30,7 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [hasMore, setHasMore]         = useState(true);
   const pageRef = useRef(0);
+  const feedSessionRef = useRef(createFeedSessionId());
 
   const PAGE_SIZE = tag ? 10 : 20;
 
@@ -45,7 +47,13 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
     try {
       const nextPage = isInitial ? 0 : pageRef.current + 1;
       const currentOffset = nextPage * PAGE_SIZE;
-      const articles = await getAllCachedArticles(currentOffset, PAGE_SIZE, category, tag);
+      const articles = await getAllCachedArticles(
+        currentOffset,
+        PAGE_SIZE,
+        category,
+        tag,
+        feedSessionRef.current,
+      );
       const wasEmpty = newsCountRef.current === 0;
 
       if (articles.length > 0) {
@@ -130,6 +138,7 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
     async function init() {
       newsCountRef.current = 0;
       pageRef.current = 0;
+      feedSessionRef.current = createFeedSessionId();
       setNews([]);
       setHasMore(true);
       setIsLoading(true);
@@ -156,21 +165,17 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
     return () => { cancelled = true; };
   }, [loadFromDB, triggerFetch, category, tag]);
 
-  // ── Instant reshuffle (no DB hit) ─────────────────────────────────────────
-  const reshuffle = useCallback(() => {
-    setNews(prev => spotifyShuffle(prev));
-  }, []);
-
   // ── Manual refresh (exposed to UI) ────────────────────────────────────────
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     setError(null);
     try {
-      // Refresh the ranked view immediately. Ingestion runs independently on
-      // its cron, so a user refresh never spends AI tokens. Shuffle after the
-      // cache reload so the newest-story injection cannot pin card one.
+      // A refresh starts a new ranked session. The database applies the prior
+      // session's seen history plus deterministic 15-minute near-tie jitter.
+      feedSessionRef.current = createFeedSessionId();
+      pageRef.current = 0;
+      setHasMore(true);
       await loadFromDB(true, true);
-      setNews(current => spotifyShuffle(current));
     } finally {
       setIsRefreshing(false);
     }
@@ -187,6 +192,6 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
     hasMore,
     refresh,
     loadMore,
-    reshuffle,
+    reshuffle: refresh,
   };
 }

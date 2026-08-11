@@ -8,8 +8,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { NewsItem } from "@/data/mockNews";
-import { getFeedTrackingId } from "@/lib/feedTracking";
-import { interleaveVideoCards } from "@/lib/feedCadence";
+import { createFeedSessionId, getFeedTrackingId } from "@/lib/feedTracking";
 
 export interface CachedArticle {
   id: string;
@@ -392,108 +391,26 @@ export async function getAllCachedArticles(
   limit = 50,
   category?: string,
   tag?: string,
+  feedSessionId = createFeedSessionId(),
 ): Promise<NewsItem[]> {
   // Retry up to 3 times — Supabase auth init can abort in-flight queries
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      // A paused news pipeline should look paused too. The normal ranking RPC
-      // intentionally rotates cards every 15 minutes and after impressions;
-      // bypass it during a hard freeze and return one stable newest-first view.
-      const { data: newsControl } = await supabase
-        .from('operational_controls')
-        .select('enabled')
-        .eq('key', 'news_updates')
-        .maybeSingle();
-
-      if (newsControl?.enabled === false) {
-        let frozenQuery = supabase
-          .from('cached_articles')
-          .select('*')
-          .order('article_date', { ascending: false })
-          .order('id', { ascending: true })
-          .range(offset, offset + limit - 1);
-
-        if (category) frozenQuery = frozenQuery.eq('category', category);
-        const frozenTag = tag?.replace(/[^a-zA-Z0-9]/g, '');
-        if (frozenTag) {
-          frozenQuery = frozenQuery.or(`tags.cs.{${frozenTag}},game_tags.cs.{${frozenTag}}`);
-        }
-
-        const { data: frozenRows, error: frozenError } = await frozenQuery;
-        if (frozenError) {
-          console.warn('Frozen news feed unavailable:', frozenError.message);
-          return [];
-        }
-        return ((frozenRows ?? []) as CachedArticle[]).map(toNewsItem);
-      }
-
-      // Rank the live 72-hour window, then continue into the permanent archive.
-      // Previously each page reserved four YouTube positions. When fewer than
-      // four videos existed, an 18-card response was mistaken for the true end
-      // of the database and infinite scrolling stopped early.
-      const freshnessCutoff = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+      // Fetching controls and display ranking are deliberately independent.
+      // Even while ingestion is paused, the already-cached archive continues
+      // to rank, resurface, and weave videos normally.
       const safeTag = tag?.replace(/[^a-zA-Z0-9]/g, '');
-      let recentCountQuery = supabase
-        .from('cached_articles')
-        .select('*', { count: 'exact', head: true })
-        .eq('duplicate_flag', false)
-        .lt('report_count', 3)
-        .gte('article_date', freshnessCutoff);
-      if (category) recentCountQuery = recentCountQuery.eq('category', category);
-      if (safeTag) {
-        recentCountQuery = recentCountQuery.or(`tags.cs.{${safeTag}},game_tags.cs.{${safeTag}}`);
-      }
-      const { count: recentCount, error: recentCountError } = await recentCountQuery;
-      const recentTotal = recentCountError ? 0 : (recentCount ?? 0);
-      const recentLimit = Math.max(0, Math.min(limit, recentTotal - offset));
+      const { data: rankedData, error: rankedError } = await supabase.rpc("get_ranked_feed_v2", {
+        p_tracking_id: getFeedTrackingId(),
+        p_feed_session_id: feedSessionId,
+        p_offset: offset,
+        p_limit: limit,
+        p_category: category ?? null,
+        p_tag: tag ?? null,
+      });
 
-      const rankedResult = recentLimit > 0
-        ? await supabase.rpc("get_ranked_feed", {
-          p_tracking_id: getFeedTrackingId(),
-          p_offset: offset,
-          p_limit: recentLimit,
-          p_category: category ?? null,
-          p_tag: tag ?? null,
-        })
-        : { data: [], error: null };
-      const { data: rankedData, error: rankedError } = rankedResult;
-
-      if (!rankedError && !recentCountError) {
-        const rankedItems = ((rankedData ?? []) as CachedArticle[]).map(toNewsItem);
-        const remaining = limit - rankedItems.length;
-        let archiveItems: NewsItem[] = [];
-
-        if (remaining > 0) {
-          const archiveOffset = Math.max(0, offset - recentTotal);
-          let archiveQuery = supabase
-            .from('cached_articles')
-            .select('*')
-            .eq('duplicate_flag', false)
-            .lt('report_count', 3)
-            .lt('article_date', freshnessCutoff)
-            .order('article_date', { ascending: false })
-            .order('id', { ascending: true })
-            .range(archiveOffset, archiveOffset + remaining - 1);
-          if (category) archiveQuery = archiveQuery.eq('category', category);
-          if (safeTag) {
-            archiveQuery = archiveQuery.or(`tags.cs.{${safeTag}},game_tags.cs.{${safeTag}}`);
-          }
-          const { data: archiveRows, error: archiveError } = await archiveQuery;
-          if (archiveError) {
-            console.warn('Archived news unavailable:', archiveError.message);
-          } else {
-            archiveItems = ((archiveRows ?? []) as CachedArticle[]).map(toNewsItem);
-          }
-        }
-
-        const pageItems = [...rankedItems, ...archiveItems];
-        if (tag || limit < 5) return pageItems.slice(0, limit);
-        return interleaveVideoCards(
-          pageItems,
-          pageItems.filter((item) => item.mediaType === 'youtube'),
-          4,
-          limit,
-        );
+      if (!rankedError) {
+        return ((rankedData ?? []) as CachedArticle[]).map(toNewsItem);
       }
       console.warn("Ranked feed unavailable, using recency fallback:", rankedError.message);
 

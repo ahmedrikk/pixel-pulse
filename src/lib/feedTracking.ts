@@ -14,6 +14,19 @@ export function getFeedTrackingId(): string {
   }
 }
 
+/**
+ * Identifies one assembled feed across all of its pagination requests.
+ * A new value is created for a user refresh so impressions from the previous
+ * feed can affect ranking without making page two drift underneath page one.
+ */
+export function createFeedSessionId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 14)}`;
+  }
+}
+
 export async function recordArticleDwell(articleId: string, seconds: number): Promise<void> {
   if (!Number.isFinite(seconds) || seconds < 1) return;
   const { error } = await supabase.rpc("record_article_dwell", {
