@@ -58,17 +58,17 @@ function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div>
-          <p style={{ fontSize: 8, fontWeight: 500, color: "rgba(255,255,255,0.28)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>
+          <p style={{ fontSize: "0.75rem", fontWeight: 500, color: "rgba(255,255,255,0.28)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>
             {data.type === "daily" ? "Today's Challenge" : "Bonus Round"}
           </p>
           {data.type === "daily" ? (
-            <p style={{ fontSize: 11, fontWeight: 500, color: "#FCD34D" }}>🔥 {data.streakDays} day streak!</p>
+            <p style={{ fontSize: "0.75rem", fontWeight: 500, color: "#FCD34D" }}>🔥 {data.streakDays} day streak!</p>
           ) : (
-            <p style={{ fontSize: 11, fontWeight: 500, color: "#AFA9EC" }}>{data.category} Special</p>
+            <p style={{ fontSize: "0.75rem", fontWeight: 500, color: "#AFA9EC" }}>{data.category} Special</p>
           )}
         </div>
         <div style={{ textAlign: "right" }}>
-          <p style={{ fontSize: 8, color: "rgba(255,255,255,0.22)" }}>
+          <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.22)" }}>
             {revealed ? "Come back tomorrow" : `Resets in ${getTimeRemaining(data.resetsAt)}`}
           </p>
         </div>
@@ -78,14 +78,14 @@ function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void
       <div style={{ padding: "12px 14px", flex: 1, display: "flex", flexDirection: "column" }}>
         {/* Category + Difficulty */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 9, fontWeight: 500, padding: "2px 7px", borderRadius: 4, background: categoryStyle.bg, color: categoryStyle.text }}>
+          <span style={{ fontSize: "0.75rem", fontWeight: 500, padding: "2px 7px", borderRadius: 4, background: categoryStyle.bg, color: categoryStyle.text }}>
             {data.category}
           </span>
-          <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))" }}>{data.difficulty}</span>
+          <span style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))" }}>{data.difficulty}</span>
         </div>
 
         {/* Question */}
-        <p style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--foreground))", lineHeight: 1.45, marginBottom: 10 }}>
+        <p style={{ fontSize: "0.75rem", fontWeight: 500, color: "hsl(var(--foreground))", lineHeight: 1.45, marginBottom: 10 }}>
           {data.question}
         </p>
 
@@ -101,13 +101,13 @@ function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void
                 padding: "7px 9px", borderRadius: 8,
                 ...getOptionStyle(opt.letter),
                 cursor: revealed ? "not-allowed" : "pointer",
-                fontSize: 11, transition: "all 0.15s", textAlign: "left", width: "100%",
+                fontSize: "0.75rem", transition: "all 0.15s", textAlign: "left", width: "100%",
               }}
             >
               <span style={{
                 width: 18, height: 18, borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 8, fontWeight: 500, flexShrink: 0,
+                fontSize: "0.75rem", fontWeight: 500, flexShrink: 0,
                 ...getBubbleStyle(opt.letter),
               }}>
                 {opt.letter}
@@ -127,13 +127,13 @@ function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void
             border: `0.5px solid ${selectedLetter === data.correctLetter ? "#16A34A" : "#DC2626"}`,
             color: selectedLetter === data.correctLetter ? "#166534" : "#991B1B",
           }}>
-            <p style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+            <p style={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: 4 }}>
               {selectedLetter === data.correctLetter ? "✓ Correct!" : "✗ Wrong answer"}
             </p>
-            <p style={{ fontSize: 11, lineHeight: 1.5, marginBottom: 6 }}>
+            <p style={{ fontSize: "0.75rem", lineHeight: 1.5, marginBottom: 6 }}>
               {data.explanation}
             </p>
-            <p style={{ fontSize: 10, fontWeight: 500, opacity: 0.8 }}>Come back tomorrow for a new challenge</p>
+            <p style={{ fontSize: "0.75rem", fontWeight: 500, opacity: 0.8 }}>Come back tomorrow for a new challenge</p>
           </div>
         )}
 
@@ -142,10 +142,10 @@ function TriviaCard({ data, onPlay }: { data: TriviaCardData; onPlay: () => void
           display: "flex", alignItems: "center", justifyContent: "space-between",
           paddingTop: 9, borderTop: "0.5px solid hsl(var(--border))", marginTop: 10,
         }}>
-          <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))" }}>
+          <span style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))" }}>
             Refreshes every 24 hours
           </span>
-          <button style={{ fontSize: 9, color: "#3d59e0", background: "#eef1ff", border: "none", padding: "3px 7px", borderRadius: 5, cursor: "pointer" }}>
+          <button style={{ fontSize: "0.75rem", color: "#3d59e0", background: "#eef1ff", border: "none", padding: "3px 7px", borderRadius: 5, cursor: "pointer" }}>
             Share
           </button>
         </div>
@@ -164,14 +164,14 @@ export function TriviaSection() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 13 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 20, height: 20, borderRadius: 6, background: "#FAEEDA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 10 }}>🧠</span>
+            <span style={{ fontSize: "0.75rem" }}>🧠</span>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }}>Daily trivia</span>
-          <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))", padding: "2px 6px", borderRadius: 5 }}>
+          <span style={{ fontSize: "0.8125rem", fontWeight: 500, color: "hsl(var(--foreground))" }}>Daily trivia</span>
+          <span style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))", padding: "2px 6px", borderRadius: 5 }}>
             5 questions today
           </span>
         </div>
-        <button onClick={() => navigate("/trivia")} style={{ fontSize: 11, color: "#3d59e0", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
+        <button onClick={() => navigate("/trivia")} style={{ fontSize: "0.75rem", color: "#3d59e0", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
           All trivia →
         </button>
       </div>

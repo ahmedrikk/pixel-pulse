@@ -409,7 +409,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       {/* Content */}
       <div className="p-4 sm:p-5">
         {/* Source Bar */}
-        <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground sm:text-sm">
+        <div className="mb-2 flex items-center gap-2 text-source-meta text-muted-foreground">
           <span className="font-medium text-foreground">{article.sourceName}</span>
           <span>•</span>
           <span>{formatDate(article.publishedAt)}</span>
@@ -418,7 +418,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         </div>
 
         {/* Headline — clickable, opens the full article */}
-        <h2 className="mb-3 text-xl font-bold leading-tight line-clamp-3">
+        <h2 className="mb-3 text-card-title line-clamp-3 md:text-xl md:font-bold md:leading-tight">
           <a
             href={article.sourceUrl}
             target="_blank"
@@ -432,7 +432,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
         {/* Summary */}
         <div className="mb-4">
-          <p className="text-base leading-relaxed text-muted-foreground">
+          <p className="text-body text-foreground">
             {summaryText}
           </p>
         </div>
@@ -445,7 +445,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
                 key={tag}
                 type="button"
                 onClick={() => navigate(`/?category=${encodeURIComponent(tag)}`)}
-                className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                className="rounded-full bg-secondary px-2.5 py-1 text-tiny-label text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
               >
                 #{tag.replace(/^#+/, "")}
               </button>
@@ -473,7 +473,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
             {/* Score */}
             <span className={cn(
-              "text-xs font-semibold min-w-[1.5ch] text-center",
+              "text-count-meta font-normal min-w-[1.5ch] text-center",
               vote === "up" ? "text-primary" : vote === "down" ? "text-destructive" : "text-muted-foreground"
             )}>
               {voteScore}
@@ -502,7 +502,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
               onClick={() => setShowComments(!showComments)}
             >
               <MessageCircle className="h-4 w-4" />
-              <span className="text-xs">{commentCount}</span>
+              <span className="text-count-meta">{commentCount}</span>
             </Button>
 
             {/* Share */}

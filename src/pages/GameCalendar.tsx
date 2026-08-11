@@ -60,8 +60,8 @@ function CompactRelease({ game }: { game: CalendarGame }) {
         )}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[11px] font-bold leading-tight text-foreground group-hover:text-primary">{game.name}</p>
-        <p className="truncate text-[9px] text-muted-foreground">{platformSummary(game.platforms)}</p>
+        <p className="truncate text-tiny-label font-bold leading-tight text-foreground group-hover:text-primary">{game.name}</p>
+        <p className="truncate text-tiny-label text-muted-foreground">{platformSummary(game.platforms)}</p>
       </div>
     </Link>
   );
@@ -86,11 +86,11 @@ function ReleaseListCard({ game }: { game: CalendarGame }) {
         <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{platformSummary(game.platforms)}</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {game.genres.slice(0, 2).map((genre) => (
-            <span key={genre} className="rounded-full bg-primary/[0.08] px-2 py-0.5 text-[10px] font-medium capitalize text-primary">
+            <span key={genre} className="rounded-full bg-primary/[0.08] px-2 py-0.5 text-tiny-label font-medium capitalize text-primary">
               {genre.replace(/-/g, " ")}
             </span>
           ))}
-          {rating && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{rating}</span>}
+          {rating && <span className="rounded-full bg-secondary px-2 py-0.5 text-tiny-label font-semibold text-muted-foreground">{rating}</span>}
         </div>
       </div>
       <ChevronRight className="my-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
@@ -147,7 +147,7 @@ export default function GameCalendar() {
               </Button>
               <div className="text-center">
                 <h2 className="text-lg font-black text-foreground sm:text-xl">{format(month, "MMMM yyyy")}</h2>
-                <button type="button" onClick={() => setMonth(new Date())} className="text-[11px] font-semibold text-primary hover:underline">Jump to today</button>
+                <button type="button" onClick={() => setMonth(new Date())} className="text-tiny-label font-semibold text-primary hover:underline">Jump to today</button>
               </div>
               <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => setMonth(addMonths(month, 1))}>
                 <ChevronRight className="h-5 w-5" />
@@ -216,7 +216,7 @@ export default function GameCalendar() {
                 {!listMode && (
                   <div className="hidden md:block">
                     <div className="grid grid-cols-7 border-b bg-secondary/30">
-                      {WEEKDAYS.map((day) => <div key={day} className="py-2 text-center text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{day}</div>)}
+                      {WEEKDAYS.map((day) => <div key={day} className="py-2 text-center text-tiny-label font-bold uppercase tracking-wide text-muted-foreground">{day}</div>)}
                     </div>
                     <div className="grid grid-cols-7">
                       {calendarDays.map((day) => {
@@ -226,10 +226,10 @@ export default function GameCalendar() {
                         const today = isSameDay(day, new Date());
                         return (
                           <div key={dateKey} className={cn("min-h-32 border-b border-r p-1.5 last:border-r-0", !inMonth && "bg-secondary/20 text-muted-foreground/40", inMonth && dayGames.length > 0 && "bg-primary/[0.018]")}>
-                            <span className={cn("mb-1.5 flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold", today && "bg-primary text-primary-foreground")}>{format(day, "d")}</span>
+                            <span className={cn("mb-1.5 flex h-6 w-6 items-center justify-center rounded-full text-tiny-label font-bold", today && "bg-primary text-primary-foreground")}>{format(day, "d")}</span>
                             <div className="space-y-1">
                               {dayGames.slice(0, 2).map((game) => <CompactRelease key={game.id} game={game} />)}
-                              {dayGames.length > 2 && <button type="button" onClick={() => setListMode(true)} className="w-full text-center text-[10px] font-bold text-primary hover:underline">+{dayGames.length - 2} more</button>}
+                              {dayGames.length > 2 && <button type="button" onClick={() => setListMode(true)} className="w-full text-center text-tiny-label font-bold text-primary hover:underline">+{dayGames.length - 2} more</button>}
                             </div>
                           </div>
                         );
@@ -243,7 +243,7 @@ export default function GameCalendar() {
                     <section key={date}>
                       <div className="mb-2 flex items-center gap-3">
                         <div className={cn("flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl border bg-secondary", isSameDay(parseISO(date), new Date()) && "border-primary bg-primary text-primary-foreground")}>
-                          <span className="text-[9px] font-bold uppercase">{format(parseISO(date), "EEE")}</span>
+                          <span className="text-tiny-label font-bold uppercase">{format(parseISO(date), "EEE")}</span>
                           <span className="text-lg font-black leading-none">{format(parseISO(date), "d")}</span>
                         </div>
                         <div>
@@ -260,7 +260,7 @@ export default function GameCalendar() {
               </>
             )}
 
-            <div className="flex flex-col gap-1 border-t bg-secondary/20 px-4 py-3 text-[10px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-1 border-t bg-secondary/20 px-4 py-3 text-tiny-label text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
               <span className="flex items-center gap-1"><Monitor className="h-3 w-3" /> Confirmed dates can change; Talus refreshes them throughout the day.</span>
               <span className="font-semibold text-primary">
                 Data from <a href="https://rawg.io/" target="_blank" rel="noreferrer" className="hover:underline">RAWG</a> · <a href="https://www.igdb.com/" target="_blank" rel="noreferrer" className="hover:underline">IGDB</a>

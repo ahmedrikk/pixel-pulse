@@ -96,7 +96,7 @@ export function ReactionBar({
           >
             <Icon className={cn("h-3.5 w-3.5", selected === key ? color : "text-muted-foreground")} />
             {reactions[key] > 0 && (
-              <span className="absolute -top-1 -right-1 text-[9px] font-medium bg-background border rounded-full px-1">
+              <span className="absolute -top-1 -right-1 text-tiny-label font-medium bg-background border rounded-full px-1">
                 {reactions[key]}
               </span>
             )}

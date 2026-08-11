@@ -38,15 +38,15 @@ function HypeCard({ game }: { game: HypeGame }) {
   const barColor = BAR_COLORS[game.rank - 1] || "hsl(var(--muted-foreground))";
 
   const trendEl = game.weeklyTrend > 0
-    ? <span style={{ fontSize: 10, fontWeight: 500, color: "#16A34A" }}>↑ +{game.weeklyTrend}% this week</span>
+    ? <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "#16A34A" }}>↑ +{game.weeklyTrend}% this week</span>
     : game.weeklyTrend < 0
-    ? <span style={{ fontSize: 10, fontWeight: 500, color: "#DC2626" }}>↓ {game.weeklyTrend}% this week</span>
-    : <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>→ Stable</span>;
+    ? <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "#DC2626" }}>↓ {game.weeklyTrend}% this week</span>
+    : <span style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))" }}>→ Stable</span>;
 
   return (
     <div style={{ background: "hsl(var(--card))", border: "0.5px solid hsl(var(--border))", borderRadius: 11, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
       {/* Rank */}
-      <span style={{ fontSize: 13, fontWeight: 500, minWidth: 18, textAlign: "center", color: rankColor }}>
+      <span style={{ fontSize: "0.8125rem", fontWeight: 500, minWidth: 18, textAlign: "center", color: rankColor }}>
         {game.rank}
       </span>
 
@@ -55,11 +55,11 @@ function HypeCard({ game }: { game: HypeGame }) {
 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>
+        <p style={{ fontSize: "0.75rem", fontWeight: 500, color: "hsl(var(--foreground))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>
           {game.name}
         </p>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))" }}>{game.releaseDate}</span>
+          <span style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))" }}>{game.releaseDate}</span>
           {trendEl}
         </div>
         {/* Progress bar */}
@@ -67,7 +67,7 @@ function HypeCard({ game }: { game: HypeGame }) {
           <div style={{ flex: 1, height: 5, background: "hsl(var(--border))", borderRadius: 3, overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${game.hypePercent}%`, background: barColor, borderRadius: 3, transition: "width 0.3s ease" }} />
           </div>
-          <span style={{ fontSize: 10, fontWeight: 500, color: "hsl(var(--muted-foreground))", minWidth: 26, textAlign: "right" }}>
+          <span style={{ fontSize: "0.75rem", fontWeight: 500, color: "hsl(var(--muted-foreground))", minWidth: 26, textAlign: "right" }}>
             {game.hypePercent}%
           </span>
         </div>
@@ -79,7 +79,7 @@ function HypeCard({ game }: { game: HypeGame }) {
           onClick={handleHype}
           disabled={isVoting}
           style={{
-            fontSize: 10, fontWeight: 500, padding: "5px 10px", borderRadius: 7,
+            fontSize: "0.75rem", fontWeight: 500, padding: "5px 10px", borderRadius: 7,
             border: game.userHyped ? "0.5px solid #3d59e0" : "0.5px solid hsl(var(--border))",
             background: game.userHyped ? "#eef1ff" : "hsl(var(--secondary))",
             color: game.userHyped ? "#3d59e0" : "hsl(var(--muted-foreground))",
@@ -89,7 +89,7 @@ function HypeCard({ game }: { game: HypeGame }) {
         >
           {game.userHyped ? "🔥 Hyped" : "Hype it"}
         </button>
-        <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))" }}>
+        <span style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))" }}>
           {formatVoteCount(game.voteCount)}
         </span>
       </div>
@@ -133,14 +133,14 @@ export function HypeMeterSection() {
       <div className="flex items-center justify-between border-b border-border/50 bg-gradient-to-r from-accent/10 to-transparent px-4 py-3.5 sm:px-5">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 20, height: 20, borderRadius: 6, background: "#FAEEDA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 11, color: "#D97706" }}>⚡</span>
+            <span style={{ fontSize: "0.75rem", color: "#D97706" }}>⚡</span>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 500, color: "hsl(var(--foreground))" }}>Community hype meter</span>
-          <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))", padding: "2px 6px", borderRadius: 5 }}>
+          <span style={{ fontSize: "0.8125rem", fontWeight: 500, color: "hsl(var(--foreground))" }}>Community hype meter</span>
+          <span style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))", background: "hsl(var(--secondary))", padding: "2px 6px", borderRadius: 5 }}>
             Vote once per game
           </span>
         </div>
-        <button style={{ fontSize: 11, color: "#3d59e0", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
+        <button style={{ fontSize: "0.75rem", color: "#3d59e0", cursor: "pointer", background: "none", border: "none", whiteSpace: "nowrap" }}>
           See all →
         </button>
       </div>

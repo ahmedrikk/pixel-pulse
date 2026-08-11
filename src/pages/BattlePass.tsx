@@ -369,7 +369,7 @@ function AuthenticatedBattlePass() {
           <span className="text-xs font-bold text-primary">Season 1</span>
           <div className="flex md:hidden items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 ml-2">
             <Trophy className="w-3 h-3 text-primary" />
-            <span className="text-[10px] font-bold text-primary">RANK {currentTier}</span>
+            <span className="text-tiny-label font-bold text-primary">RANK {currentTier}</span>
           </div>
         </div>
 
@@ -401,9 +401,9 @@ function AuthenticatedBattlePass() {
           </motion.div>
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-bold text-foreground">RANK {currentTier}</h2>
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Season of the Ember</p>
+            <p className="text-tiny-label text-muted-foreground tracking-widest uppercase">Season of the Ember</p>
             <div className="mt-2">
-              <div className="flex justify-between text-[10px] mb-1">
+              <div className="flex justify-between text-tiny-label mb-1">
                 <span className="font-semibold text-foreground">Season XP</span>
                 <span className="text-muted-foreground">{currentXP.toLocaleString()} / {SEASON_XP_MAX.toLocaleString()}</span>
               </div>
@@ -462,8 +462,8 @@ function AuthenticatedBattlePass() {
             </div>
             <XPBar percent={(currentXP / SEASON_XP_MAX) * 100} delay={600} />
             <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-muted-foreground">Rank {currentTier}</span>
-              <span className="text-[10px] text-muted-foreground">Rank {currentTier + 1}</span>
+              <span className="text-tiny-label text-muted-foreground">Rank {currentTier}</span>
+              <span className="text-tiny-label text-muted-foreground">Rank {currentTier + 1}</span>
             </div>
           </div>
 
@@ -487,7 +487,7 @@ function AuthenticatedBattlePass() {
             <div className="space-y-3">
               {SEASON_CHALLENGES.map((ch) => (
                 <div key={ch.name}>
-                  <div className="flex justify-between text-[11px] mb-1">
+                  <div className="flex justify-between text-tiny-label mb-1">
                     <span className="text-foreground/80 font-medium">{ch.name}</span>
                     <span className="text-muted-foreground">{ch.progress}/{ch.target}</span>
                   </div>
@@ -507,7 +507,7 @@ function AuthenticatedBattlePass() {
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
               <Zap className="w-5 h-5 text-primary mx-auto mb-1" />
               <p className="text-xs font-bold text-primary">+20% XP BONUS</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Season Pass Active</p>
+              <p className="text-tiny-label text-muted-foreground mt-0.5">Season Pass Active</p>
             </div>
           </div>
         </aside>
@@ -525,7 +525,7 @@ function AuthenticatedBattlePass() {
                 {ACTS.map((act) => (
                   <span
                     key={act.num}
-                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground"
+                    className="text-tiny-label font-semibold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground"
                   >
                     ACT {act.num} · {act.name}
                   </span>
@@ -536,7 +536,7 @@ function AuthenticatedBattlePass() {
             {/* FREE TRACK */}
             <div className="mb-1">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] font-bold tracking-widest uppercase text-primary bg-primary/10 px-2 py-0.5 rounded">
+                <span className="text-tiny-label font-bold tracking-widest uppercase text-primary bg-primary/10 px-2 py-0.5 rounded">
                   FREE TRACK
                 </span>
               </div>
@@ -577,18 +577,18 @@ function AuthenticatedBattlePass() {
                       return (
                         <div key={t.tier} data-tier={t.tier} className="flex flex-col items-center gap-0.5">
                           {isCurrent && (
-                            <span className="text-[9px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
+                            <span className="text-tiny-label font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
                               ▶ NOW
                             </span>
                           )}
                           {t.tier === currentTier + 1 && !isCurrent && (
-                            <span className="text-[9px] font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+                            <span className="text-tiny-label font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded">
                               NEXT
                             </span>
                           )}
                           {t.tier !== currentTier && t.tier !== currentTier + 1 && <div className="h-[20px]" />}
 
-                          <span className="text-[9px] font-semibold text-muted-foreground">{t.tier}</span>
+                          <span className="text-tiny-label font-semibold text-muted-foreground">{t.tier}</span>
 
                           <motion.button
                             onClick={() => selectTier(t.tier)}
@@ -618,7 +618,7 @@ function AuthenticatedBattlePass() {
                               <Star className="absolute top-1 left-1 w-3 h-3" style={{ color: theme.border }} />
                             )}
                             <span className="text-2xl leading-none">{t.icon}</span>
-                            <span className="text-[9px] font-semibold" style={{ color: t.unlocked ? theme.text : "hsl(var(--muted-foreground))" }}>
+                            <span className="text-tiny-label font-semibold" style={{ color: t.unlocked ? theme.text : "hsl(var(--muted-foreground))" }}>
                               {t.xp === 0 ? "FREE" : `${(t.xp / 1000).toFixed(0)}K XP`}
                             </span>
                           </motion.button>
@@ -643,11 +643,11 @@ function AuthenticatedBattlePass() {
             {/* PREMIUM TRACK */}
             <div className="mt-3">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] font-bold tracking-widest uppercase bg-secondary text-muted-foreground px-2 py-0.5 rounded flex items-center gap-1">
+                <span className="text-tiny-label font-bold tracking-widest uppercase bg-secondary text-muted-foreground px-2 py-0.5 rounded flex items-center gap-1">
                   <Lock className="w-2.5 h-2.5" />
                   PREMIUM PASS
                 </span>
-                <span className="text-[10px] text-muted-foreground">Unlock all premium rewards</span>
+                <span className="text-tiny-label text-muted-foreground">Unlock all premium rewards</span>
               </div>
               <div className="relative group">
                 <div className="overflow-x-auto pb-2 bp-scroll px-12" style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}>
@@ -657,7 +657,7 @@ function AuthenticatedBattlePass() {
                       return (
                         <div key={`p-${t.tier}`} className="flex flex-col items-center gap-0.5">
                           <div className="h-[20px]" />
-                          <span className="text-[9px] font-semibold text-muted-foreground/40">{t.tier}</span>
+                          <span className="text-tiny-label font-semibold text-muted-foreground/40">{t.tier}</span>
                           <div
                             className="bp-card relative w-[68px] h-[80px] md:w-[85px] md:h-[98px] rounded-xl flex flex-col items-center justify-center gap-1 md:gap-1.5 border-2 opacity-40 cursor-not-allowed overflow-hidden"
                             style={{
@@ -667,7 +667,7 @@ function AuthenticatedBattlePass() {
                           >
                             <Lock className="absolute top-1.5 right-1.5 w-3 h-3 text-muted-foreground/30" />
                             <span className="text-2xl leading-none grayscale">{t.icon}</span>
-                            <span className="text-[9px] font-semibold text-muted-foreground/50">
+                            <span className="text-tiny-label font-semibold text-muted-foreground/50">
                               {(t.xp / 1000).toFixed(0)}K XP
                             </span>
                           </div>
@@ -700,11 +700,11 @@ function AuthenticatedBattlePass() {
                       <span className="text-sm font-bold" style={{ color: selectedTheme.border }}>
                         TIER {selected.tier}
                       </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-card text-muted-foreground border border-border">
+                      <span className="text-tiny-label font-semibold px-2 py-0.5 rounded-full bg-card text-muted-foreground border border-border">
                         ACT {selected.act} · {ACTS[selected.act - 1]?.name}
                       </span>
                       <span
-                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase"
+                        className="text-tiny-label font-semibold px-2 py-0.5 rounded-full uppercase"
                         style={{ background: selectedTheme.border + "18", color: selectedTheme.text }}
                       >
                         {selected.type}
@@ -717,7 +717,7 @@ function AuthenticatedBattlePass() {
                         percent={selected.unlocked ? 100 : Math.min(100, (currentXP / selected.xp) * 100)}
                         delay={200}
                       />
-                      <p className="text-[11px] text-muted-foreground mt-1">
+                      <p className="text-tiny-label text-muted-foreground mt-1">
                         {selected.unlocked ? "100" : Math.floor((currentXP / selected.xp) * 100)}% progress
                       </p>
                     </div>
@@ -735,7 +735,7 @@ function AuthenticatedBattlePass() {
                         <p className="text-sm text-muted-foreground font-medium">
                           {(selected.xp - currentXP).toLocaleString()} XP away
                         </p>
-                        <p className="text-[11px] text-muted-foreground/60 hidden sm:block">
+                        <p className="text-tiny-label text-muted-foreground/60 hidden sm:block">
                           ≈ {Math.ceil((selected.xp - currentXP) / 200)} days at avg pace
                         </p>
                       </div>
@@ -778,10 +778,10 @@ function AuthenticatedBattlePass() {
                     )}
                     <span className="text-3xl md:text-4xl block mb-2">{r.icon}</span>
                     <p className="text-xs font-bold text-foreground mb-0.5">{r.name}</p>
-                    <p className="text-[10px] font-semibold" style={{ color: rarityColor }}>
+                    <p className="text-tiny-label font-semibold" style={{ color: rarityColor }}>
                       {r.rarity}
                     </p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Level {r.level}</p>
+                    <p className="text-tiny-label text-muted-foreground mt-1">Level {r.level}</p>
                   </motion.div>
                 );
               })}
@@ -831,10 +831,10 @@ function AuthenticatedBattlePass() {
                           {q.title}
                         </span>
                         {q.done && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">DONE</span>
+                          <span className="text-tiny-label font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">DONE</span>
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{q.description}</p>
+                      <p className="text-tiny-label text-muted-foreground">{q.description}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <div className="w-20 h-1.5 rounded-full bg-secondary overflow-hidden">
                           <div
@@ -845,7 +845,7 @@ function AuthenticatedBattlePass() {
                             }}
                           />
                         </div>
-                        <span className="text-[10px] text-muted-foreground">{q.current}/{q.target}</span>
+                        <span className="text-tiny-label text-muted-foreground">{q.current}/{q.target}</span>
                       </div>
                     </div>
                     <span className="text-sm font-bold min-w-[45px] text-right" style={{ color: q.done ? "hsl(142 71% 45%)" : "hsl(var(--primary))" }}>
@@ -854,7 +854,7 @@ function AuthenticatedBattlePass() {
                     {!q.done && (
                       <button
                         onClick={() => completeQuest(q.id)}
-                        className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors"
+                        className="text-tiny-label font-bold px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition-colors"
                       >
                         GO →
                       </button>
@@ -875,7 +875,7 @@ function AuthenticatedBattlePass() {
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center">
                   <Zap className="w-8 h-8 text-primary mx-auto mb-2" />
                   <p className="text-sm font-bold text-primary">+20% XP BONUS</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">Active for all XP sources</p>
+                  <p className="text-tiny-label text-muted-foreground mt-1">Active for all XP sources</p>
                 </div>
 
                 <div className="rounded-xl border bg-card p-4">
@@ -913,7 +913,7 @@ function AuthenticatedBattlePass() {
                 <div className="rounded-xl border bg-card p-4">
                   <h4 className="text-xs font-bold text-foreground mb-2">XP Earned Today</h4>
                   <p className="text-2xl font-black text-primary">{profile?.xp_today ?? xpState.xpToday ?? 0}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Daily cap: 400 XP</p>
+                  <p className="text-tiny-label text-muted-foreground mt-0.5">Daily cap: 400 XP</p>
                   <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-700"
@@ -937,12 +937,12 @@ function AuthenticatedBattlePass() {
                         >
                           <span className="text-lg">{t.icon}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-semibold text-foreground truncate">{t.reward}</p>
+                            <p className="text-tiny-label font-semibold text-foreground truncate">{t.reward}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
                                 <div className="h-full rounded-full" style={{ width: `${prog}%`, background: theme.border }} />
                               </div>
-                              <span className="text-[9px] text-muted-foreground">T{t.tier}</span>
+                              <span className="text-tiny-label text-muted-foreground">T{t.tier}</span>
                             </div>
                           </div>
                         </button>

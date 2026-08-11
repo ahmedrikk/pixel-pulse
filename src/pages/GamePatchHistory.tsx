@@ -35,20 +35,20 @@ function PatchEntry({ patch, index }: { patch: GamePatch; index: number }) {
       className="relative rounded-2xl border bg-card p-4 card-shadow sm:p-5"
     >
       {index === 0 && (
-        <span className="absolute -top-2.5 left-4 rounded-full bg-primary px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-primary-foreground shadow-sm">
+        <span className="absolute -top-2.5 left-4 rounded-full bg-primary px-2.5 py-1 text-tiny-label font-black uppercase tracking-wide text-primary-foreground shadow-sm">
           Current patch
         </span>
       )}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide", type.className)}>
+        <span className={cn("rounded-full px-2.5 py-1 text-tiny-label font-bold uppercase tracking-wide", type.className)}>
           {type.label}
         </span>
         {patch.versionLabel && (
-          <span className="rounded-full bg-secondary px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-tiny-label font-bold text-muted-foreground">
             {patch.versionLabel}
           </span>
         )}
-        <time className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <time className="ml-auto flex items-center gap-1.5 text-tiny-label text-muted-foreground">
           <Clock3 className="h-3.5 w-3.5" />
           {format(new Date(patch.publishedAt), "MMM d, yyyy")}
         </time>

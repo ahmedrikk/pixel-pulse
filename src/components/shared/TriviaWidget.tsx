@@ -76,7 +76,7 @@ export function TriviaWidget() {
       </div>
 
       <CardContent className="p-3.5 pt-4">
-        <p className="text-[13px] font-medium leading-relaxed mb-4 text-foreground/90">
+        <p className="text-count-meta font-medium leading-relaxed mb-4 text-foreground/90">
           {dailyData.question}
         </p>
 
@@ -86,9 +86,9 @@ export function TriviaWidget() {
               key={opt.letter}
               onClick={() => handleAnswer(opt.letter)}
               disabled={revealed || isSubmitting}
-              className={`w-full flex items-center gap-2.5 p-2 rounded-md border text-[11px] text-left transition-all ${getOptionStyle(opt.letter)} ${(!revealed && !isSubmitting) ? "cursor-pointer" : "cursor-default"}`}
+              className={`w-full flex items-center gap-2.5 p-2 rounded-md border text-tiny-label text-left transition-all ${getOptionStyle(opt.letter)} ${(!revealed && !isSubmitting) ? "cursor-pointer" : "cursor-default"}`}
             >
-              <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] flex-shrink-0 transition-colors ${
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center text-tiny-label flex-shrink-0 transition-colors ${
                 revealed && opt.letter === dailyData.correctLetter ? "bg-emerald-500 text-white" :
                 revealed && opt.letter === selectedLetter ? "bg-destructive text-white" :
                 "bg-secondary border border-border"
@@ -101,7 +101,7 @@ export function TriviaWidget() {
           ))}
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-3 border-t border-border/50">
+        <div className="flex items-center justify-between text-tiny-label text-muted-foreground pt-3 border-t border-border/50">
           <span>Resets in {getTimeRemaining(dailyData.resetsAt)}</span>
           <span className="flex items-center gap-1 font-medium text-amber-500">
             🔥 {dailyData.streakDays} streak

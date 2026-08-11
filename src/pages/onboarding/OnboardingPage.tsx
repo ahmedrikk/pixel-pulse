@@ -79,7 +79,7 @@ type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken';
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+    <label className="mb-1.5 block text-tiny-label font-medium uppercase tracking-wider text-muted-foreground">
       {children}
     </label>
   );
@@ -111,14 +111,14 @@ function StepCard({
       {/* Header */}
       <div className="flex items-start gap-3 p-4 pb-3 sm:p-5 sm:pb-3">
         <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-tiny-label font-bold flex-shrink-0"
           style={{ background: active ? '#3d59e0' : 'rgba(255,255,255,0.08)', color: 'white' }}
         >
           {number}
         </div>
         <div>
-          <h3 className="text-[13px] font-semibold leading-tight text-foreground">{title}</h3>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{sub}</p>
+          <h3 className="text-count-meta font-semibold leading-tight text-foreground">{title}</h3>
+          <p className="mt-0.5 text-tiny-label text-muted-foreground">{sub}</p>
         </div>
       </div>
 
@@ -140,7 +140,7 @@ function StepCard({
 function ProgBar({ step, pct }: { step: string; pct: number }) {
   return (
     <div className="flex-1 sm:mr-3">
-      <p className="mb-1 text-[9px] text-muted-foreground">{step}</p>
+      <p className="mb-1 text-tiny-label text-muted-foreground">{step}</p>
       <div className="h-[3px] overflow-hidden rounded-sm bg-secondary">
         <div className="h-full bg-[#3d59e0] rounded-sm" style={{ width: `${pct}%` }} />
       </div>
@@ -312,7 +312,7 @@ export default function OnboardingPage() {
 
   const sidebar = (
     <aside className="onboarding-panel flex w-[220px] flex-shrink-0 flex-col gap-3 overflow-y-auto border-r p-5">
-      <p className="mb-1 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Why join?</p>
+      <p className="mb-1 text-tiny-label font-medium uppercase tracking-widest text-muted-foreground">Why join?</p>
 
       {BENEFIT_CARDS.map(b => (
         <div
@@ -321,19 +321,19 @@ export default function OnboardingPage() {
           style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.07)' }}
         >
           <div className="flex items-center gap-2 mb-1.5">
-            <div className="w-7 h-7 rounded-[7px] flex items-center justify-center text-[13px] flex-shrink-0"
+            <div className="w-7 h-7 rounded-[7px] flex items-center justify-center text-count-meta flex-shrink-0"
                  style={{ background: b.iconBg }}>
               {b.icon}
             </div>
-            <span className="text-[12px] font-medium text-foreground">{b.label}</span>
+            <span className="text-tiny-label font-medium text-foreground">{b.label}</span>
           </div>
-          <p className="text-[10px] leading-[1.4] text-muted-foreground">{b.desc}</p>
+          <p className="text-tiny-label leading-[1.4] text-muted-foreground">{b.desc}</p>
         </div>
       ))}
 
       {/* Progress */}
       <div className="onboarding-muted-surface mt-auto rounded-[9px] p-3">
-        <p className="mb-2 text-[10px] text-muted-foreground">Your progress</p>
+        <p className="mb-2 text-tiny-label text-muted-foreground">Your progress</p>
         <div className="flex flex-col gap-1.5">
           {[
             { n: 1, label: 'Identity' },
@@ -346,14 +346,14 @@ export default function OnboardingPage() {
             const todo    = page === 1 && step.n >= 3;
             return (
               <div key={step.n} className="flex items-center gap-2">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold flex-shrink-0 ${
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-tiny-label font-semibold flex-shrink-0 ${
                   done ? 'bg-[#3d59e0] text-white' :
                   current ? 'bg-[#3d59e0] text-white ring-[3px] ring-[#3d59e0]/25' :
                   'bg-white/8 text-white/35'
                 }`}>
                   {done ? <Check className="w-2.5 h-2.5" /> : step.n}
                 </div>
-                <span className={`text-[11px] ${done || current ? 'text-white/60' : 'text-white/30'} ${current ? 'font-medium !text-foreground' : ''}`}>
+                <span className={`text-tiny-label ${done || current ? 'text-white/60' : 'text-white/30'} ${current ? 'font-medium !text-foreground' : ''}`}>
                   {step.label}
                 </span>
               </div>
@@ -364,7 +364,7 @@ export default function OnboardingPage() {
     </aside>
   );
 
-  const inputCls = "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary sm:min-h-0 sm:text-[12px]";
+  const inputCls = "min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary sm:min-h-0 sm:text-tiny-label";
 
   // ── Step cards ───────────────────────────────────────────────────────────
 
@@ -407,7 +407,7 @@ export default function OnboardingPage() {
             </button>
           ))}
         </div>
-        <p className="mt-1 text-[9px] text-muted-foreground">You can change your banner from your profile at any time.</p>
+        <p className="mt-1 text-tiny-label text-muted-foreground">You can change your banner from your profile at any time.</p>
       </div>
 
       {/* Display name */}
@@ -426,7 +426,7 @@ export default function OnboardingPage() {
       <div>
         <FieldLabel>Username <span className="text-white/20 normal-case tracking-normal">*</span></FieldLabel>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-[12px]">@</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-tiny-label">@</span>
           <input
             className={`${inputCls} pl-6 pr-7`}
             placeholder="gamerpulse99"
@@ -434,12 +434,12 @@ export default function OnboardingPage() {
             maxLength={20}
             onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
           />
-          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium ${usernameColor}`}>
+          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-tiny-label font-medium ${usernameColor}`}>
             {usernameIcon}
           </span>
         </div>
         {usernameStatus === 'taken' && (
-          <p className="text-[10px] text-red-400 mt-1">Username taken</p>
+          <p className="text-tiny-label text-red-400 mt-1">Username taken</p>
         )}
       </div>
 
@@ -453,7 +453,7 @@ export default function OnboardingPage() {
           maxLength={120}
           onChange={e => setBio(e.target.value)}
         />
-        <p className="text-[9px] text-white/20 text-right mt-0.5">{bio.length} / 120</p>
+        <p className="text-tiny-label text-white/20 text-right mt-0.5">{bio.length} / 120</p>
       </div>
     </>
   );
@@ -476,7 +476,7 @@ export default function OnboardingPage() {
                 }}
               >
                 <span className="text-sm w-6 text-center flex-shrink-0">{p.icon}</span>
-                <span className={`text-[11px] font-medium flex-1 ${sel ? 'text-[#a5b4fc]' : 'text-white/60'}`}>{p.label}</span>
+                <span className={`text-tiny-label font-medium flex-1 ${sel ? 'text-[#a5b4fc]' : 'text-white/60'}`}>{p.label}</span>
                 {sel && (
                   <div className="w-3.5 h-3.5 rounded-full bg-[#3d59e0] flex items-center justify-center flex-shrink-0">
                     <Check className="w-2 h-2 text-white" />
@@ -495,7 +495,7 @@ export default function OnboardingPage() {
             <button
               key={s}
               onClick={() => setSkill(s)}
-              className="min-h-11 flex-1 rounded-[7px] py-1.5 text-[10px] transition-all sm:min-h-0"
+              className="min-h-11 flex-1 rounded-[7px] py-1.5 text-tiny-label transition-all sm:min-h-0"
               style={{
                 background: skill === s ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
                 border: skill === s ? '0.5px solid #3d59e0' : '0.5px solid rgba(255,255,255,0.08)',
@@ -513,8 +513,8 @@ export default function OnboardingPage() {
         background: 'rgba(83,74,183,0.1)',
         border: '0.5px solid rgba(83,74,183,0.2)',
       }}>
-        <p className="text-[11px] text-[#a5b4fc] font-medium mb-0.5">⭐ Your feed is taking shape</p>
-        <p className="text-[10px] text-white/35 leading-[1.4]">
+        <p className="text-tiny-label text-[#a5b4fc] font-medium mb-0.5">⭐ Your feed is taking shape</p>
+        <p className="text-tiny-label text-white/35 leading-[1.4]">
           Your choices help Talus prioritize the games, platforms, and stories you care about.
         </p>
       </div>
@@ -541,7 +541,7 @@ export default function OnboardingPage() {
               <button
                 key={g.id}
                 onClick={() => toggleGame(g.id)}
-                className="inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] transition-all sm:min-h-0"
+                className="inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 py-1 text-tiny-label transition-all sm:min-h-0"
                 style={{
                   background: sel ? 'rgba(83,74,183,0.18)' : 'rgba(255,255,255,0.04)',
                   border: sel ? '0.5px solid #3d59e0' : '0.5px solid rgba(255,255,255,0.08)',
@@ -565,7 +565,7 @@ export default function OnboardingPage() {
               <button
                 key={g}
                 onClick={() => toggleGenre(g)}
-                className="inline-flex min-h-9 items-center rounded-full px-2.5 py-1 text-[10px] transition-all sm:min-h-0"
+                className="inline-flex min-h-9 items-center rounded-full px-2.5 py-1 text-tiny-label transition-all sm:min-h-0"
                 style={{
                   background: sel ? 'rgba(13,148,136,0.15)' : 'rgba(255,255,255,0.04)',
                   border: sel ? '0.5px solid rgba(13,148,136,0.4)' : '0.5px solid rgba(255,255,255,0.08)',
@@ -580,7 +580,7 @@ export default function OnboardingPage() {
       </div>
 
       {selectedIds.length < 3 && (
-        <p className="text-[10px] text-white/22">Select at least 3 games to continue</p>
+        <p className="text-tiny-label text-white/22">Select at least 3 games to continue</p>
       )}
     </>
   );
@@ -590,7 +590,7 @@ export default function OnboardingPage() {
       {/* Completion box */}
       <div className="rounded-[10px] p-3.5 text-center" style={{ background: 'rgba(251,191,36,0.1)', border: '0.5px solid rgba(251,191,36,0.25)' }}>
         <p className="text-lg font-bold text-[#FCD34D]">You&apos;re all set</p>
-        <p className="text-[10px] text-white/35 mt-0.5">Your personalized Talus feed is ready</p>
+        <p className="text-tiny-label text-white/35 mt-0.5">Your personalized Talus feed is ready</p>
       </div>
 
       {/* Confirmation rows */}
@@ -605,8 +605,8 @@ export default function OnboardingPage() {
         ].map(row => (
           <div key={row.label} className="flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
             <span className="text-sm w-5 text-center flex-shrink-0">{row.icon}</span>
-            <span className="min-w-0 flex-1 text-[11px] text-white/40">{row.label}</span>
-            <span className="max-w-[48%] truncate text-right text-[11px] font-medium" style={{ color: row.color ?? '#a5b4fc' }}>{row.val}</span>
+            <span className="min-w-0 flex-1 text-tiny-label text-white/40">{row.label}</span>
+            <span className="max-w-[48%] truncate text-right text-tiny-label font-medium" style={{ color: row.color ?? '#a5b4fc' }}>{row.val}</span>
           </div>
         ))}
       </div>
@@ -614,7 +614,7 @@ export default function OnboardingPage() {
       <button
         onClick={handleComplete}
         disabled={!canComplete || completing}
-        className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-[9px] bg-[#3d59e0] text-[13px] font-semibold text-white transition-colors hover:bg-[#3d59e0] disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-[9px] bg-[#3d59e0] text-count-meta font-semibold text-white transition-colors hover:bg-[#3d59e0] disabled:cursor-not-allowed disabled:opacity-40"
       >
         {completing ? (
           <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -625,7 +625,7 @@ export default function OnboardingPage() {
           </>
         )}
       </button>
-      <p className="text-center text-[9px] text-white/20">Free forever · No credit card required</p>
+      <p className="text-center text-tiny-label text-white/20">Free forever · No credit card required</p>
     </>
   );
 
@@ -636,7 +636,7 @@ export default function OnboardingPage() {
       {/* Nav */}
       <nav className="onboarding-panel flex min-h-[54px] flex-shrink-0 items-center justify-between gap-3 border-b px-4 py-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6">
         <TalusLogo size={34} />
-        <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[9px] font-medium text-[#a5b4fc] sm:px-3 sm:text-[10px]"
+        <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-tiny-label font-medium text-[#a5b4fc] sm:px-3 sm:text-tiny-label"
               style={{ background: 'rgba(83,74,183,0.2)', border: '0.5px solid rgba(83,74,183,0.4)' }}>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           Profile setup
@@ -651,7 +651,7 @@ export default function OnboardingPage() {
             onClick={() => setPage(p)}
             type="button"
             aria-current={page === p ? 'step' : undefined}
-            className="min-h-11 min-w-0 flex-1 whitespace-nowrap border-b-2 px-2 py-2.5 text-[10px] transition-colors sm:min-h-0 sm:flex-none sm:px-[18px] sm:text-[11px]"
+            className="min-h-11 min-w-0 flex-1 whitespace-nowrap border-b-2 px-2 py-2.5 text-tiny-label transition-colors sm:min-h-0 sm:flex-none sm:px-[18px] sm:text-tiny-label"
             style={{
               color: page === p ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
               fontWeight: page === p ? 500 : 400,
@@ -677,10 +677,10 @@ export default function OnboardingPage() {
           return (
             <div key={step.n} className="relative flex min-w-0 flex-col items-center gap-1.5">
               {index > 0 && <span className={`absolute right-1/2 top-3 h-px w-full ${done ? 'bg-[#3d59e0]' : 'bg-white/10'}`} />}
-              <span className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold ${done || current ? 'bg-[#3d59e0] text-white' : 'bg-white/8 text-white/35'}`}>
+              <span className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-tiny-label font-semibold ${done || current ? 'bg-[#3d59e0] text-white' : 'bg-white/8 text-white/35'}`}>
                 {done ? <Check className="h-3 w-3" /> : step.n}
               </span>
-              <span className={`w-full truncate text-center text-[9px] ${current || done ? 'text-white/75' : 'text-white/30'}`}>{step.label}</span>
+              <span className={`w-full truncate text-center text-tiny-label ${current || done ? 'text-white/75' : 'text-white/30'}`}>{step.label}</span>
             </div>
           );
         })}
@@ -691,7 +691,7 @@ export default function OnboardingPage() {
         <div className="hidden lg:contents">{sidebar}</div>
 
         <main className="flex w-full flex-1 flex-col gap-4 px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 lg:overflow-y-auto">
-          <p className="px-1 text-[10px] uppercase tracking-[0.06em] text-muted-foreground sm:px-0 sm:text-[12px]">
+          <p className="px-1 text-tiny-label uppercase tracking-[0.06em] text-muted-foreground sm:px-0 sm:text-tiny-label">
             Step {page} of 2 — Page {page}
           </p>
 
@@ -710,7 +710,7 @@ export default function OnboardingPage() {
                     <button
                       onClick={handlePage1Continue}
                       disabled={!canContinuePage1 || p1Loading}
-                      className="flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-[7px] bg-[#3d59e0] px-4 py-2 text-[12px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-0 sm:w-auto sm:py-1.5 sm:text-[11px]"
+                      className="flex min-h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-[7px] bg-[#3d59e0] px-4 py-2 text-tiny-label font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-0 sm:w-auto sm:py-1.5 sm:text-tiny-label"
                     >
                       {p1Loading ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
                       Continue →

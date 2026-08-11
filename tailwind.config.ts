@@ -14,6 +14,13 @@ export default {
       },
     },
     extend: {
+      fontSize: {
+        body: ["1rem", { lineHeight: "1.5", fontWeight: "400" }],
+        "card-title": ["0.9375rem", { lineHeight: "1.35", fontWeight: "600" }],
+        "source-meta": ["0.875rem", { lineHeight: "1.4", fontWeight: "400" }],
+        "count-meta": ["0.8125rem", { lineHeight: "1.4", fontWeight: "400" }],
+        "tiny-label": ["0.75rem", { lineHeight: "1.35", fontWeight: "500" }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

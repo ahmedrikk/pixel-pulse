@@ -55,10 +55,10 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-          <span className="absolute left-3 top-3 rounded-full bg-card/90 px-2.5 py-1 text-[10px] font-bold text-foreground backdrop-blur-sm">
+          <span className="absolute left-3 top-3 rounded-full bg-card/90 px-2.5 py-1 text-tiny-label font-bold text-foreground backdrop-blur-sm">
             {offer.storeName}
           </span>
-          <span className="absolute bottom-3 left-3 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white">
+          <span className="absolute bottom-3 left-3 rounded-full bg-emerald-500 px-2.5 py-1 text-tiny-label font-black uppercase tracking-wide text-white">
             {offer.status === "upcoming" ? "Coming soon" : kindLabel[offer.offerKind]}
           </span>
         </div>
@@ -76,7 +76,7 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
 
         <div className="flex flex-wrap gap-1.5">
           {offer.platforms.slice(0, 3).map((platform) => (
-            <span key={platform} className="rounded-full bg-secondary px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+            <span key={platform} className="rounded-full bg-secondary px-2 py-1 text-tiny-label font-semibold text-muted-foreground">
               {platform}
             </span>
           ))}
@@ -88,7 +88,7 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
               {offer.worthText && <span className="text-xs text-muted-foreground line-through">{offer.worthText}</span>}
               <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">FREE</span>
             </div>
-            <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 flex items-center gap-1 text-tiny-label text-muted-foreground">
               <Clock3 className="h-3.5 w-3.5" />
               {timingLabel(offer)}
             </p>
@@ -219,7 +219,7 @@ export default function FreeGames() {
             )}
           </section>
 
-          <p className="text-center text-[11px] text-muted-foreground">
+          <p className="text-center text-tiny-label text-muted-foreground">
             Giveaway data from the{" "}
             <a href="https://store.epicgames.com/en-US/free-games" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
               Epic Games Store

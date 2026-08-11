@@ -13,7 +13,7 @@ function Pill({ category, isActive, onClick }: PillProps) {
   const { isTrending } = category;
 
   const base =
-    "inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-2.5 py-[5px] rounded-full text-[11px] cursor-pointer select-none transition-all border";
+    "inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-2.5 py-[5px] rounded-full text-tiny-label cursor-pointer select-none transition-all border";
   const variant = isActive
     ? "bg-primary text-primary-foreground border-primary font-medium hover:opacity-90"
     : isTrending
@@ -22,10 +22,10 @@ function Pill({ category, isActive, onClick }: PillProps) {
 
   return (
     <button onClick={onClick} className={`${base} ${variant}`}>
-      {isTrending && <span className="text-[9px]">🔥</span>}
+      {isTrending && <span className="text-tiny-label">🔥</span>}
       <span>{category.name}</span>
-      <span className="text-[9px] opacity-60">{category.count}</span>
-      {isActive && <span className="text-[10px] ml-[3px]">×</span>}
+      <span className="text-tiny-label opacity-60">{category.count}</span>
+      {isActive && <span className="text-tiny-label ml-[3px]">×</span>}
     </button>
   );
 }
@@ -59,7 +59,7 @@ export function CategoryPillsWidget() {
     <div className="bg-card border rounded-xl p-3.5 card-shadow">
       <div className="flex justify-between items-baseline mb-3">
         <span className="text-xs font-semibold text-foreground">Browse by category</span>
-        <span className="text-[10px] text-muted-foreground">Trending now</span>
+        <span className="text-tiny-label text-muted-foreground">Trending now</span>
       </div>
 
       {isLoading ? (

@@ -17,23 +17,23 @@ export function XPConnectionStrip({ isAuthenticated, currentTier, currentXP, tie
       <div className="flex items-center gap-1.5 flex-wrap">
         <div className="flex items-center gap-1.5">
           <Star className="w-[11px] h-[11px] text-amber-500" />
-          <span className="text-[10px] font-medium text-muted-foreground">
+          <span className="text-tiny-label font-medium text-muted-foreground">
             Predictions earn XP:
           </span>
         </div>
 
         {/* Pre-match pill */}
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-primary/10 border border-primary/25 text-primary">
+        <span className="text-tiny-label font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-primary/10 border border-primary/25 text-primary">
           Before match: +20 XP predict / +45 if correct
         </span>
 
         {/* Live pill */}
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-destructive/10 border border-destructive/25 text-destructive">
+        <span className="text-tiny-label font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-destructive/10 border border-destructive/25 text-destructive">
           During match: +5 XP predict / +10 if correct
         </span>
 
         {/* Streak pill */}
-        <span className="text-[10px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400">
+        <span className="text-tiny-label font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400">
           7-day streak: 2× all XP
         </span>
       </div>
@@ -41,13 +41,13 @@ export function XPConnectionStrip({ isAuthenticated, currentTier, currentXP, tie
       {/* Right: mini Battle Pass bar (auth only, hidden on mobile) */}
       {isAuthenticated && currentTier !== undefined && (
         <div className="bp-mini flex items-center gap-1.5">
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-tiny-label text-muted-foreground">
             Tier {currentTier}
           </span>
           <div className="w-[72px] h-[3px] rounded-full bg-border overflow-hidden">
             <div className="h-full rounded-full bg-primary" style={{ width: `${fillPct}%` }} />
           </div>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-tiny-label text-muted-foreground">
             {currentXP}/{tierXP} XP
           </span>
         </div>

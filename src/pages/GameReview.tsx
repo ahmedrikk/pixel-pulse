@@ -312,12 +312,12 @@ export default function GameReview() {
               <div className="mt-5 flex flex-wrap items-stretch gap-2">
                 <div className="rounded-xl border bg-card/90 px-4 py-2.5 backdrop-blur-sm">
                   <div className="flex items-baseline gap-1"><span className="text-2xl font-black text-primary">{game.reviewCount ? game.ourRating.toFixed(1) : "—"}</span><span className="text-xs text-muted-foreground">/5</span></div>
-                  <p className="text-[11px] text-muted-foreground">Talus · {game.reviewCount} reviews</p>
+                  <p className="text-tiny-label text-muted-foreground">Talus · {game.reviewCount} reviews</p>
                 </div>
                 {game.externalRatings.map((rating) => (
                   <div key={rating.source} className="rounded-xl border bg-card/90 px-4 py-2.5 backdrop-blur-sm">
                     <div className="text-2xl font-black text-foreground">{rating.score}<span className="text-xs font-medium text-muted-foreground">/{rating.scale}</span></div>
-                    <p className="text-[11px] text-muted-foreground">{rating.source}</p>
+                    <p className="text-tiny-label text-muted-foreground">{rating.source}</p>
                   </div>
                 ))}
               </div>
@@ -367,7 +367,7 @@ export default function GameReview() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {patchesQuery.isLoading ? Array.from({ length: 2 }).map((_, index) => <div key={index} className="h-32 animate-pulse rounded-xl bg-secondary" />) : patchesQuery.data?.map((patch) => (
                   <Link key={patch.id} to={patchPath(patch)} className="rounded-xl border bg-card p-4 transition-colors hover:border-primary/30">
-                    <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground"><span className="font-bold uppercase text-primary">{patch.patchType}</span><time>{format(new Date(patch.publishedAt), "MMM d, yyyy")}</time></div>
+                    <div className="flex items-center justify-between gap-3 text-tiny-label text-muted-foreground"><span className="font-bold uppercase text-primary">{patch.patchType}</span><time>{format(new Date(patch.publishedAt), "MMM d, yyyy")}</time></div>
                     <h3 className="mt-2 line-clamp-2 font-bold text-foreground">{patch.title}</h3>
                     {patch.summary && <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{patch.summary}</p>}
                   </Link>

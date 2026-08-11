@@ -187,7 +187,7 @@ function LeaderboardRow({
             {entry.username}
           </Link>
           {entry.dailyStreak > 7 && (
-            <span className="flex items-center gap-0.5 text-[10px] text-orange-500">
+            <span className="flex items-center gap-0.5 text-tiny-label text-orange-500">
               <Flame className="h-3 w-3" />
               {entry.dailyStreak}
             </span>
@@ -206,7 +206,7 @@ function LeaderboardRow({
             <Target className="h-3.5 w-3.5 text-primary" />
             {accuracy}%
           </div>
-          <div className="text-[10px] text-muted-foreground">
+          <div className="text-tiny-label text-muted-foreground">
             {entry.correctPredictions}/{entry.totalPredictions} correct
           </div>
         </div>
@@ -215,7 +215,7 @@ function LeaderboardRow({
           <div className="text-sm font-bold">
             {entry.weeklyXP?.toLocaleString() || entry.xpSeason.toLocaleString()}
           </div>
-          <div className="text-[10px] text-muted-foreground">
+          <div className="text-tiny-label text-muted-foreground">
             {entry.weeklyXP ? "this week" : "season XP"}
           </div>
         </div>

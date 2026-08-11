@@ -108,7 +108,7 @@ export function PredictionCard({
               <span className="truncate max-w-[140px]">{match.leagueName}</span>
             </div>
             {match.status === "live" && (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-red-500">
+              <span className="flex items-center gap-1 text-tiny-label font-medium text-red-500">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />

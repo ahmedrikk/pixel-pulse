@@ -28,9 +28,16 @@
 
 @layer base {
   :root {
+    /* Shared typography scale — one rem-based source of truth. */
+    --text-body: 1rem;
+    --text-card-title: 0.9375rem;
+    --text-source-meta: 0.875rem;
+    --text-count-meta: 0.8125rem;
+    --text-tiny-label: 0.75rem;
+
     /* LIGHT MODE — neutral white surfaces with one solid blue accent. */
     --background: 220 33% 98%;
-    --foreground: 0 0% 0%;
+    --foreground: 221 39% 11%;
 
     --card: 0 0% 100%;
     --card-foreground: 0 0% 0%;
@@ -41,13 +48,13 @@
     /* #3d59e0 — the single light-theme brand color. */
     --primary: 229.7 72.5% 55.9%;
     --primary-foreground: 0 0% 100%;
-    --heading: 0 0% 0%;
+    --heading: 221 39% 11%;
 
     --secondary: 220 30% 96%;
     --secondary-foreground: 0 0% 0%;
 
     --muted: 220 25% 96%;
-    --muted-foreground: 0 0% 0%;
+    --muted-foreground: 220 9% 46%;
 
     --accent: 229.7 72.5% 55.9%;
     --accent-foreground: 0 0% 100%;
@@ -142,6 +149,12 @@
 }
 
 @layer base {
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   * {
     @apply border-border;
   }
@@ -150,6 +163,7 @@
     @apply text-foreground antialiased;
     font-family: "Inter Variable", InterVariable, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 1rem;
+    line-height: 1.5;
     /* Cohesive app background: a soft diagonal brand-tinted gradient that
        sits behind the floating card columns (matches reference design).
        Theme-aware via the --app-grad-* tokens. */
@@ -190,6 +204,18 @@
   .dark .text-blue-500,
   .dark .text-blue-600 {
     color: #ffffff !important;
+  }
+
+  @media (max-width: 767px) {
+    html {
+      font-size: 16px;
+    }
+
+    input,
+    textarea,
+    select {
+      font-size: var(--text-body);
+    }
   }
 }
 
@@ -309,7 +335,7 @@
 
 /* Match card team name — all instances */
 .match-team-name {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--color-text-primary);
   white-space: nowrap;
@@ -320,7 +346,7 @@
 
 /* Featured hero match — larger names */
 .hero-team-name {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   color: #fff;
   white-space: nowrap;
@@ -364,7 +390,7 @@
 }
 
 .quick-pick-label {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--color-text-tertiary, hsl(var(--muted-foreground)));
   white-space: nowrap;
   flex-shrink: 0; /* label never shrinks */
@@ -378,7 +404,7 @@
 }
 
 .quick-pick-btn {
-  font-size: 10px;
+  font-size: 0.75rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

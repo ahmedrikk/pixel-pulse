@@ -79,7 +79,7 @@ export default function BackfillStatus() {
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">Started {formatDistanceToNowStrict(new Date(run.startedAt), { addSuffix: true })}</p>
                   </div>
-                  <div className="text-right"><p className="text-3xl font-black text-primary">{percentage}%</p><p className="text-[11px] text-muted-foreground">{run.processed} of {run.totalTarget} finished</p></div>
+                  <div className="text-right"><p className="text-3xl font-black text-primary">{percentage}%</p><p className="text-tiny-label text-muted-foreground">{run.processed} of {run.totalTarget} finished</p></div>
                 </div>
                 <Progress value={percentage} className="mt-5 h-3" />
                 <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -92,7 +92,7 @@ export default function BackfillStatus() {
                   ].map(([label, value, tone]) => (
                     <div key={String(label)} className="rounded-xl bg-secondary/70 p-3">
                       <p className={cn("text-xl font-black", String(tone))}>{value}</p>
-                      <p className="text-[10px] text-muted-foreground">{label}</p>
+                      <p className="text-tiny-label text-muted-foreground">{label}</p>
                     </div>
                   ))}
                 </div>
@@ -110,12 +110,12 @@ export default function BackfillStatus() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                             <p className="truncate text-sm font-bold text-foreground">{attempt.gameName}</p>
-                            <time className="text-[10px] text-muted-foreground">{formatDistanceToNowStrict(new Date(attempt.createdAt), { addSuffix: true })}</time>
+                            <time className="text-tiny-label text-muted-foreground">{formatDistanceToNowStrict(new Date(attempt.createdAt), { addSuffix: true })}</time>
                           </div>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          <p className="mt-0.5 text-tiny-label text-muted-foreground">
                             Attempt {attempt.attemptNumber} · {durationLabel(attempt.durationMs)}{attempt.wordCount ? ` · ${attempt.wordCount} words` : ""}
                           </p>
-                          {attempt.error && <p className="mt-1 line-clamp-2 text-[11px] text-destructive">{attempt.error}</p>}
+                          {attempt.error && <p className="mt-1 line-clamp-2 text-tiny-label text-destructive">{attempt.error}</p>}
                         </div>
                       </article>
                     ))}

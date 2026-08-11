@@ -25,10 +25,10 @@ export default function MidPageCTAStrip({ season }: { season: any }) {
     }}>
       {/* Left side */}
       <div>
-        <h2 className="text-[14px] font-medium text-white mb-0.5">
+        <h2 className="text-source-meta font-medium text-white mb-0.5">
           Ready to start your Season {season.number} journey?
         </h2>
-        <p className="text-[11px] text-white/35">
+        <p className="text-tiny-label text-white/35">
           +{season.signupXpBonus} XP the moment you sign up · {season.shortName} · {daysRemaining} days left
         </p>
       </div>
@@ -36,7 +36,7 @@ export default function MidPageCTAStrip({ season }: { season: any }) {
       {/* Right side */}
       <div className="flex items-center gap-2">
         <span style={{
-          fontSize: '10px',
+          fontSize: '0.75rem',
           color: '#6EE7B7',
           background: 'rgba(16,185,129,0.12)',
           border: '0.5px solid rgba(16,185,129,0.25)',
@@ -50,7 +50,7 @@ export default function MidPageCTAStrip({ season }: { season: any }) {
           type="button"
           onClick={() => openAuthModal('battlepass_login' as any)}
           style={{
-            fontSize: '11px',
+            fontSize: '0.75rem',
             color: 'rgba(255,255,255,0.55)',
             border: '0.5px solid rgba(255,255,255,0.12)',
             background: 'rgba(255,255,255,0.06)',
@@ -67,7 +67,7 @@ export default function MidPageCTAStrip({ season }: { season: any }) {
           type="button"
           onClick={() => openAuthModal('battlepass' as any)}
           style={{
-            fontSize: '11px',
+            fontSize: '0.75rem',
             color: '#fff',
             background: 'var(--season-primary)',
             border: 'none',

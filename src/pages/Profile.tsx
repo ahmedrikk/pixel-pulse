@@ -207,7 +207,7 @@ export default function Profile() {
               <div className="mt-9 text-center">
                 <h1 className="text-2xl font-bold normal-case sm:text-3xl">{profile.display_name || profile.username}</h1>
                 <p className="mt-0.5 text-sm text-muted-foreground">@{profile.username}</p>
-                <p className="mx-auto mt-4 max-w-2xl whitespace-pre-wrap text-[15px] leading-6 text-foreground/80">{profile.about_me || "No information available right now."}</p>
+                <p className="mx-auto mt-4 max-w-2xl whitespace-pre-wrap text-card-title leading-6 text-foreground/80">{profile.about_me || "No information available right now."}</p>
               </div>
             </div>
           </section>
@@ -237,7 +237,7 @@ export default function Profile() {
                     </div>
                     <div className="p-3">
                       <p className="truncate text-sm font-bold normal-case" title={game.game_name}>{game.game_name}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">{game.playtime_hours ? `${game.playtime_hours.toLocaleString()} hours` : game.platform || "Community game"}</p>
+                      <p className="mt-1 text-tiny-label text-muted-foreground">{game.playtime_hours ? `${game.playtime_hours.toLocaleString()} hours` : game.platform || "Community game"}</p>
                     </div>
                     </Link>
                     <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">

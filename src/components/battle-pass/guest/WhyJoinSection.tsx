@@ -20,8 +20,8 @@ export default function WhyJoinSection({ season }: { season: any }) {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: 'rgba(83,74,183,0.2)' }}>
             <CheckCircle className="w-4 h-4 text-[#eef1ff]" />
           </div>
-          <h3 className="text-[13px] font-medium text-white mb-1.5">Your daily routine = XP</h3>
-          <p className="text-[11px] text-white/45 leading-[1.6]">
+          <h3 className="text-count-meta font-medium text-white mb-1.5">Your daily routine = XP</h3>
+          <p className="text-tiny-label text-white/45 leading-[1.6]">
             Already reading gaming news? Watching esports? That's XP.{' '}
             <span style={{ color: 'var(--season-accent)', fontWeight: 500 }}>You don't change your habits</span> 
             {' '}— the Battle Pass rewards the ones you already have.
@@ -36,8 +36,8 @@ export default function WhyJoinSection({ season }: { season: any }) {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: 'color-mix(in srgb, var(--season-primary) 15%, transparent)' }}>
             <Clock className="w-4 h-4" style={{ color: 'var(--season-primary)' }} />
           </div>
-          <h3 className="text-[13px] font-medium text-white mb-1.5">Season {season.number} is a one-time event</h3>
-          <p className="text-[11px] text-white/45 leading-[1.6]">
+          <h3 className="text-count-meta font-medium text-white mb-1.5">Season {season.number} is a one-time event</h3>
+          <p className="text-tiny-label text-white/45 leading-[1.6]">
             These rewards{' '}
             <span style={{ color: 'var(--season-accent)', fontWeight: 500 }}>never come back</span>. 
             The Ember badges, the founder titles, the Season 1 frame — once this season ends, they're gone. Forever. Be here for the origin.
@@ -49,8 +49,8 @@ export default function WhyJoinSection({ season }: { season: any }) {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: 'rgba(16,185,129,0.12)' }}>
             <Zap className="w-4 h-4 text-[#6EE7B7]" />
           </div>
-          <h3 className="text-[13px] font-medium text-white mb-1.5">100% free — no catch</h3>
-          <p className="text-[11px] text-white/45 leading-[1.6]">
+          <h3 className="text-count-meta font-medium text-white mb-1.5">100% free — no catch</h3>
+          <p className="text-tiny-label text-white/45 leading-[1.6]">
             No premium tier. No V-Bucks. No subscription. The{' '}
             <span style={{ color: 'var(--season-accent)', fontWeight: 500 }}>entire track is free</span>. 
             Sign up, earn XP, unlock rewards. That's it. No wallet required.
@@ -68,7 +68,7 @@ export default function WhyJoinSection({ season }: { season: any }) {
         }}>
           <Flame className="w-4 h-4" style={{ color: 'var(--season-primary)' }} />
         </div>
-        <p className="text-[12px] text-white/70 leading-[1.5]">
+        <p className="text-tiny-label text-white/70 leading-[1.5]">
           <strong style={{ color: 'var(--season-primary)' }}>Streak bonus:</strong> Log in {season.streakThresholdDays} days in a row and every article you read earns <strong style={{ color: 'var(--season-primary)' }}>{season.streakMultiplier}× XP</strong> for the rest of the week. Keep your streak alive — let the {season.shortName} burn.
         </p>
       </div>

@@ -173,7 +173,7 @@ export default function GamePatchDetail() {
                         to={patchPath(item)}
                         className="group rounded-xl border bg-card p-4 transition-colors hover:border-primary/35"
                       >
-                        <time className="text-[11px] text-muted-foreground">{format(new Date(item.publishedAt), "MMM d, yyyy")}</time>
+                        <time className="text-tiny-label text-muted-foreground">{format(new Date(item.publishedAt), "MMM d, yyyy")}</time>
                         <h3 className="mt-2 line-clamp-3 text-sm font-bold leading-5 text-foreground group-hover:text-primary">{item.title}</h3>
                         <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
                           Read more <ArrowRight className="h-3.5 w-3.5" />

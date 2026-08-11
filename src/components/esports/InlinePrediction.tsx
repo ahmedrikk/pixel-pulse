@@ -22,7 +22,7 @@ export function InlinePrediction({ match }: InlinePredictionProps) {
     <div className="border-t border-border mt-2.5 pt-2.5">
       {/* Pick buttons */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+        <span className="text-tiny-label text-muted-foreground whitespace-nowrap">
           {selectedTeam ? 'Your pick:' : 'Quick pick:'}
         </span>
 
@@ -33,7 +33,7 @@ export function InlinePrediction({ match }: InlinePredictionProps) {
             <button
               key={team}
               onClick={() => handlePredict(team)}
-              className={`flex-1 h-[26px] max-w-[90px] rounded-md border text-[10px] font-medium truncate px-1.5 transition-colors ${
+              className={`flex-1 h-[26px] max-w-[90px] rounded-md border text-tiny-label font-medium truncate px-1.5 transition-colors ${
                 isSelected
                   ? 'border-primary bg-primary/10 text-primary'
                   : 'border-border bg-secondary text-muted-foreground hover:border-primary/40 hover:text-foreground'

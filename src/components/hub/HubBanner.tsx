@@ -48,13 +48,13 @@ export function HubBanner({ activeTab, setActiveTab }: HubBannerProps) {
 
       {/* Content */}
       <div style={{ position: "relative", zIndex: 1 }}>
-        <p style={{ fontSize: 9, fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>
+        <p style={{ fontSize: "0.75rem", fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>
           Community Hub
         </p>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: "#fff", marginBottom: 3 }}>
+        <h1 style={{ fontSize: "1.25rem", fontWeight: 500, color: "#fff", marginBottom: 3 }}>
           The <span style={{ color: "#818CF8", fontStyle: "normal" }}>Hub</span>
         </h1>
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginBottom: 12, lineHeight: 1.5 }}>
+        <p style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.38)", marginBottom: 12, lineHeight: 1.5 }}>
           Where the community plays, votes, remembers, and lives games.
         </p>
 
@@ -66,7 +66,7 @@ export function HubBanner({ activeTab, setActiveTab }: HubBannerProps) {
               onClick={() => setActiveTab(tab.id)}
               style={{
                 padding: "8px 14px",
-                fontSize: 11,
+                fontSize: "0.75rem",
                 color: activeTab === tab.id ? "#fff" : "rgba(255,255,255,0.35)",
                 fontWeight: activeTab === tab.id ? 500 : 400,
                 cursor: "pointer",

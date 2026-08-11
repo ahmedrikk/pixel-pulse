@@ -39,11 +39,11 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
         {/* Eyebrow */}
         <div className="flex items-center gap-2 mb-4">
           {isLive && (
-            <span className="bg-destructive text-destructive-foreground text-[9px] font-semibold px-2 py-0.5 rounded-md">
+            <span className="bg-destructive text-destructive-foreground text-tiny-label font-semibold px-2 py-0.5 rounded-md">
               ● LIVE
             </span>
           )}
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-tiny-label text-muted-foreground">
             Match of the day · {match.league} · {match.numberOfGames ? `Bo${match.numberOfGames}` : 'Match'}
           </span>
           {isLive && match.streamUrl && (
@@ -59,7 +59,7 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
           <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
             <TeamTile image={match.team1Image} name={match.team1} />
             <span title={match.team1} className="text-sm font-medium text-foreground text-center truncate max-w-full">{match.team1}</span>
-            <span className="text-[10px] text-muted-foreground">Team A</span>
+            <span className="text-tiny-label text-muted-foreground">Team A</span>
           </div>
 
           {/* Score */}
@@ -67,7 +67,7 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
             <div className="text-4xl font-semibold text-foreground tracking-widest tabular-nums">
               {match.score1} : {match.score2}
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">
+            <div className="text-tiny-label text-muted-foreground mt-1">
               {isLive ? 'Live' : 'Upcoming'}
             </div>
           </div>
@@ -76,13 +76,13 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
           <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
             <TeamTile image={match.team2Image} name={match.team2} />
             <span title={match.team2} className="text-sm font-medium text-foreground text-center truncate max-w-full">{match.team2}</span>
-            <span className="text-[10px] text-muted-foreground">Team B</span>
+            <span className="text-tiny-label text-muted-foreground">Team B</span>
           </div>
         </div>
 
         {/* Prediction Widget */}
         <div className="bg-secondary/60 border rounded-xl mt-3 px-3.5 py-3">
-          <p className="text-[11px] text-muted-foreground text-center mb-2">
+          <p className="text-tiny-label text-muted-foreground text-center mb-2">
             Who wins the series?
           </p>
 
@@ -95,7 +95,7 @@ export function FeaturedMatchHero({ match }: FeaturedMatchHeroProps) {
                 <button
                   key={team}
                   onClick={() => handlePredict(team)}
-                  className={`flex-1 h-9 rounded-lg border text-[11px] font-medium truncate px-2 transition-colors ${
+                  className={`flex-1 h-9 rounded-lg border text-tiny-label font-medium truncate px-2 transition-colors ${
                     isSelected
                       ? 'bg-primary text-primary-foreground border-primary'
                       : 'bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground'

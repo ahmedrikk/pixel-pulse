@@ -47,7 +47,7 @@ function PatchGameCard({ game, index }: { game: PatchGame; index: number }) {
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
-          <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-bold text-foreground backdrop-blur-sm">
+          <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-card/90 px-2.5 py-1 text-tiny-label font-bold text-foreground backdrop-blur-sm">
             <Layers3 className="h-3.5 w-3.5 text-primary" />
             {game.patchCount.toLocaleString()} {game.patchCount === 1 ? "patch" : "patches"}
           </div>
@@ -58,7 +58,7 @@ function PatchGameCard({ game, index }: { game: PatchGame; index: number }) {
             <h2 className="line-clamp-1 font-bold text-foreground transition-colors group-hover:text-primary">
               {game.name}
             </h2>
-            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <div className="mt-1 flex items-center gap-1.5 text-tiny-label text-muted-foreground">
               <Clock3 className="h-3.5 w-3.5" />
               {game.latestPatchAt ? `Updated ${timeAgo(game.latestPatchAt)}` : timeAgo(null)}
             </div>
@@ -67,7 +67,7 @@ function PatchGameCard({ game, index }: { game: PatchGame; index: number }) {
           <div className="min-h-[52px] rounded-xl bg-secondary/70 px-3 py-2.5">
             {game.latestPatchTitle ? (
               <>
-                <span className="mb-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                <span className="mb-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-tiny-label font-bold uppercase tracking-wide text-primary">
                   {typeLabels[game.latestPatchType ?? "update"]}
                 </span>
                 <p className="line-clamp-2 text-xs font-medium leading-relaxed text-foreground">
@@ -151,7 +151,7 @@ export default function GamePatchCatalog() {
                       <p className="truncate text-sm font-bold text-foreground group-hover:text-primary">
                         {game.name}
                       </p>
-                      <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                      <p className="mt-1 truncate text-tiny-label text-muted-foreground">
                         {game.latestPatchTitle}
                       </p>
                     </div>

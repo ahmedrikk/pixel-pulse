@@ -20,7 +20,7 @@ export default function FeaturedSeasonRewards({ season }: { season: any }) {
       <h2 className="text-base font-medium text-foreground mb-1">
         Season {season.number} rewards — all free
       </h2>
-      <p className="text-[12px] text-muted-foreground mb-5">
+      <p className="text-tiny-label text-muted-foreground mb-5">
         {season.shortName}-themed rewards you can only earn this season. Miss the window, miss them forever.
       </p>
 
@@ -44,21 +44,21 @@ export default function FeaturedSeasonRewards({ season }: { season: any }) {
               </div>
               
               {reward.isFounderReward && (
-                <span className="text-[9px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-[1px] rounded-[6px]">
+                <span className="text-tiny-label font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-[1px] rounded-[6px]">
                   Founder
                 </span>
               )}
               
-              <div className="text-[12px] font-medium leading-[1.3] text-foreground mt-0.5">
+              <div className="text-tiny-label font-medium leading-[1.3] text-foreground mt-0.5">
                 {reward.name}
               </div>
               
-              <div className="text-[10px] text-muted-foreground">
+              <div className="text-tiny-label text-muted-foreground">
                 {reward.type}
               </div>
               
               <div 
-                className="text-[10px] font-medium px-2 py-0.5 rounded-[9px] mt-1"
+                className="text-tiny-label font-medium px-2 py-0.5 rounded-[9px] mt-1"
                 style={tierStyle}
               >
                 Tier {reward.tier}
@@ -78,15 +78,15 @@ export default function FeaturedSeasonRewards({ season }: { season: any }) {
             👑
           </div>
           
-          <div className="text-[12px] font-medium leading-[1.3] text-muted-foreground mt-1.5">
+          <div className="text-tiny-label font-medium leading-[1.3] text-muted-foreground mt-1.5">
             + {remainingCount} more rewards
           </div>
           
-          <div className="text-[10px] text-muted-foreground">
+          <div className="text-tiny-label text-muted-foreground">
             Tiers 16 – 25
           </div>
           
-          <div className="text-[10px] font-medium px-2 py-0.5 rounded-[9px] mt-1 bg-border/50 text-muted-foreground">
+          <div className="text-tiny-label font-medium px-2 py-0.5 rounded-[9px] mt-1 bg-border/50 text-muted-foreground">
             Sign up to reveal
           </div>
         </div>

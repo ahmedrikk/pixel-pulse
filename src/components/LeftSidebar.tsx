@@ -43,7 +43,7 @@ export function LeftSidebar() {
             >
               <item.icon className={cn("h-[18px] w-[18px] text-muted-foreground", isActive && "text-primary")} />
               <span className="text-sm">{item.label}</span>
-              {item.href === "/notifications" && unread > 0 && <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground">{unread > 99 ? "99+" : unread}</span>}
+              {item.href === "/notifications" && unread > 0 && <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-tiny-label font-bold text-primary-foreground">{unread > 99 ? "99+" : unread}</span>}
             </Link>
           );
         })}

@@ -9,7 +9,7 @@ export function XPProgressBar({ compact }: { compact?: boolean }) {
   if (compact) {
     return (
       <div className="flex items-center gap-2 w-36">
-        <span className="text-[10px] font-bold text-primary whitespace-nowrap">T{state.tier}</span>
+        <span className="text-tiny-label font-bold text-primary whitespace-nowrap">T{state.tier}</span>
         <div className="relative h-2 flex-1 rounded-full bg-secondary/60 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
@@ -19,7 +19,7 @@ export function XPProgressBar({ compact }: { compact?: boolean }) {
             }}
           />
         </div>
-        <span className="text-[10px] font-bold text-muted-foreground whitespace-nowrap">{state.totalXP} XP</span>
+        <span className="text-tiny-label font-bold text-muted-foreground whitespace-nowrap">{state.totalXP} XP</span>
       </div>
     );
   }
@@ -49,8 +49,8 @@ export function XPProgressBar({ compact }: { compact?: boolean }) {
 
       {/* XP numbers */}
       <div className="flex items-center justify-between mt-1">
-        <span className="text-[11px] font-semibold text-muted-foreground">{state.level - 1}</span>
-        <span className="text-[11px] font-semibold text-muted-foreground">{state.level}</span>
+        <span className="text-tiny-label font-semibold text-muted-foreground">{state.level - 1}</span>
+        <span className="text-tiny-label font-semibold text-muted-foreground">{state.level}</span>
       </div>
 
       {/* Floating XP indicators */}

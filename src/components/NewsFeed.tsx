@@ -128,11 +128,11 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "personalized":
-        return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-medium">For You</span>;
+        return <span className="text-tiny-label px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-medium">For You</span>;
       case "trending":
-        return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-500 font-medium">Trending</span>;
+        return <span className="text-tiny-label px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-500 font-medium">Trending</span>;
       case "fresh":
-        return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-500 font-medium">New</span>;
+        return <span className="text-tiny-label px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-500 font-medium">New</span>;
       default:
         return null;
     }

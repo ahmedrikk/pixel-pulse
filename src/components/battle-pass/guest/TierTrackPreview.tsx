@@ -11,7 +11,7 @@ export default function TierTrackPreview({ season }: { season: any }) {
       <h2 className="text-base font-medium text-foreground mb-1">
         The {season.shortName} tier track — first 8 tiers
       </h2>
-      <p className="text-[12px] text-muted-foreground mb-5">
+      <p className="text-tiny-label text-muted-foreground mb-5">
         Rewards start at Tier 1. No warm-up period. No paid gate.
       </p>
 
@@ -31,7 +31,7 @@ export default function TierTrackPreview({ season }: { season: any }) {
                 opacity: isLocked ? 0.4 : 1,
               }}
             >
-              <div className="text-[9px] font-medium text-muted-foreground">
+              <div className="text-tiny-label font-medium text-muted-foreground">
                 {node.tier}
               </div>
               
@@ -42,13 +42,13 @@ export default function TierTrackPreview({ season }: { season: any }) {
                 {node.icon}
               </div>
               
-              <div className="text-[9px] text-muted-foreground">
+              <div className="text-tiny-label text-muted-foreground">
                 {node.xpRequired / 1000}K XP
               </div>
               
               {isMilestone && node.milestoneLabel && (
                 <div 
-                  className="text-[8px] font-medium mt-auto"
+                  className="text-tiny-label font-medium mt-auto"
                   style={{ color: 'var(--season-primary)' }}
                 >
                   {node.milestoneLabel}
@@ -64,7 +64,7 @@ export default function TierTrackPreview({ season }: { season: any }) {
         <div className={styles.tpFill} />
       </div>
       
-      <p className="text-[11px] text-muted-foreground/70 text-center mt-2">
+      <p className="text-tiny-label text-muted-foreground/70 text-center mt-2">
         Sign up to start tracking your progress across all {season.totalTiers} tiers
       </p>
     </div>

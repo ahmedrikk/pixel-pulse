@@ -218,7 +218,7 @@ export default function PublicProfile() {
                                         <div className="mt-auto">
                                             <p className="font-bold text-lg truncate drop-shadow-md" title={game.game_name}>{game.game_name}</p>
                                             {game.platform && (
-                                                <span className="inline-block mt-2 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-secondary/80 text-secondary-foreground rounded-full backdrop-blur-sm">
+                                                <span className="inline-block mt-2 px-2.5 py-1 text-tiny-label font-bold uppercase tracking-wider bg-secondary/80 text-secondary-foreground rounded-full backdrop-blur-sm">
                                                     {game.platform}
                                                 </span>
                                             )}

@@ -124,18 +124,18 @@ export function HypeSearch({ onSelectGame, onSubmitNewGame }: HypeSearchProps) {
                   <div className="text-xs font-medium text-foreground whitespace-nowrap overflow-hidden text-ellipsis">
                     {game.name}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-tiny-label text-muted-foreground">
                     {game.releaseDate}
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
                   {game.isInHypeMeter ? (
                     <>
-                      <div className="text-[9px] text-emerald-600 dark:text-emerald-400 mb-0.5">In hype ✓</div>
-                      <div className="text-[11px] font-medium text-primary">{game.hypePercent}% hyped</div>
+                      <div className="text-tiny-label text-emerald-600 dark:text-emerald-400 mb-0.5">In hype ✓</div>
+                      <div className="text-tiny-label font-medium text-primary">{game.hypePercent}% hyped</div>
                     </>
                   ) : (
-                    <div className="text-[10px] font-medium text-primary">+ Submit</div>
+                    <div className="text-tiny-label font-medium text-primary">+ Submit</div>
                   )}
                 </div>
               </div>

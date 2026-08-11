@@ -84,17 +84,17 @@ function RewardRow({ reward }: { reward: PromoReward }) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-medium text-white m-0 truncate">
+        <p className="text-tiny-label font-medium text-white m-0 truncate">
           {reward.name}
         </p>
-        <p className="text-[9px] text-white/55 mt-[1px] m-0">
+        <p className="text-tiny-label text-white/55 mt-[1px] m-0">
           {reward.type} · Tier {reward.tier}
         </p>
       </div>
 
       {/* Tier badge */}
       <span
-        className="text-[9px] font-semibold px-[6px] py-[2px] rounded-lg whitespace-nowrap flex-shrink-0 bg-white/20 text-white"
+        className="text-tiny-label font-semibold px-[6px] py-[2px] rounded-lg whitespace-nowrap flex-shrink-0 bg-white/20 text-white"
       >
         T{reward.tier}
       </span>
@@ -130,24 +130,24 @@ export function BattlePassPromoWidget({
       {/* ── Season Header Row ── */}
       <div className="flex items-center justify-between mb-[10px]">
         {/* Left label */}
-        <span className="text-[9px] font-semibold tracking-[0.07em] uppercase text-white/55">
+        <span className="text-tiny-label font-semibold tracking-[0.07em] uppercase text-white/55">
           Season {seasonNumber} · Free Battle Pass
         </span>
 
         {/* Status dot — Battle Pass hasn't launched yet */}
         <div className="flex items-center gap-1">
           <div className="w-[5px] h-[5px] rounded-full bg-amber-300" />
-          <span className="text-[9px] text-white/55">Coming soon</span>
+          <span className="text-tiny-label text-white/55">Coming soon</span>
         </div>
       </div>
 
       {/* ── Headline ── */}
-      <p className="text-[15px] font-semibold leading-[1.3] mb-1 text-white">
+      <p className="text-card-title font-semibold leading-[1.3] mb-1 text-white">
         Unlock real rewards while you read
       </p>
 
       {/* ── Subheadline ── */}
-      <p className="text-[11px] leading-[1.4] mb-[14px] text-white/65">
+      <p className="text-tiny-label leading-[1.4] mb-[14px] text-white/65">
         Read articles, predict matches, review games — every action earns XP toward these rewards.
       </p>
 
@@ -164,12 +164,12 @@ export function BattlePassPromoWidget({
       {/* ── XP Signup Row ── */}
       <div className="flex items-center gap-[7px] mb-3">
         {/* XP badge */}
-        <span className="text-[10px] font-semibold px-2 py-[3px] rounded-[10px] whitespace-nowrap bg-white/20 text-white">
+        <span className="text-tiny-label font-semibold px-2 py-[3px] rounded-[10px] whitespace-nowrap bg-white/20 text-white">
           +{signupXpBonus} XP on sign up
         </span>
 
         {/* Hint */}
-        <span className="text-[10px] leading-[1.3] text-white/55">
+        <span className="text-tiny-label leading-[1.3] text-white/55">
           Free to join — no credit card
         </span>
       </div>
@@ -179,7 +179,7 @@ export function BattlePassPromoWidget({
         id="bp-promo-cta"
         onClick={() => openAuthModal("battlepass")}
         className="
-          w-full h-9 rounded-lg text-[12px] font-semibold border-none cursor-pointer
+          w-full h-9 rounded-lg text-tiny-label font-semibold border-none cursor-pointer
           bg-white text-primary hover:bg-white/90
           transition-colors duration-150
         "
@@ -188,7 +188,7 @@ export function BattlePassPromoWidget({
       </button>
 
       {/* ── Footer Note ── */}
-      <p className={`text-center mt-[7px] text-[10px] mb-0 ${isUrgent ? "text-red-200" : "text-white/50"}`}>
+      <p className={`text-center mt-[7px] text-tiny-label mb-0 ${isUrgent ? "text-red-200" : "text-white/50"}`}>
         {totalTiers} tiers · Season 1 launching soon
       </p>
     </div>

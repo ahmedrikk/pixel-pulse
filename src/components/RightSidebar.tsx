@@ -52,7 +52,7 @@ export function RightSidebar() {
               <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
               Trending
             </h3>
-            <span className="text-[10px] text-muted-foreground">Refreshes every 12h</span>
+            <span className="text-tiny-label text-muted-foreground">Refreshes every 12h</span>
         </div>
 
         <CardContent className="p-3.5 pt-4">

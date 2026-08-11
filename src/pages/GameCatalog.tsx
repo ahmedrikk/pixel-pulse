@@ -34,13 +34,13 @@ function RatingBadge({
 }) {
   if (rating <= 0 && !count) {
     return (
-      <span className="text-muted-foreground text-[10px]">
+      <span className="text-muted-foreground text-tiny-label">
         {label ? `${label}: —` : "Not rated"}
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-1 text-[10px] font-medium">
+    <span className="flex items-center gap-1 text-tiny-label font-medium">
       <Star className="h-3 w-3 fill-primary text-primary" />
       <span className="text-foreground">{rating.toFixed(1)}</span>
       {count != null && (
@@ -78,11 +78,11 @@ function GenreRankCard({ game, rank }: { game: CatalogGame; rank: number }) {
         ) : (
           <Gamepad2 className="absolute inset-0 m-auto h-6 w-6 text-muted-foreground/40" />
         )}
-        <span className="absolute left-1.5 top-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-black text-white">#{rank}</span>
+        <span className="absolute left-1.5 top-1.5 rounded-md bg-black/70 px-1.5 py-0.5 text-tiny-label font-black text-white">#{rank}</span>
       </div>
       <div className="min-w-0">
         <h3 className="line-clamp-2 text-sm font-bold leading-tight text-foreground group-hover:text-primary">{game.name}</h3>
-        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+        <div className="mt-1.5 flex items-center gap-1 text-tiny-label text-muted-foreground">
           <Star className="h-3 w-3 fill-primary text-primary" />
           {game.ratingCount > 0 ? (
             <><span className="font-bold text-foreground">{game.rating.toFixed(1)}</span><span>· {game.ratingCount} reviews</span></>
@@ -91,7 +91,7 @@ function GenreRankCard({ game, rank }: { game: CatalogGame; rank: number }) {
           )}
         </div>
         {releaseYear(game.releaseDate) && (
-          <div className="mt-1 text-[10px] text-muted-foreground">Released {releaseYear(game.releaseDate)}</div>
+          <div className="mt-1 text-tiny-label text-muted-foreground">Released {releaseYear(game.releaseDate)}</div>
         )}
       </div>
     </Link>
@@ -143,7 +143,7 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
           <h3 className="font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
             {game.name}
           </h3>
-          <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+          <p className="flex items-center gap-1 text-tiny-label text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" />
             {game.releaseDate && game.releaseDate !== "TBA"
               ? new Date(`${game.releaseDate}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
@@ -161,7 +161,7 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
               {game.platforms.slice(0, 3).map((p) => (
                 <span
                   key={p}
-                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-secondary text-muted-foreground text-[10px] font-medium"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-secondary text-muted-foreground text-tiny-label font-medium"
                 >
                   {platformIcons[p]}
                   {p}
@@ -175,7 +175,7 @@ function GameCard({ game, index }: { game: CatalogGame; index: number }) {
                 <RatingBadge rating={game.rawgRating} label="RAWG" />
               )}
               {game.metacriticScore && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                <span className="text-tiny-label font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                   MC {game.metacriticScore}
                 </span>
               )}
@@ -220,7 +220,7 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
 
           {/* Top 3 fire badge */}
           {isTop3 && (
-            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/90 text-primary-foreground text-[10px] font-bold">
+            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/90 text-primary-foreground text-tiny-label font-bold">
               <Flame className="h-3 w-3" />
               #{index + 1}
             </div>
@@ -228,7 +228,7 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
 
           {/* Steam player count badge */}
           {game.steamScore && game.steamScore > 0 && (
-            <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-[10px] font-medium">
+            <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-tiny-label font-medium">
               <Users className="h-3 w-3" />
               {formatPlayerCount(steamScoreToPlayers(game.steamScore))}
             </div>
@@ -240,7 +240,7 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
           </h3>
 
           {/* Trending reason subtitle */}
-          <p className="text-[10px] text-muted-foreground leading-tight line-clamp-2">
+          <p className="text-tiny-label text-muted-foreground leading-tight line-clamp-2">
             {reason}
           </p>
 
@@ -253,7 +253,7 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
           ) : game.rawgRating > 0 ? (
             <RatingBadge rating={game.rawgRating} label="RAWG" />
           ) : (
-            <span className="text-muted-foreground text-[10px]">
+            <span className="text-muted-foreground text-tiny-label">
               Not rated yet
             </span>
           )}

@@ -27,7 +27,7 @@ export function BottomNavBar() {
             activeClassName="text-primary"
           >
             <item.icon className="h-5 w-5" />
-            <span className="text-[9px] font-medium leading-tight">{item.label}</span>
+            <span className="text-tiny-label leading-tight">{item.label}</span>
           </NavLink>
         ))}
       </div>

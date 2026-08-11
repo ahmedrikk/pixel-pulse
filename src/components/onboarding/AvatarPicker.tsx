@@ -72,7 +72,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] transition-colors hover:border-[#3d59e0] sm:min-h-10 sm:px-3 sm:text-xs"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-tiny-label transition-colors hover:border-[#3d59e0] sm:min-h-10 sm:px-3 sm:text-xs"
         >
           <Camera className="w-3.5 h-3.5" /> {uploading ? 'Uploading…' : 'Upload'}
         </button>
@@ -81,7 +81,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-[11px] transition-colors hover:border-[#3d59e0] sm:min-h-10 sm:px-3 sm:text-xs"
+          className="flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 py-2 text-tiny-label transition-colors hover:border-[#3d59e0] sm:min-h-10 sm:px-3 sm:text-xs"
         >
           <Grid2x2 className="w-3.5 h-3.5" /> Choose avatar
         </button>
@@ -89,7 +89,7 @@ export function AvatarPicker({ username, userId, value, onChange }: AvatarPicker
         <button
           type="button"
           onClick={useInitials}
-          className={`col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] transition-colors sm:col-auto sm:min-h-10 sm:text-xs ${
+          className={`col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-tiny-label transition-colors sm:col-auto sm:min-h-10 sm:text-xs ${
             value.type === 'initials' ? 'border-[#3d59e0] bg-blue-50 text-[#3d59e0]' : 'border-gray-200 hover:border-[#3d59e0]'
           }`}
         >

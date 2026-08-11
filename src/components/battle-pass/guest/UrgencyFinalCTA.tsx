@@ -29,7 +29,7 @@ export default function UrgencyFinalCTA({ season }: { season: any }) {
             background: 'color-mix(in srgb, var(--season-primary) 10%, transparent)',
             border: '0.5px solid color-mix(in srgb, var(--season-primary) 30%, transparent)',
             color: 'var(--season-primary)',
-            fontSize: '11px',
+            fontSize: '0.75rem',
             fontWeight: 500
           }}
         >
@@ -38,12 +38,12 @@ export default function UrgencyFinalCTA({ season }: { season: any }) {
         </div>
 
         {/* Urgency Title & Subtitle */}
-        <h2 className="text-[22px] font-medium leading-[1.2] text-white mb-1.5">
+        <h2 className="text-[1.375rem] font-medium leading-[1.2] text-white mb-1.5">
           The {season.shortName} burns for {daysRemaining} more days.<br/>
           Don't watch from the sidelines.
         </h2>
         
-        <p className="text-[13px] text-white/40 mb-5">
+        <p className="text-count-meta text-white/40 mb-5">
           Every day you wait is XP left on the table. Tier 1 reward unlocks in minutes.
         </p>
 
@@ -54,7 +54,7 @@ export default function UrgencyFinalCTA({ season }: { season: any }) {
             style={{ width: `${percentElapsed}%` }} 
           />
         </div>
-        <div className="flex justify-between text-[10px] text-white/25 mb-[22px]">
+        <div className="flex justify-between text-tiny-label text-white/25 mb-[22px]">
           <span>Season start</span>
           <span>▶ Now — {percentElapsed}% elapsed</span>
           <span>Season end</span>
@@ -72,7 +72,7 @@ export default function UrgencyFinalCTA({ season }: { season: any }) {
               border: 'none',
               padding: '12px 28px',
               borderRadius: '9px',
-              fontSize: '14px',
+              fontSize: '0.875rem',
               fontWeight: 500
             }}
           >
@@ -89,7 +89,7 @@ export default function UrgencyFinalCTA({ season }: { season: any }) {
               border: '0.5px solid rgba(255,255,255,0.12)',
               padding: '12px 20px',
               borderRadius: '9px',
-              fontSize: '13px'
+              fontSize: '0.8125rem'
             }}
           >
             Log in to existing account
@@ -97,7 +97,7 @@ export default function UrgencyFinalCTA({ season }: { season: any }) {
         </div>
 
         {/* Fine print */}
-        <p className="text-[11px] text-white/20 mt-3">
+        <p className="text-tiny-label text-white/20 mt-3">
           Free forever · No credit card · +{season.signupXpBonus} XP the moment you sign up
         </p>
       </div>

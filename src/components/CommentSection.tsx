@@ -171,7 +171,7 @@ export function CommentSection({
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold">{comment.author.name}</span>
                     {comment.author.tier && comment.author.tier > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                      <span className="text-tiny-label px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                         Tier {comment.author.tier}
                       </span>
                     )}
