@@ -29,6 +29,8 @@ interface RssSourceConfig {
   dailyQuota: number;
   minQuota: number;
   maxQuota: number;
+  lastSeenAt?: string | null;
+  lastSeenArticleUrl?: string | null;
 }
 
 const RSS_FEEDS: RssSourceConfig[] = [
@@ -443,6 +445,7 @@ function titleSimilarity(left: string, right: string): number {
 interface DedupeResult {
   items: RssItem[];
   duplicateCount: number;
+  duplicateUrls: string[];
   duplicatesBySource: Record<string, number>;
   nearMissesBySource: Record<string, number>;
 }
@@ -452,6 +455,7 @@ function deduplicateCandidates(items: RssItem[], existingTitles: string[]): Dedu
   const unique: RssItem[] = [];
   const duplicatesBySource: Record<string, number> = {};
   const nearMissesBySource: Record<string, number> = {};
+  const duplicateUrls: string[] = [];
   let duplicateCount = 0;
 
   for (const item of interleaveBySource(items)) {
@@ -462,6 +466,7 @@ function deduplicateCandidates(items: RssItem[], existingTitles: string[]): Dedu
     }
     if (highestSimilarity >= 0.85) {
       duplicateCount++;
+      duplicateUrls.push(item.link);
       duplicatesBySource[item.source] = (duplicatesBySource[item.source] ?? 0) + 1;
       continue;
     }
@@ -473,7 +478,7 @@ function deduplicateCandidates(items: RssItem[], existingTitles: string[]): Dedu
     acceptedTitles.push(item.title);
   }
 
-  return { items: unique, duplicateCount, duplicatesBySource, nearMissesBySource };
+  return { items: unique, duplicateCount, duplicateUrls, duplicatesBySource, nearMissesBySource };
 }
 
 function relevanceScore(item: RssItem): number {
@@ -1369,7 +1374,7 @@ serve(async (req) => {
   }
   const { data: rssSourceRows, error: rssSourceError } = await supabase
     .from("news_rss_sources")
-    .select("id, source_name, rss_url, daily_quota, min_quota, max_quota")
+    .select("id, source_name, rss_url, daily_quota, min_quota, max_quota, last_seen_at, last_seen_article_url")
     .eq("active", true)
     .order("display_order", { ascending: true });
   if (rssSourceError) console.warn(`  RSS source config error; using bundled fallback: ${rssSourceError.message}`);
@@ -1381,6 +1386,8 @@ serve(async (req) => {
         dailyQuota: row.daily_quota,
         minQuota: row.min_quota,
         maxQuota: row.max_quota,
+        lastSeenAt: row.last_seen_at,
+        lastSeenArticleUrl: row.last_seen_article_url,
       }))
     : RSS_FEEDS;
   const selectedFeeds = requestedSources.length
@@ -1480,7 +1487,7 @@ serve(async (req) => {
     })
   );
   const youtubeItems = youtubeResults.flatMap(({ result }) => result.items);
-  const allItems: RssItem[] = [...rssItems, ...youtubeItems];
+  const fetchedAllItems: RssItem[] = [...rssItems, ...youtubeItems];
   const feedStats = [...feedResults.map((result, index) => ({
     source: selectedFeeds[index].source,
     url: selectedFeeds[index].url,
@@ -1507,7 +1514,7 @@ serve(async (req) => {
 
   if (diagnosticOnly) {
     return new Response(JSON.stringify({
-      total: allItems.length,
+      total: fetchedAllItems.length,
       rollingWindowHours: 24,
       freshRssItems: rssItems.length,
       rssOutsideWindow,
@@ -1518,12 +1525,80 @@ serve(async (req) => {
     });
   }
 
+  // Persist newly discovered RSS items before advancing source checkpoints.
+  // This small inbox is what lets a three-slot run defer the fourth story
+  // without losing it when last_seen_at moves forward.
+  const newlyDiscoveredRss = rssItems.filter((item) => {
+    const source = configuredFeeds.find((candidate) => candidate.source === item.source);
+    const lastSeenMs = Date.parse(source?.lastSeenAt ?? "");
+    const publishedMs = Date.parse(item.pubDate);
+    return !Number.isFinite(lastSeenMs) || !Number.isFinite(publishedMs) || publishedMs > lastSeenMs;
+  });
+  let rssCheckpointStored = true;
+  if (newlyDiscoveredRss.length > 0) {
+    const sourceIds = new Map(configuredFeeds.map((source) => [source.source, source.id]));
+    const { error: candidateInsertError } = await supabase
+      .from("news_source_candidates")
+      .upsert(newlyDiscoveredRss.map((item) => ({
+        source_id: sourceIds.get(item.source),
+        source_name: item.source,
+        source_url: item.link,
+        title: item.title,
+        published_at: item.pubDate,
+        author: item.author,
+        description: item.description,
+        enclosure_url: item.enclosureUrl,
+        status: "pending",
+      })), { onConflict: "source_url", ignoreDuplicates: true });
+    if (candidateInsertError) {
+      rssCheckpointStored = false;
+      console.warn(`  RSS candidate checkpoint failed: ${candidateInsertError.message}`);
+    }
+  }
+
+  const queueCutoff = new Date(Date.now() - INGESTION_WINDOW_MS).toISOString();
+  await supabase
+    .from("news_source_candidates")
+    .update({ status: "expired", resolved_at: new Date().toISOString() })
+    .eq("status", "pending")
+    .lt("published_at", queueCutoff);
+
+  let queuedRssItems = rssItems;
+  if (rssCheckpointStored && selectedFeeds.length > 0) {
+    const { data: pendingRows, error: pendingError } = await supabase
+      .from("news_source_candidates")
+      .select("source_name, source_url, title, published_at, author, description, enclosure_url")
+      .in("source_id", selectedFeeds.map((source) => source.id))
+      .eq("status", "pending")
+      .gte("published_at", queueCutoff)
+      .order("published_at", { ascending: true })
+      .limit(500);
+    if (pendingError) {
+      rssCheckpointStored = false;
+      console.warn(`  RSS pending queue unavailable: ${pendingError.message}`);
+    } else {
+      queuedRssItems = (pendingRows ?? []).map((row) => ({
+        title: row.title,
+        link: row.source_url,
+        pubDate: row.published_at,
+        author: row.author || "Staff Writer",
+        description: row.description || "",
+        enclosureUrl: row.enclosure_url,
+        source: row.source_name,
+      }));
+    }
+  }
+  const allItems: RssItem[] = [...queuedRssItems, ...youtubeItems];
+
   // Step 2: Filter out already-cached articles (news is permanent)
   const urls = allItems.map(i => i.link);
-  const { data: existing } = await supabase
-    .from("cached_articles")
-    .select("source_url, ai_summary, summary, media_type")
-    .in("source_url", urls);
+  const existingResult = urls.length > 0
+    ? await supabase
+      .from("cached_articles")
+      .select("source_url, ai_summary, summary, media_type")
+      .in("source_url", urls)
+    : { data: [], error: null };
+  const existing = existingResult.data;
 
   // Old esports ingestion copied tiny RSS teasers straight into the card.
   // Treat those rows as unfinished so the unified scrape + AI pipeline can
@@ -1538,56 +1613,54 @@ serve(async (req) => {
   const dedupTitles = (recentTitles ?? []).filter(cachedArticleIsPublishReady).flatMap((row) =>
     [row.ai_title, row.title].filter((value): value is string => typeof value === "string" && value.length > 0)
   );
-  const uncachedRss = rssItems.filter((item) => !existingUrls.has(item.link));
+  const uncachedRss = queuedRssItems.filter((item) => !existingUrls.has(item.link));
   const uncachedYouTube = youtubeItems.filter((item) => !existingUrls.has(item.link));
   const rssDedupe = deduplicateCandidates(uncachedRss, dedupTitles);
   const youtubeDedupe = deduplicateCandidates(uncachedYouTube, dedupTitles);
 
-  const naturalRollingWindowStartMs = Date.now() - INGESTION_WINDOW_MS;
-  const { data: pacingState, error: pacingStateError } = await supabase
-    .from("news_ingestion_budget")
-    .select("enforcement_started_at")
-    .eq("budget_key", "rss_articles")
-    .maybeSingle();
-  if (pacingStateError) console.warn(`  News pacing state unavailable: ${pacingStateError.message}`);
-  const enforcementStartMs = Date.parse(pacingState?.enforcement_started_at ?? "");
-  const rollingWindowStart = new Date(Math.max(
-    naturalRollingWindowStartMs,
-    Number.isFinite(enforcementStartMs) ? enforcementStartMs : naturalRollingWindowStartMs,
-  )).toISOString();
+  if (rssCheckpointStored) {
+    const resolvedUrls = [...existingUrls].filter((url) => queuedRssItems.some((item) => item.link === url));
+    if (resolvedUrls.length > 0) {
+      await supabase
+        .from("news_source_candidates")
+        .update({ status: "published", resolved_at: new Date().toISOString() })
+        .in("source_url", resolvedUrls);
+    }
+    if (rssDedupe.duplicateUrls.length > 0) {
+      await supabase
+        .from("news_source_candidates")
+        .update({ status: "duplicate", resolved_at: new Date().toISOString() })
+        .in("source_url", rssDedupe.duplicateUrls);
+    }
+  }
+
+  const { data: pacingRows, error: pacingError } = await supabase.rpc("claim_news_pacing_slot", {
+    p_requested: Math.min(rssDedupe.items.length, ARTICLE_PROCESS_LIMIT),
+  });
+  const pacing = Array.isArray(pacingRows) ? pacingRows[0] : pacingRows;
+  const pacingFallback = Boolean(pacingError || !pacing);
+  if (pacingFallback) {
+    console.warn(`  News pacing slot unavailable; publishing no website articles: ${pacingError?.message ?? "empty response"}`);
+  }
+  const pacedArticleSlots = pacingFallback ? 0 : Math.max(0, Number(pacing.granted_allowance) || 0);
+  const dailyBudget = pacingFallback ? ROLLING_ARTICLE_CAP : Math.max(0, Number(pacing.daily_budget) || ROLLING_ARTICLE_CAP);
+  const publishedToday = pacingFallback ? 0 : Math.max(0, Number(pacing.daily_published_before) || 0);
+  const remainingArticleSlots = Math.max(0, dailyBudget - publishedToday);
+  const pacingSlotStartedAt = pacingFallback ? null : (pacing.slot_started_at as string | null);
+  const localDayStart = pacingFallback ? new Date(Date.now() - INGESTION_WINDOW_MS).toISOString() : pacing.local_day_start;
+  const localDayEnd = pacingFallback ? new Date(Date.now() + INGESTION_WINDOW_MS).toISOString() : pacing.local_day_end;
   const configuredRssSourceNames = configuredFeeds.map((source) => source.source);
-  const { data: rollingArticleRows, error: rollingArticleError } = await supabase
+  const { data: dailyArticleRows, error: dailyArticleError } = await supabase
     .from("cached_articles")
     .select("source")
     .eq("media_type", "article")
     .in("source", configuredRssSourceNames)
-    .gte("fetched_at", rollingWindowStart);
-  if (rollingArticleError) console.warn(`  Rolling article budget query failed: ${rollingArticleError.message}`);
+    .gte("fetched_at", localDayStart)
+    .lt("fetched_at", localDayEnd);
+  if (dailyArticleError) console.warn(`  Daily article allocation query failed: ${dailyArticleError.message}`);
   const alreadyPublishedBySource: Record<string, number> = {};
-  for (const row of rollingArticleRows ?? []) {
+  for (const row of dailyArticleRows ?? []) {
     alreadyPublishedBySource[row.source] = (alreadyPublishedBySource[row.source] ?? 0) + 1;
-  }
-  const publishedLast24Hours = rollingArticleRows?.length ?? 0;
-  const remainingArticleSlots = Math.max(0, ROLLING_ARTICLE_CAP - publishedLast24Hours);
-  let pacedArticleSlots = Math.min(2, remainingArticleSlots);
-  let pacingTokensRemaining: number | null = null;
-  let pacingFallback = false;
-  if (rssDedupe.items.length > 0 && remainingArticleSlots > 0) {
-    const { data: pacingRows, error: pacingError } = await supabase.rpc("claim_news_ingestion_budget", {
-      p_requested: Math.min(rssDedupe.items.length, ARTICLE_PROCESS_LIMIT),
-      p_rolling_count: publishedLast24Hours,
-      p_rolling_cap: ROLLING_ARTICLE_CAP,
-    });
-    const pacing = Array.isArray(pacingRows) ? pacingRows[0] : pacingRows;
-    if (pacingError || !pacing) {
-      pacingFallback = true;
-      console.warn(`  News pacing unavailable; using safe two-article fallback: ${pacingError?.message ?? "empty response"}`);
-    } else {
-      pacedArticleSlots = Math.max(0, Number(pacing.granted_slots) || 0);
-      pacingTokensRemaining = Number(pacing.tokens_remaining);
-    }
-  } else if (remainingArticleSlots === 0) {
-    pacedArticleSlots = 0;
   }
   const allocation = allocateArticleSlots(
     rssDedupe.items,
@@ -1596,7 +1669,7 @@ serve(async (req) => {
     alreadyPublishedBySource,
   );
 
-  // YouTube is deliberately outside the 100-article rolling budget. Every fresh
+  // YouTube is deliberately outside the 100-article daily website budget. Every fresh
   // 24-hour video remains eligible; only RSS candidates enter allocation.
   const youtubeQueue = interleaveBySource(youtubeDedupe.items);
   const articleQueue = allocation.items;
@@ -1605,7 +1678,11 @@ serve(async (req) => {
   const duplicateCount = existingUrls.size + similarityDuplicateCount;
   if (existingUrls.size > 0) console.log(`  Cache gate removed ${existingUrls.size} previously published URLs`);
   if (similarityDuplicateCount > 0) console.log(`  Similarity gate removed ${similarityDuplicateCount} duplicate candidates`);
-  console.log(`  RSS rolling budget: ${publishedLast24Hours}/${ROLLING_ARTICLE_CAP} published in the last 24 hours, paced allowance ${pacedArticleSlots}, ${allocation.items.length} slots allocated`);
+  console.log(
+    `  RSS pacing: ${pacing?.band_name ?? "unavailable"} band, `
+    + `${publishedToday}/${dailyBudget} published today, `
+    + `slot allowance ${pacedArticleSlots}, ${allocation.items.length} allocated`,
+  );
   for (const source of selectedFeeds) {
     const allocated = allocation.allocatedBySource[source.source] ?? 0;
     const candidates = allocation.candidateCountBySource[source.source] ?? 0;
@@ -1773,6 +1850,16 @@ serve(async (req) => {
         return "skipped";
       }
 
+      if (item.mediaType !== "youtube" && rssCheckpointStored) {
+        const { error: queueResolveError } = await supabase
+          .from("news_source_candidates")
+          .update({ status: "published", resolved_at: new Date().toISOString() })
+          .eq("source_url", item.link);
+        if (queueResolveError) {
+          console.warn(`  RSS candidate resolution failed for "${item.title}": ${queueResolveError.message}`);
+        }
+      }
+
       processed++;
       if (item.mediaType === "youtube") processedYouTube++;
       else processedArticles++;
@@ -1835,6 +1922,62 @@ serve(async (req) => {
     if (usageError) console.warn(`  Daily source-allocation log failed: ${usageError.message}`);
   }
 
+  if (pacingSlotStartedAt) {
+    const { error: pacingCompletionError } = await supabase
+      .from("news_pacing_runs")
+      .update({
+        published_count: processedArticles,
+        completed_at: new Date().toISOString(),
+      })
+      .eq("slot_started_at", pacingSlotStartedAt);
+    if (pacingCompletionError) {
+      console.warn(`  News pacing completion log failed: ${pacingCompletionError.message}`);
+    }
+  }
+
+  // Advance RSS checkpoints only after every newly observed item is safely in
+  // the persistent candidate inbox. Pending candidates survive for later runs.
+  const sourceCheckTime = new Date().toISOString();
+  let sourceCheckpointsUpdated = 0;
+  for (let index = 0; index < selectedFeeds.length; index++) {
+    const source = selectedFeeds[index];
+    const result = feedResults[index];
+    const successful = result?.status === "fulfilled" && !result.value.error;
+    const update: Record<string, string | null> = {
+      last_checked_at: sourceCheckTime,
+      last_check_error: successful
+        ? null
+        : result?.status === "fulfilled" ? result.value.error : String(result?.reason ?? "RSS fetch failed"),
+    };
+    if (successful) {
+      update.last_successful_check_at = sourceCheckTime;
+      if (rssCheckpointStored && result.value.items.length > 0) {
+        const newest = result.value.items.reduce((latest, item) => {
+          const publishedMs = Date.parse(item.pubDate);
+          return Number.isFinite(publishedMs) && publishedMs > latest.publishedMs
+            ? { publishedMs, url: item.link }
+            : latest;
+        }, {
+          publishedMs: Date.parse(source.lastSeenAt ?? "") || 0,
+          url: source.lastSeenArticleUrl ?? "",
+        });
+        if (newest.publishedMs > 0) {
+          update.last_seen_at = new Date(newest.publishedMs).toISOString();
+          update.last_seen_article_url = newest.url;
+        }
+      }
+    }
+    const { error: sourceCheckpointError } = await supabase
+      .from("news_rss_sources")
+      .update(update)
+      .eq("id", source.id);
+    if (sourceCheckpointError) {
+      console.warn(`  ${source.source}: checkpoint update failed: ${sourceCheckpointError.message}`);
+    } else {
+      sourceCheckpointsUpdated++;
+    }
+  }
+
   // Mark a YouTube source fully polled only when every candidate still inside
   // its 24-hour window has reached cached_articles. If the edge-function time
   // budget deferred any videos, leaving last_polled_at unchanged makes the
@@ -1881,16 +2024,22 @@ serve(async (req) => {
     processedArticles,
     processedYouTube,
     articleBudget: {
-      cap: ROLLING_ARTICLE_CAP,
-      windowHours: 24,
-      publishedBeforeRun: publishedLast24Hours,
+      cap: dailyBudget,
+      localDate: pacing?.local_date ?? null,
+      timezone: pacing?.timezone_name ?? null,
+      band: pacing?.band_name ?? null,
+      slotStartedAt: pacingSlotStartedAt,
+      configuredAllowance: pacingFallback ? 0 : Number(pacing.configured_allowance) || 0,
+      alreadyClaimed: pacingFallback ? false : Boolean(pacing.already_claimed),
+      publishedBeforeRun: publishedToday,
       remainingBeforeRun: remainingArticleSlots,
       pacedAllowance: pacedArticleSlots,
-      pacingTokensRemaining,
       pacingFallback,
       allocatedThisRun: allocation.items.length,
     },
     rssOutsideWindow,
+    pendingRssCandidates: queuedRssItems.length,
+    sourceCheckpointsUpdated,
     allocation: allocation.allocatedBySource,
     processedBySource,
     feeds: feedStats,
