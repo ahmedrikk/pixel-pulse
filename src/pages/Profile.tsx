@@ -6,6 +6,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  LogOut,
   Settings,
   Star,
   Trash2,
@@ -40,7 +41,7 @@ type AssetPicker = "avatar" | "banner" | null;
 export default function Profile() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, isLoading: authLoading } = useAuthGate();
+  const { user, isLoading: authLoading, signOut } = useAuthGate();
   const { profile, isLoading: profileLoading, refreshProfile, setCachedProfile } = useProfile();
   const { data: reviews = [] } = useMyReviews(user?.id);
   const deleteReview = useDeleteReview();
@@ -276,6 +277,16 @@ export default function Profile() {
           </div>
 
           <Link to="/settings/account" className="flex items-center gap-2 border-t px-5 py-5 text-sm font-semibold transition-colors hover:bg-secondary/60 sm:px-7"><Settings className="h-4 w-4" /> Account settings</Link>
+          <button
+            type="button"
+            onClick={async () => {
+              await signOut();
+              navigate("/", { replace: true });
+            }}
+            className="flex w-full items-center gap-2 border-t px-5 py-5 text-left text-sm font-semibold text-destructive transition-colors hover:bg-destructive/5 sm:px-7 md:hidden"
+          >
+            <LogOut className="h-4 w-4" /> Sign out
+          </button>
         </main>
       </SiteLayout>
 
