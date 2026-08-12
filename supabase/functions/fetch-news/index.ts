@@ -1599,7 +1599,10 @@ serve(async (req) => {
       .in("source_id", selectedFeeds.map((source) => source.id))
       .eq("status", "pending")
       .gte("published_at", queueCutoff)
-      .order("published_at", { ascending: true })
+      // Recovery backlogs must not make the live feed look a day behind.
+      // Newest candidates receive the current pacing slots; older pending
+      // stories stay durable and can drain during quieter future runs.
+      .order("published_at", { ascending: false })
       .limit(PENDING_RSS_CANDIDATE_LIMIT);
     if (pendingError) {
       rssCheckpointStored = false;
