@@ -9,6 +9,8 @@ const corsHeaders = {
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
 const STEAM_NEWS_URL = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/";
 const MAX_CONTENT_LENGTH = 20_000;
+const SCHEDULED_SOURCE_BATCH_SIZE = 24;
+const SOURCE_SYNC_CONCURRENCY = 4;
 const PATCH_TITLE_PATTERN = /\b(patch(?:\s+notes?)?|hotfix|update(?:\s+notes?)?|changelog|release\s+notes?|maintenance|balance\s+(?:update|changes?)|version\s+\d+(?:\.\d+)*|v\d+(?:\.\d+)+|\d+\.\d+(?:\.\d+){1,4})\b/i;
 const STRONG_PATCH_PATTERN = /\b(patch(?:\s+notes?)?|hotfix|changelog|release\s+notes?|maintenance|balance\s+(?:update|changes?))\b/i;
 const NON_PATCH_UPDATE_PATTERN = /\b(store|shop|marketplace|sale|bundle|cosmetic|appearance|esports|tournament|community|developer|devstream|workshop|roadmap|release\s+schedule|specifications)\b/i;
@@ -53,6 +55,82 @@ interface SyncResult {
   oldestTimestamp: number | null;
   complete: boolean;
   error: string | null;
+}
+
+interface CanonicalSteamGame {
+  id: string;
+  steam_appid: number | null;
+}
+
+async function ensureCanonicalPatchSources(
+  supabase: ReturnType<typeof createClient>,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from("games")
+    .select("id, steam_appid")
+    .gt("steam_appid", 0)
+    .limit(1_000);
+  if (error) throw new Error(`Unable to discover Steam-backed games: ${error.message}`);
+
+  // One Steam app may have duplicate/legacy Game rows. Prefer a readable
+  // canonical slug over a numeric import id, then keep the shortest stable id.
+  const canonicalByAppId = new Map<number, CanonicalSteamGame>();
+  for (const game of (data ?? []) as CanonicalSteamGame[]) {
+    const appId = Number(game.steam_appid);
+    if (!Number.isInteger(appId) || appId <= 0) continue;
+    const current = canonicalByAppId.get(appId);
+    const candidateIsSlug = !/^\d+$/.test(game.id);
+    const currentIsSlug = current ? !/^\d+$/.test(current.id) : false;
+    if (!current
+      || (candidateIsSlug && !currentIsSlug)
+      || (candidateIsSlug === currentIsSlug && game.id.length < current.id.length)) {
+      canonicalByAppId.set(appId, game);
+    }
+  }
+
+  const rows = [...canonicalByAppId.entries()].map(([appId, game]) => ({
+    id: `steam-${appId}`,
+    game_id: game.id,
+    steam_appid: appId,
+    source_name: "Steam Community Announcements",
+    active: true,
+    poll_interval_minutes: 60,
+    updated_at: new Date().toISOString(),
+  }));
+  if (rows.length === 0) return 0;
+
+  // ignoreDuplicates preserves an already-established canonical game link,
+  // while registering every newly-discovered Steam-backed title.
+  const { error: sourceError } = await supabase
+    .from("game_patch_sources")
+    .upsert(rows, { onConflict: "steam_appid", ignoreDuplicates: true });
+  if (sourceError) throw new Error(`Unable to register patch sources: ${sourceError.message}`);
+  return rows.length;
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function runWorker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await worker(items[index]);
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(Math.max(1, concurrency), items.length) },
+      () => runWorker(),
+    ),
+  );
+  return results;
 }
 
 function decodeEntities(value: string): string {
@@ -250,6 +328,7 @@ serve(async (req) => {
     };
     const mode = body.mode ?? "scheduled";
     const pages = Math.min(Math.max(body.pages ?? 5, 1), 10);
+    const eligibleGameCount = await ensureCanonicalPatchSources(supabase);
 
     let query = supabase
       .from("game_patch_sources")
@@ -269,33 +348,49 @@ serve(async (req) => {
 
     const results: SyncResult[] = [];
     if (mode === "refresh" || mode === "backfill") {
-      for (const source of sources.slice(0, 24)) {
-        results.push(await syncSource(supabase, source, mode, mode === "refresh" ? 1 : pages));
-      }
+      const explicitSourceRequest = Boolean(body.sourceId || body.gameId);
+      const batchSize = mode === "backfill" && !explicitSourceRequest
+        ? 4
+        : SCHEDULED_SOURCE_BATCH_SIZE;
+      const selectedSources = sources.slice(0, explicitSourceRequest ? sources.length : batchSize);
+      results.push(...await mapWithConcurrency(
+        selectedSources,
+        mode === "backfill" ? 2 : SOURCE_SYNC_CONCURRENCY,
+        (source) => syncSource(supabase, source, mode, mode === "refresh" ? 1 : pages),
+      ));
     } else {
-      // Refresh every supported game, then advance two pages of history for the
-      // least-complete source. This keeps recent patches fast while building a
-      // permanent archive in the background.
-      for (const source of sources.slice(0, 24)) {
-        // Cron checks every 30 minutes. Allow one minute of tolerance so a
-        // source written at :17:10 is still considered due at the next :17:00
-        // hourly boundary instead of slipping to a 90-minute refresh.
+      // The registry can contain hundreds of games. Select the oldest-due
+      // bounded batch on each run; last_polled_at moves completed games to the
+      // back, so every source receives fair coverage over successive crons.
+      const dueSources = sources.filter((source) => {
         const dueAfterMs = Math.max(1, source.poll_interval_minutes - 1) * 60_000;
-        const due = !source.last_polled_at
-          || Date.now() - new Date(source.last_polled_at).getTime()
-            >= dueAfterMs;
-        if (due) results.push(await syncSource(supabase, source, "refresh", 1));
-      }
+        return !source.last_polled_at
+          || Date.now() - new Date(source.last_polled_at).getTime() >= dueAfterMs;
+      });
+      const refreshBatch = dueSources.slice(0, SCHEDULED_SOURCE_BATCH_SIZE);
+      results.push(...await mapWithConcurrency(
+        refreshBatch,
+        SOURCE_SYNC_CONCURRENCY,
+        (source) => syncSource(supabase, source, "refresh", 1),
+      ));
       const backfillSource = sources
+        .filter((source) => !refreshBatch.some((selected) => selected.id === source.id))
         .filter((source) => !source.backfill_complete)
         .sort((a, b) => (a.backfill_cursor ?? Number.MAX_SAFE_INTEGER) - (b.backfill_cursor ?? Number.MAX_SAFE_INTEGER))[0];
       if (backfillSource) results.push(await syncSource(supabase, backfillSource, "backfill", 2));
+
+      console.log(
+        `Patch source rotation: ${refreshBatch.length}/${sources.length} selected, `
+        + `${Math.max(0, dueSources.length - refreshBatch.length)} due sources remain`,
+      );
     }
 
     return new Response(JSON.stringify({
       ok: results.every((result) => !result.error),
       mode,
+      eligibleGameCount,
       sourceCount: sources.length,
+      selectedSourceCount: results.length,
       fetched: results.reduce((total, result) => total + result.fetched, 0),
       stored: results.reduce((total, result) => total + result.stored, 0),
       results,
