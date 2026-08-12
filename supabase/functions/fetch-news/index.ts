@@ -16,11 +16,11 @@ const MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY") ?? "";
 const ARTICLE_PROCESS_LIMIT = 15;
 const YOUTUBE_PROCESS_LIMIT = 10;
-const ARTICLE_SCRAPE_LIMIT = 25;
-const YOUTUBE_SCRAPE_LIMIT = 20;
+const SCRAPE_CONCURRENCY = 4;
 const PROCESS_CONCURRENCY = 3;
 const ROLLING_ARTICLE_CAP = 100;
 const INGESTION_WINDOW_MS = 24 * 60 * 60 * 1000;
+const PENDING_RSS_CANDIDATE_LIMIT = 72;
 
 interface RssSourceConfig {
   id: string;
@@ -76,6 +76,35 @@ interface RssItem {
   source: string;
   mediaType?: "article" | "youtube";
   videoId?: string;
+}
+
+async function mapSettledWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const results = new Array<PromiseSettledResult<R>>(items.length);
+  let nextIndex = 0;
+
+  async function runWorker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      try {
+        results[index] = { status: "fulfilled", value: await worker(items[index]) };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(Math.max(1, concurrency), items.length) },
+      () => runWorker(),
+    ),
+  );
+  return results;
 }
 
 interface YouTubeSource {
@@ -433,9 +462,7 @@ function normalizedTitleTokens(title: string): Set<string> {
   );
 }
 
-function titleSimilarity(left: string, right: string): number {
-  const a = normalizedTitleTokens(left);
-  const b = normalizedTitleTokens(right);
+function tokenSetSimilarity(a: Set<string>, b: Set<string>): number {
   if (a.size < 2 || b.size < 2) return 0;
   const intersection = [...a].filter((token) => b.has(token)).length;
   const union = new Set([...a, ...b]).size;
@@ -451,7 +478,7 @@ interface DedupeResult {
 }
 
 function deduplicateCandidates(items: RssItem[], existingTitles: string[]): DedupeResult {
-  const acceptedTitles = [...existingTitles];
+  const acceptedTitleTokens = existingTitles.map(normalizedTitleTokens);
   const unique: RssItem[] = [];
   const duplicatesBySource: Record<string, number> = {};
   const nearMissesBySource: Record<string, number> = {};
@@ -459,9 +486,10 @@ function deduplicateCandidates(items: RssItem[], existingTitles: string[]): Dedu
   let duplicateCount = 0;
 
   for (const item of interleaveBySource(items)) {
+    const itemTokens = normalizedTitleTokens(item.title);
     let highestSimilarity = 0;
-    for (const title of acceptedTitles) {
-      highestSimilarity = Math.max(highestSimilarity, titleSimilarity(item.title, title));
+    for (const titleTokens of acceptedTitleTokens) {
+      highestSimilarity = Math.max(highestSimilarity, tokenSetSimilarity(itemTokens, titleTokens));
       if (highestSimilarity >= 0.85) break;
     }
     if (highestSimilarity >= 0.85) {
@@ -475,7 +503,7 @@ function deduplicateCandidates(items: RssItem[], existingTitles: string[]): Dedu
       console.log(`  [DEDUPE NEAR MISS ${highestSimilarity.toFixed(2)}] ${item.source}: ${item.title}`);
     }
     unique.push(item);
-    acceptedTitles.push(item.title);
+    acceptedTitleTokens.push(itemTokens);
   }
 
   return { items: unique, duplicateCount, duplicateUrls, duplicatesBySource, nearMissesBySource };
@@ -1572,7 +1600,7 @@ serve(async (req) => {
       .eq("status", "pending")
       .gte("published_at", queueCutoff)
       .order("published_at", { ascending: true })
-      .limit(500);
+      .limit(PENDING_RSS_CANDIDATE_LIMIT);
     if (pendingError) {
       rssCheckpointStored = false;
       console.warn(`  RSS pending queue unavailable: ${pendingError.message}`);
@@ -1609,7 +1637,9 @@ serve(async (req) => {
   const { data: recentTitles } = await supabase
     .from("cached_articles")
     .select("title, ai_title, ai_summary, summary, media_type")
-    .gte("article_date", new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString());
+    .gte("article_date", new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString())
+    .order("article_date", { ascending: false })
+    .limit(500);
   const dedupTitles = (recentTitles ?? []).filter(cachedArticleIsPublishReady).flatMap((row) =>
     [row.ai_title, row.title].filter((value): value is string => typeof value === "string" && value.length > 0)
   );
@@ -1699,14 +1729,19 @@ serve(async (req) => {
 
   const enrichedItems: EnrichedItem[] = [];
 
-  // Reserve independent scrape capacity for each pipeline. A busy YouTube day
-  // must never prevent allocated website articles from reaching summarization.
+  // Scrape only content that can actually be summarized in this invocation.
+  // The previous worker launched as many as 45 scrapes at once, which exhausted
+  // the Edge Function's compute resources and burned the pacing slot before any
+  // article could be published. A small worker pool keeps RSS and YouTube both
+  // represented without allowing either track to overload the invocation.
   const scrapeCandidates = [
-    ...articleQueue.slice(0, ARTICLE_SCRAPE_LIMIT),
-    ...youtubeQueue.slice(0, YOUTUBE_SCRAPE_LIMIT),
+    ...articleQueue.slice(0, ARTICLE_PROCESS_LIMIT),
+    ...youtubeQueue.slice(0, YOUTUBE_PROCESS_LIMIT),
   ];
-  const scrapeResults = await Promise.allSettled(
-    scrapeCandidates.map(async (item) => {
+  const scrapeResults = await mapSettledWithConcurrency(
+    scrapeCandidates,
+    SCRAPE_CONCURRENCY,
+    async (item) => {
       const rssDesc = removeBoilerplate(stripHtml(item.description));
       const rssWords = rssDesc.split(/\s+/).filter(Boolean).length;
 
@@ -1736,7 +1771,7 @@ serve(async (req) => {
       console.log(`  [${item.source}] "${item.title.substring(0, 50)}..." — ${scrapeMethod} -> ${wordCount}w`);
 
       return { ...item, content, imageUrl, ogImage: scrapedImage, scrapeMethod };
-    })
+    },
   );
 
   for (const result of scrapeResults) {
@@ -1922,7 +1957,10 @@ serve(async (req) => {
     if (usageError) console.warn(`  Daily source-allocation log failed: ${usageError.message}`);
   }
 
-  if (pacingSlotStartedAt) {
+  // Only the invocation that actually acquired (or reclaimed) this slot may
+  // mark it complete. An already-claimed observer has zero allowance and must
+  // not close an interrupted run before the recovery window can reclaim it.
+  if (pacingSlotStartedAt && !Boolean(pacing?.already_claimed)) {
     const { error: pacingCompletionError } = await supabase
       .from("news_pacing_runs")
       .update({
