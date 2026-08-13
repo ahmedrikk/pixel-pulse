@@ -21,7 +21,7 @@ export default async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
@@ -56,14 +56,18 @@ export default async function handler(req: Request): Promise<Response> {
     const elapsed = Date.now() - start;
     const body = await res.json().catch(() => ({}));
 
-    console.log(`[cron] Done in ${elapsed}ms — status ${res.status}`, body);
+    console.log(`[cron] Done in ${elapsed}ms — status ${res.status}`);
+
+    const result = body && typeof body === 'object'
+      ? Object.fromEntries(['ok', 'message', 'updated', 'errors'].flatMap((key) => key in body ? [[key, body[key]]] : []))
+      : undefined;
 
     return new Response(
       JSON.stringify({
         ok: res.ok,
         status: res.status,
         elapsed_ms: elapsed,
-        result: body,
+        result,
       }),
       {
         status: res.ok ? 200 : 502,
@@ -73,7 +77,7 @@ export default async function handler(req: Request): Promise<Response> {
   } catch (err) {
     console.error('[cron] compute-trending edge function call failed:', err);
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: 'Trending worker unavailable' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }

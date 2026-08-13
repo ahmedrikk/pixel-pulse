@@ -2,7 +2,10 @@
 # Pixel Pulse Database Setup Script
 # This will create the cached_articles table
 
-DB_PASSWORD="<redacted>"
+if [ -z "${DB_PASSWORD:-}" ]; then
+  echo "DB_PASSWORD must be supplied through the environment."
+  exit 1
+fi
 DB_HOST="db.zxcqqsviwtwxukizibef.supabase.co"
 DB_NAME="postgres"
 DB_USER="postgres"
@@ -18,7 +21,7 @@ if ! PGPASSWORD="$DB_PASSWORD" psql "host=$DB_HOST port=5432 dbname=$DB_NAME use
   echo "The password might be incorrect. Please:"
   echo "1. Go to https://supabase.com/dashboard/project/jdubbuamzgwfuxhvuebl/settings/database"
   echo "2. Find the correct password"
-  echo "3. Update DB_PASSWORD in this script"
+  echo "3. Export DB_PASSWORD for this shell and run the script again"
   exit 1
 fi
 
@@ -61,7 +64,9 @@ DROP POLICY IF EXISTS "Allow anonymous read access" ON public.cached_articles;
 CREATE POLICY "Allow anonymous read access" ON public.cached_articles FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Allow authenticated insert/update" ON public.cached_articles;
-CREATE POLICY "Allow authenticated insert/update" ON public.cached_articles FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Service role manages articles" ON public.cached_articles;
+CREATE POLICY "Service role manages articles" ON public.cached_articles FOR ALL
+USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
 -- Cleanup function
 CREATE OR REPLACE FUNCTION cleanup_expired_articles() RETURNS void AS $$ 

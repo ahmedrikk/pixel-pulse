@@ -20,7 +20,7 @@
 
 Append to `.env`:
 ```
-VITE_RAWG_API_KEY=<redacted>
+RAWG_API_KEY=<configure-server-side>
 ```
 
 **Step 2: Add RAWG key to GitHub Actions deploy workflow**

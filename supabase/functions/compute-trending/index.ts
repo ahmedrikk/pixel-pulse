@@ -13,11 +13,11 @@ const JSON_HEADERS = { ...corsHeaders, "Content-Type": "application/json" };
 // ---------------------------------------------------------------------------
 const NEWS_WINDOW_DAYS = 7;
 const PANDA_DAYS_AHEAD = 7;
-const STEAM_API_KEY = Deno.env.get("STEAM_API_KEY") ?? Deno.env.get("VITE_STEAM_API_KEY") ?? "";
+const STEAM_API_KEY = Deno.env.get("STEAM_API_KEY") ?? "";
 const TWITCH_CLIENT_ID = Deno.env.get("TWITCH_CLIENT_ID") ?? "";
 const TWITCH_CLIENT_SECRET = Deno.env.get("TWITCH_CLIENT_SECRET") ?? "";
-const PANDASCORE_API_KEY = Deno.env.get("PANDASCORE_API_KEY") ?? Deno.env.get("VITE_PANDASCORE_API_KEY") ?? "";
-const RAWG_API_KEY = Deno.env.get("RAWG_API_KEY") ?? Deno.env.get("VITE_RAWG_API_KEY") ?? "";
+const PANDASCORE_API_KEY = Deno.env.get("PANDASCORE_API_KEY") ?? "";
+const RAWG_API_KEY = Deno.env.get("RAWG_API_KEY") ?? "";
 
 // ---------------------------------------------------------------------------
 // Helpers

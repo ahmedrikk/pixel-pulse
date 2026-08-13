@@ -6,7 +6,9 @@ describe("useScrollDepth", () => {
   it("registers IntersectionObserver on mount", () => {
     const observe = vi.fn();
     const disconnect = vi.fn();
-    vi.stubGlobal("IntersectionObserver", vi.fn(() => ({ observe, disconnect })));
+    vi.stubGlobal("IntersectionObserver", vi.fn(function MockIntersectionObserver() {
+      return { observe, disconnect };
+    }));
 
     renderHook(() => useScrollDepth("test-page", vi.fn()));
     expect(IntersectionObserver).toHaveBeenCalled();
@@ -15,7 +17,9 @@ describe("useScrollDepth", () => {
   it("disconnects observer on unmount", () => {
     const observe = vi.fn();
     const disconnect = vi.fn();
-    vi.stubGlobal("IntersectionObserver", vi.fn(() => ({ observe, disconnect })));
+    vi.stubGlobal("IntersectionObserver", vi.fn(function MockIntersectionObserver() {
+      return { observe, disconnect };
+    }));
 
     const { unmount } = renderHook(() => useScrollDepth("test-page", vi.fn()));
     unmount();

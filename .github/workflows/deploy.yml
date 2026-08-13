@@ -32,10 +32,6 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_PANDASCORE_API_KEY: ${{ secrets.VITE_PANDASCORE_API_KEY }}
-          VITE_STEAM_API_KEY: ${{ secrets.VITE_STEAM_API_KEY }}
-          VITE_RAWG_API_KEY: ${{ secrets.VITE_RAWG_API_KEY }}
-          VITE_GROQ_API_KEY: ${{ secrets.VITE_GROQ_API_KEY }}
         run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy

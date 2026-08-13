@@ -97,12 +97,12 @@ function renderArticle(patch: PatchRow, game: { id: string; name: string; cover_
 export default async function handler(request: VercelRequestLike, response: VercelResponseLike) {
   const gameId = first(request.query.gameId);
   const patchId = first(request.query.patchId);
+  const safePathPart = /^[a-z0-9][a-z0-9-]{0,179}$/i;
   const requestedHost = first(request.headers["x-forwarded-host"]) || first(request.headers.host);
   const host = /^[a-z0-9.-]+\.vercel\.app(?::\d+)?$/i.test(requestedHost)
     ? requestedHost
     : "pixel-pulse-roan.vercel.app";
-  const protocol = first(request.headers["x-forwarded-proto"]) || "https";
-  const origin = `${protocol}://${host}`;
+  const origin = `https://${host}`;
   const canonicalOrigin = (process.env.SITE_URL || process.env.VITE_SITE_URL || "https://pixel-pulse-roan.vercel.app").replace(/\/$/, "");
   let template = "";
   try {
@@ -117,7 +117,7 @@ export default async function handler(request: VercelRequestLike, response: Verc
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  if (!gameId || !patchId || !supabaseUrl || !anonKey) {
+  if (!safePathPart.test(gameId) || !safePathPart.test(patchId) || !supabaseUrl || !anonKey) {
     response.setHeader("Content-Type", "text/html; charset=utf-8");
     response.status(404).send(template);
     return;

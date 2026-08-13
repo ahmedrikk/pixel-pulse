@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/Footer";
 import { Avatar } from "@/components/Avatar";
+import { safeExternalUrl } from "@/lib/safeUrl";
 import {
     getProfileByUsername,
     getSocialAccounts,
@@ -359,7 +360,7 @@ function AccountCard({ icon, name, bgColor, username, profileUrl }: {
             </div>
             {profileUrl && (
                 <a
-                    href={profileUrl}
+                    href={safeExternalUrl(profileUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-2 shrink-0 bg-secondary/50 hover:bg-secondary rounded-md text-secondary-foreground transition-colors opacity-0 group-hover:opacity-100"

@@ -16,7 +16,7 @@ if (typeof window !== 'undefined' && window.location.hash === '#') {
   history.replaceState(null, '', window.location.pathname + window.location.search);
 }
 
-// Hybrid localStorage + cookie storage — 365-day cookie backup survives localStorage clears
+// SPA sessions stay in localStorage. JavaScript-readable auth cookies are not used.
 export const supabase = createClient<Database>(
   SUPABASE_URL || 'http://localhost:54321',
   SUPABASE_PUBLISHABLE_KEY || 'dummy-key',

@@ -15,6 +15,7 @@ import { Footer } from "@/components/Footer";
 import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 import { useGameDetails } from "@/hooks/useGameDetails";
 import { patchPath, useGamePatch, useRecentGamePatches } from "@/hooks/useGamePatches";
+import { safeExternalUrl } from "@/lib/safeUrl";
 
 export default function GamePatchDetail() {
   const { gameId, patchId } = useParams<{ gameId: string; patchId: string }>();
@@ -146,7 +147,7 @@ export default function GamePatchDetail() {
                   <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t pt-5">
                     <span />
                     <a
-                      href={patch.sourceUrl}
+                      href={safeExternalUrl(patch.sourceUrl)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90"

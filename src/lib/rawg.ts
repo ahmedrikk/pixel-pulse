@@ -1,6 +1,5 @@
 // src/lib/rawg.ts
-const BASE = "https://api.rawg.io/api";
-const KEY = import.meta.env.VITE_RAWG_API_KEY;
+const BASE = "/api/rawg";
 
 export interface RawgGame {
   id: number;
@@ -26,8 +25,9 @@ export interface RawgListResponse {
 }
 
 function rawgUrl(path: string, params: Record<string, string | number> = {}): string {
-  const url = new URL(`${BASE}${path}`);
-  url.searchParams.set("key", KEY);
+  const url = new URL(BASE, window.location.origin);
+  const detailMatch = path.match(/^\/games\/([a-z0-9-]+)$/i);
+  if (detailMatch) url.searchParams.set("slug", detailMatch[1]);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, String(v));
   }
@@ -60,7 +60,7 @@ export async function fetchGameList(
     }),
     { signal }
   );
-  if (!res.ok) throw new Error(`RAWG list failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Game catalog request failed: ${res.status}`);
   return res.json();
 }
 
@@ -69,7 +69,7 @@ export async function fetchGameDetail(
   signal?: AbortSignal
 ): Promise<RawgGame> {
   const res = await fetch(rawgUrl(`/games/${slug}`), { signal });
-  if (!res.ok) throw new Error(`RAWG detail failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Game detail request failed: ${res.status}`);
   return res.json();
 }
 

@@ -8,6 +8,7 @@ import { ReactionBar } from "./ReactionBar";
 import { CommentSection } from "./CommentSection";
 import { toast } from "sonner";
 import { ARTICLE_DWELL_TIME } from "@/lib/xpConstants";
+import { safeExternalUrl } from "@/lib/safeUrl";
 
 interface NewsCardProps {
   news: NewsItem;
@@ -223,7 +224,7 @@ export function NewsCard({ news, articleNumber = 0 }: NewsCardProps) {
           </div>
 
           <Button asChild size="sm" className="gap-2" onClick={handleReadMore}>
-            <a href={news.sourceUrl} target="_blank" rel="noopener noreferrer">
+            <a href={safeExternalUrl(news.sourceUrl)} target="_blank" rel="noopener noreferrer">
               Read Full Article
               <ExternalLink className="h-3 w-3" />
             </a>

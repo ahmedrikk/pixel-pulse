@@ -4,12 +4,12 @@
  */
 
 import { supabase, isDemoMode, DEMO_PROFILE, MOCK_USER } from "@/integrations/supabase/client";
+import { validateImageUpload } from "@/lib/imageUploadSecurity";
 
 export interface Profile {
   id: string;
   username: string | null;
   display_name: string | null;
-  email: string | null;
   avatar_url: string | null;
   about_me: string | null;
   created_at: string;
@@ -86,19 +86,14 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const email = user.email || '';
-    const username = email.split('@')[0].toLowerCase();
+    const username = (user.email || user.id).split('@')[0].toLowerCase();
 
     const { data: newProfile, error: insertError } = await supabase
       .from('profiles')
       .upsert({
         id: userId,
-        email: email,
         username: username,
         display_name: username,
-        daily_streak: 0,
-        xp: 0,
-        level: 1
       })
       .select()
       .single();
@@ -247,8 +242,6 @@ export async function unlinkSocialAccount(
 // STEAM INTEGRATION
 // ============================================
 
-const STEAM_API_KEY = import.meta.env.VITE_STEAM_API_KEY || '';
-
 export function getSteamLoginUrl(returnUrl: string): string {
   const realm = window.location.origin;
   const redirectUri = `${realm}/auth/steam/callback`;
@@ -266,22 +259,22 @@ export function getSteamLoginUrl(returnUrl: string): string {
 export async function fetchSteamProfile(steamId: string): Promise<Partial<SteamProfile> | null> {
   try {
     const response = await fetch(
-      `/api/steam/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${steamId}`
+      `/api/steam?action=profile&steamId=${encodeURIComponent(steamId)}`
     );
 
     if (!response.ok) throw new Error('Steam API error');
 
     const data = await response.json();
-    const player = data.response.players[0];
+    const player = data;
 
     if (!player) return null;
 
     return {
       steam_id: steamId,
-      persona_name: player.personaname,
-      profile_url: player.profileurl,
-      avatar_full: player.avatarfull,
-      country_code: player.loccountrycode,
+      persona_name: player.personaName,
+      profile_url: player.profileUrl,
+      avatar_full: player.avatarUrl,
+      country_code: player.countryCode,
     };
   } catch (error) {
     console.error('Error fetching Steam profile:', error);
@@ -293,13 +286,13 @@ export async function fetchSteamProfile(steamId: string): Promise<Partial<SteamP
 export async function fetchSteamGames(steamId: string): Promise<any[]> {
   try {
     const response = await fetch(
-      `/api/steam/IPlayerService/GetOwnedGames/v1/?key=${STEAM_API_KEY}&steamid=${steamId}&include_appinfo=true&include_played_free_games=true`
+      `/api/steam?action=games&steamId=${encodeURIComponent(steamId)}`
     );
 
     if (!response.ok) throw new Error('Steam API error');
 
     const data = await response.json();
-    return data.response.games || [];
+    return data.games || [];
   } catch (error) {
     console.error('Error fetching Steam games:', error);
     return [];
@@ -405,17 +398,7 @@ export async function uploadAvatar(
   file: File
 ): Promise<string | null> {
   try {
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-      console.error('Invalid file type — must be an image');
-      return null;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      console.error('File too large — max 5MB');
-      return null;
-    }
-
-    const fileExt = file.name.split('.').pop();
+    const fileExt = await validateImageUpload(file);
     const fileName = `${userId}/avatar.${fileExt}`;
 
     // Try uploading to Supabase Storage
@@ -427,11 +410,8 @@ export async function uploadAvatar(
       });
 
     if (error) {
-      // Fallback: convert to data URL and store directly in profile
-      console.warn('Storage upload failed, using data URL fallback:', error.message);
-      const dataUrl = await fileToDataUrl(file);
-      await updateProfile(userId, { avatar_url: dataUrl });
-      return dataUrl;
+      console.warn('Storage upload failed:', error.message);
+      return null;
     }
 
     // Get public URL
@@ -448,15 +428,6 @@ export async function uploadAvatar(
     console.error('Error uploading avatar:', error);
     return null;
   }
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 /**
@@ -485,10 +456,7 @@ async function uploadCustomImage(
   type: 'banner' | 'nameplate'
 ): Promise<string | null> {
   try {
-    if (!file.type.startsWith('image/')) return null;
-    if (file.size > 5 * 1024 * 1024) return null; // 5MB limit
-
-    const fileExt = file.name.split('.').pop();
+    const fileExt = await validateImageUpload(file);
     const fileName = `${userId}/${type}.${fileExt}`;
 
     // Try Supabase Storage first

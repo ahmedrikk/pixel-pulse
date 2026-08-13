@@ -19,7 +19,7 @@
 
 Append this line to `.env`:
 ```
-VITE_PANDASCORE_API_KEY=<redacted>
+PANDASCORE_API_KEY=<configure-server-side>
 ```
 
 **Step 2: Verify .env now has three keys**
@@ -29,7 +29,7 @@ Open `.env` and confirm it reads:
 VITE_SUPABASE_PROJECT_ID="..."
 VITE_SUPABASE_PUBLISHABLE_KEY="..."
 VITE_SUPABASE_URL="..."
-VITE_PANDASCORE_API_KEY=<redacted>
+PANDASCORE_API_KEY=<configure-server-side>
 ```
 
 **Step 3: Commit**

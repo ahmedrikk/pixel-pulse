@@ -9,6 +9,7 @@ import { Footer } from "@/components/Footer";
 import { Input } from "@/components/ui/input";
 import { useFreeGames, type FreeGameOffer } from "@/hooks/useFreeGames";
 import { cn } from "@/lib/utils";
+import { safeExternalUrl } from "@/lib/safeUrl";
 
 const FILTERS = ["All", "Epic Games", "Steam", "GOG", "itch.io", "Mobile", "Other"];
 
@@ -102,7 +103,7 @@ function OfferCard({ offer, index }: { offer: FreeGameOffer; index: number }) {
               Read more
             </Link>
             <a
-              href={offer.offerUrl}
+              href={safeExternalUrl(offer.offerUrl)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90"

@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { validateImageUpload } from '@/lib/imageUploadSecurity';
 
 export const BANNER_GRADIENTS: Record<string, string> = {
   bn1: 'linear-gradient(135deg,#0A1628,#FB923C)',
@@ -145,7 +146,7 @@ export async function completeOnboarding(userId: string): Promise<void> {
 
 /** Upload avatar file to Supabase Storage, return public URL */
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
-  const ext = file.name.split('.').pop();
+  const ext = await validateImageUpload(file);
   const path = `${userId}/${Date.now()}.${ext}`;
 
   const { error } = await supabase.storage.from('avatars').upload(path, file, {

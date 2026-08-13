@@ -22,7 +22,7 @@ export default function SteamCallback() {
 
     if (!claimedId || !identity) {
       // Invalid callback
-      window.opener?.postMessage({ type: 'STEAM_ERROR', error: 'Invalid Steam response' }, '*');
+      window.opener?.postMessage({ type: 'STEAM_ERROR', error: 'Invalid Steam response' }, window.location.origin);
       window.close();
       return;
     }
@@ -31,7 +31,7 @@ export default function SteamCallback() {
     // Format: https://steamcommunity.com/openid/id/STEAM_ID
     const steamIdMatch = claimedId.match(/id\/(\d+)$/);
     if (!steamIdMatch) {
-      window.opener?.postMessage({ type: 'STEAM_ERROR', error: 'Could not extract Steam ID' }, '*');
+      window.opener?.postMessage({ type: 'STEAM_ERROR', error: 'Could not extract Steam ID' }, window.location.origin);
       window.close();
       return;
     }
@@ -40,40 +40,19 @@ export default function SteamCallback() {
 
     // Fetch Steam profile info
     try {
-      // Note: You need to add your Steam API key to .env
-      const STEAM_API_KEY = import.meta.env.VITE_STEAM_API_KEY || '';
-
-      let profileData = {
-        steamId,
-        personaName: 'Steam User',
-        profileUrl: `https://steamcommunity.com/profiles/${steamId}`,
-        avatarUrl: null as string | null,
-      };
-
-      if (STEAM_API_KEY) {
-        const response = await fetch(
-          `/api/steam/ISteamUser/GetPlayerSummaries/v2/?key=${STEAM_API_KEY}&steamids=${steamId}`
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          const player = data.response?.players?.[0];
-          if (player) {
-            profileData = {
-              steamId,
-              personaName: player.personaname,
-              profileUrl: player.profileurl,
-              avatarUrl: player.avatarfull,
-            };
-          }
-        }
-      }
+      const response = await fetch('/api/steam?action=verify-openid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: window.location.search.slice(1) }),
+      });
+      if (!response.ok) throw new Error('Steam verification failed');
+      const profileData = await response.json();
 
       // Send success message to parent window
       window.opener?.postMessage({
         type: 'STEAM_LINKED',
         ...profileData,
-      }, '*');
+      }, window.location.origin);
 
       // Close this popup window
       setTimeout(() => window.close(), 500);
@@ -82,7 +61,7 @@ export default function SteamCallback() {
       window.opener?.postMessage({
         type: 'STEAM_ERROR',
         error: 'Failed to fetch Steam profile'
-      }, '*');
+      }, window.location.origin);
       window.close();
     }
   }

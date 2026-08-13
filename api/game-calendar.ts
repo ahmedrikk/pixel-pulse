@@ -154,7 +154,7 @@ export default async function handler(req: VercelRequestLike, res: VercelRespons
     return res.status(400).json({ error: "The requested release window is not supported" });
   }
 
-  const rawgKey = process.env.RAWG_API_KEY || process.env.VITE_RAWG_API_KEY;
+  const rawgKey = process.env.RAWG_API_KEY;
   if (!rawgKey) return res.status(503).json({ error: "Release data is not configured" });
 
   try {

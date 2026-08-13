@@ -20,6 +20,7 @@ import { EnhancedCommentSection } from "./EnhancedCommentSection";
 import { GameReviewPrompt } from "./GameReviewPrompt";
 import { fetchGameList } from "@/lib/rawg";
 import { supabase } from "@/integrations/supabase/client";
+import { safeExternalUrl } from "@/lib/safeUrl";
 import {
   fetchArticleEngagement,
   recordArticleShare,
@@ -420,7 +421,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
         {/* Headline — clickable, opens the full article */}
         <h2 className="mb-3 text-card-title line-clamp-3 md:text-xl md:font-bold md:leading-tight">
           <a
-            href={article.sourceUrl}
+            href={safeExternalUrl(article.sourceUrl)}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => markEngaged("read_full")}
@@ -528,7 +529,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
 
           <Button asChild size="sm" className="gap-2">
             <a
-              href={article.sourceUrl}
+              href={safeExternalUrl(article.sourceUrl)}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => markEngaged("read_full")}

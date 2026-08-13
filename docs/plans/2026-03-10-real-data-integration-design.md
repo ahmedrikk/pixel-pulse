@@ -16,7 +16,7 @@ Replace all mock/static data with live API data across the LevelUpXP app.
 
 ## New Environment Variable
 ```
-VITE_RAWG_API_KEY=<redacted>
+RAWG_API_KEY=<configure-server-side>
 ```
 
 ## New Supabase Tables

@@ -17,6 +17,7 @@ import { WatchLiveButton } from "@/components/esports/WatchLiveButton";
 import { SiteLayout } from "@/components/SiteLayout";
 import { GameArtwork } from "@/components/shared/GameArtwork";
 import { supabase } from "@/integrations/supabase/client";
+import { safeExternalUrl } from "@/lib/safeUrl";
 
 type TabType = "live" | "upcoming" | "results";
 
@@ -189,7 +190,7 @@ function TwitchModal({ match, onClose }: { match: EsportsMatch; onClose: () => v
                 <p className="text-sm font-medium">Stream link not available</p>
                 {match.streamUrl && (
                   <a
-                    href={match.streamUrl}
+                    href={safeExternalUrl(match.streamUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-primary hover:underline"

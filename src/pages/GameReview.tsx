@@ -18,6 +18,7 @@ import {
 import { Link, Navigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
+import { safeExternalUrl } from "@/lib/safeUrl";
 import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -343,7 +344,7 @@ export default function GameReview() {
                   </p>
                 </div>
               </div>
-              <a href={game.freeOfferUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">
+              <a href={safeExternalUrl(game.freeOfferUrl)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">
                 Claim free <ExternalLink className="h-4 w-4" />
               </a>
             </section>

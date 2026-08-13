@@ -8,6 +8,74 @@ import { Mail, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TalusLogo } from "@/components/TalusLogo";
+import { z } from "zod";
+
+const emailSchema = z.string().trim().email().max(254).transform((value) => value.toLowerCase());
+const signupPasswordSchema = z.string().min(10).max(128).regex(/[A-Za-z]/, "Password must include a letter").regex(/\d/, "Password must include a number");
+const LOGIN_ATTEMPT_KEY = "talus_auth_attempts";
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 5;
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (element: HTMLElement, options: Record<string, unknown>) => string;
+      remove: (widgetId: string) => void;
+    };
+  }
+}
+
+function TurnstileChallenge({ onToken }: { onToken: (token: string) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY || !containerRef.current) return;
+    let widgetId: string | undefined;
+    let cancelled = false;
+    const render = () => {
+      if (cancelled || !containerRef.current || !window.turnstile || widgetId) return;
+      widgetId = window.turnstile.render(containerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (token: string) => onToken(token),
+        "expired-callback": () => onToken(""),
+        "error-callback": () => onToken(""),
+        theme: "auto",
+      });
+    };
+    const existing = document.querySelector<HTMLScriptElement>('script[data-talus-turnstile]');
+    if (existing) {
+      if (window.turnstile) render();
+      else existing.addEventListener("load", render, { once: true });
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      script.dataset.talusTurnstile = "true";
+      script.addEventListener("load", render, { once: true });
+      document.head.appendChild(script);
+    }
+    return () => {
+      cancelled = true;
+      if (widgetId && window.turnstile) window.turnstile.remove(widgetId);
+    };
+  }, [onToken]);
+  if (!TURNSTILE_SITE_KEY) return null;
+  return <div ref={containerRef} className="flex min-h-[65px] justify-center" />;
+}
+
+function consumeLoginAttempt(): boolean {
+  const now = Date.now();
+  try {
+    const attempts = JSON.parse(localStorage.getItem(LOGIN_ATTEMPT_KEY) || "[]") as number[];
+    const active = attempts.filter((attempt) => Number.isFinite(attempt) && now - attempt < LOGIN_WINDOW_MS);
+    if (active.length >= MAX_LOGIN_ATTEMPTS) return false;
+    localStorage.setItem(LOGIN_ATTEMPT_KEY, JSON.stringify([...active, now]));
+  } catch {
+    // Supabase still applies its server-side authentication limits.
+  }
+  return true;
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -22,6 +90,9 @@ export function AuthGatePopup() {
   const [emailSent, setEmailSent] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [emailRateLimited, setEmailRateLimited] = useState(false);
+  const [website, setWebsite] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const openedAt = useRef(Date.now());
   const sheetRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
 
@@ -36,6 +107,9 @@ export function AuthGatePopup() {
       setEmailRateLimited(false);
       setEmailSent(false);
       setIsLoading(null);
+      setWebsite("");
+      setCaptchaToken("");
+      openedAt.current = Date.now();
     }
   }, [isAuthModalOpen]);
 
@@ -74,21 +148,41 @@ export function AuthGatePopup() {
     e.preventDefault();
     setAuthError(null);
     setEmailRateLimited(false);
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+    if (website || Date.now() - openedAt.current < 800) {
+      setAuthError("Please wait a moment and try again");
+      return;
+    }
+    const parsedEmail = emailSchema.safeParse(email);
+    if (!parsedEmail.success) {
       setAuthError("Please enter a valid email");
       return;
     }
-    if (password.length < 6) {
-      setAuthError("Password must be at least 6 characters");
+    if (tab === "signup") {
+      const parsedPassword = signupPasswordSchema.safeParse(password);
+      if (!parsedPassword.success) {
+        setAuthError(parsedPassword.error.issues[0]?.message || "Use at least 10 characters with a letter and number");
+        return;
+      }
+    } else if (password.length < 6 || password.length > 128) {
+      setAuthError("Invalid email or password");
+      return;
+    }
+    if (!consumeLoginAttempt()) {
+      setEmailRateLimited(true);
+      setAuthError("Too many attempts. Please wait 10 minutes and try again.");
+      return;
+    }
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setAuthError("Please complete the security check");
       return;
     }
     setIsLoading("email");
     try {
       if (tab === "signup") {
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: parsedEmail.data,
           password,
-          options: { emailRedirectTo: getRedirectUrl() },
+          options: { emailRedirectTo: getRedirectUrl(), captchaToken: captchaToken || undefined },
         });
         if (error) throw error;
         if (data.session) {
@@ -98,7 +192,11 @@ export function AuthGatePopup() {
           setEmailSent(true);
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: parsedEmail.data,
+          password,
+          options: { captchaToken: captchaToken || undefined },
+        });
         if (error) throw error;
         closeAuthModal("login_success");
         window.location.reload();
@@ -338,6 +436,16 @@ export function AuthGatePopup() {
                     </div>
                   ) : (
                     <form onSubmit={handleEmail} className="flex flex-col gap-3">
+                      <input
+                        type="text"
+                        name="website"
+                        value={website}
+                        onChange={(event) => setWebsite(event.target.value)}
+                        tabIndex={-1}
+                        autoComplete="off"
+                        aria-hidden="true"
+                        className="absolute -left-[10000px] h-px w-px opacity-0"
+                      />
                       <Input
                         type="email"
                         value={email}
@@ -345,14 +453,18 @@ export function AuthGatePopup() {
                         placeholder="you@example.com"
                         disabled={isLoading !== null}
                         className="h-11 rounded-xl"
+                        autoComplete="email"
+                        maxLength={254}
                       />
                       <Input
                         type="password"
                         value={password}
                         onChange={(e) => { setPassword(e.target.value); setAuthError(null); }}
-                        placeholder="Password (min 6 chars)"
+                        placeholder={tab === "signup" ? "Password (10+ chars, letter + number)" : "Password"}
                         disabled={isLoading !== null}
                         className="h-11 rounded-xl"
+                        autoComplete={tab === "signup" ? "new-password" : "current-password"}
+                        maxLength={128}
                       />
                       {authError && (
                         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-left dark:border-red-900/60 dark:bg-red-950/30">
@@ -368,6 +480,7 @@ export function AuthGatePopup() {
                           )}
                         </div>
                       )}
+                      <TurnstileChallenge onToken={setCaptchaToken} />
                       <Button
                         type="submit"
                         disabled={isLoading !== null || !email || !password}
