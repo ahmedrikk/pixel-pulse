@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { generateGeminiJson, talusSystemPrompt } from "../_shared/talus-ai.ts";
 import { recordApiUsage } from "../_shared/api-usage.ts";
+import { isTrustedServerRequest } from "../_shared/server-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -227,6 +228,8 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const isServerCall = isTrustedServerRequest(req);
+
   try {
     const authHeader = req.headers.get("Authorization");
 
@@ -311,6 +314,12 @@ serve(async (req) => {
 
     // Step 3: If the pool is short, generate the missing questions with Gemini.
     if (availableQuestions.length < TRIVIA_QUESTION_COUNT) {
+      if (!isServerCall) {
+        return new Response(
+          JSON.stringify({ error: "Today's trivia has not been generated yet" }),
+          { status: 503, headers: JSON_HEADERS }
+        );
+      }
       const needed = TRIVIA_QUESTION_COUNT - availableQuestions.length;
       let aiQuestions: TriviaQuestion[];
       try {

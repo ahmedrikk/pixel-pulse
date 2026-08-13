@@ -4,6 +4,7 @@
 
 create extension if not exists pg_cron schema pg_catalog;
 create extension if not exists pg_net schema extensions;
+create extension if not exists supabase_vault with schema vault;
 
 select cron.unschedule(j.jobid)
 from cron.job j
@@ -21,7 +22,15 @@ select cron.schedule(
     ) < 5
     then net.http_post(
       url     := 'https://zxcqqsviwtwxukizibef.supabase.co/functions/v1/generate-trivia',
-      headers := '{"Content-Type": "application/json", "apikey": "<redacted-credential>", "Authorization": "Bearer <redacted-credential>"}'::jsonb,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'apikey', (
+          select decrypted_secret
+          from vault.decrypted_secrets
+          where name = 'talus_cron_secret_key'
+          limit 1
+        )
+      ),
       body    := '{}'::jsonb
     )
     else null

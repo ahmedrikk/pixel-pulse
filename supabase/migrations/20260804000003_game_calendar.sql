@@ -13,6 +13,7 @@ create index if not exists games_release_date_idx
 
 create extension if not exists pg_cron schema pg_catalog;
 create extension if not exists pg_net schema extensions;
+create extension if not exists supabase_vault with schema vault;
 
 select cron.unschedule(jobid)
 from cron.job
@@ -24,7 +25,15 @@ select cron.schedule(
   $$
   select net.http_post(
     url := 'https://zxcqqsviwtwxukizibef.supabase.co/functions/v1/fetch-game-calendar',
-    headers := '{"Content-Type":"application/json","apikey":"<redacted-credential>","Authorization":"Bearer <redacted-credential>"}'::jsonb,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'talus_cron_secret_key'
+        limit 1
+      )
+    ),
     body := '{"monthsAhead":12}'::jsonb
   ) as request_id;
   $$

@@ -38,6 +38,13 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const edgeFunctionUrl = `https://${projectId}.supabase.co/functions/v1/fetch-news`;
+  const edgeHeaders: Record<string, string> = {
+    apikey: serviceKey,
+    'Content-Type': 'application/json',
+  };
+  if (!serviceKey.startsWith('sb_secret_')) {
+    edgeHeaders.Authorization = `Bearer ${serviceKey}`;
+  }
 
   console.log(`[cron] Calling: ${edgeFunctionUrl}`);
 
@@ -45,10 +52,7 @@ export default async function handler(req: Request): Promise<Response> {
     const start = Date.now();
     const res = await fetch(edgeFunctionUrl, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${serviceKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: edgeHeaders,
       body: JSON.stringify({ trigger: 'cron' }),
     });
 

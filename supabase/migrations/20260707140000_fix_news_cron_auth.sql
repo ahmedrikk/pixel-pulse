@@ -10,6 +10,7 @@
 
 create extension if not exists pg_cron schema pg_catalog;
 create extension if not exists pg_net schema extensions;
+create extension if not exists supabase_vault with schema vault;
 
 -- ── fetch-gaming-news: every 30 minutes ────────────────────────────────────
 select cron.unschedule(j.jobid) from cron.job j where j.jobname = 'fetch-gaming-news';
@@ -19,7 +20,15 @@ select cron.schedule(
   $$
   select net.http_post(
     url     := 'https://zxcqqsviwtwxukizibef.supabase.co/functions/v1/fetch-news',
-    headers := '{"Content-Type": "application/json", "apikey": "<redacted-credential>", "Authorization": "Bearer <redacted-credential>"}'::jsonb,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'talus_cron_secret_key'
+        limit 1
+      )
+    ),
     body    := '{}'::jsonb
   ) as request_id;
   $$
@@ -35,7 +44,15 @@ select cron.schedule(
     when (select count(*) from public.cached_articles) < 10
     then net.http_post(
       url     := 'https://zxcqqsviwtwxukizibef.supabase.co/functions/v1/fetch-news',
-      headers := '{"Content-Type": "application/json", "apikey": "<redacted-credential>", "Authorization": "Bearer <redacted-credential>"}'::jsonb,
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'apikey', (
+          select decrypted_secret
+          from vault.decrypted_secrets
+          where name = 'talus_cron_secret_key'
+          limit 1
+        )
+      ),
       body    := '{}'::jsonb
     )
     else null
@@ -51,7 +68,15 @@ select cron.schedule(
   $$
   select net.http_get(
     url     := 'https://zxcqqsviwtwxukizibef.supabase.co/functions/v1/fetch-news',
-    headers := '{"Content-Type": "application/json", "apikey": "<redacted-credential>", "Authorization": "Bearer <redacted-credential>"}'::jsonb
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'talus_cron_secret_key'
+        limit 1
+      )
+    ),
   ) as request_id;
   $$
 );
@@ -64,7 +89,15 @@ select cron.schedule(
   $$
   select net.http_post(
     url     := 'https://zxcqqsviwtwxukizibef.supabase.co/functions/v1/fetch-esports-news',
-    headers := '{"Content-Type": "application/json", "apikey": "<redacted-credential>", "Authorization": "Bearer <redacted-credential>"}'::jsonb,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', (
+        select decrypted_secret
+        from vault.decrypted_secrets
+        where name = 'talus_cron_secret_key'
+        limit 1
+      )
+    ),
     body    := '{}'::jsonb
   ) as request_id;
   $$

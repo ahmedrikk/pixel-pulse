@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { generateGeminiJson, talusSystemPrompt } from "../_shared/talus-ai.ts";
+import { isTrustedServerRequest, unauthorizedResponse } from "../_shared/server-auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1347,6 +1348,7 @@ async function summarizeVideo(
 // ---------------------------------------------------------------------------
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!isTrustedServerRequest(req)) return unauthorizedResponse(corsHeaders);
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

@@ -1,16 +1,25 @@
 project_id = "zxcqqsviwtwxukizibef"
 
+[functions.fetch-news]
+verify_jwt = false
+
+[functions.compute-trending]
+verify_jwt = false
+
+[functions.generate-trivia]
+verify_jwt = false
+
 [functions.fetch-free-games]
-verify_jwt = true
+verify_jwt = false
 
 [functions.enrich-game-description]
 verify_jwt = true
 
 [functions.fetch-game-patches]
-verify_jwt = true
+verify_jwt = false
 
 [functions.rewrite-game-patches]
-verify_jwt = true
+verify_jwt = false
 
 [functions.backfill-game-descriptions]
 verify_jwt = true

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isTrustedServerRequest, unauthorizedResponse } from "../_shared/server-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -308,6 +309,7 @@ async function syncSource(
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (!isTrustedServerRequest(req)) return unauthorizedResponse(corsHeaders);
   if (req.method === "GET") {
     return new Response(JSON.stringify({ ok: true, service: "fetch-game-patches" }), {
       headers: jsonHeaders,

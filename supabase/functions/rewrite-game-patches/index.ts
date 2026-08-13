@@ -5,6 +5,7 @@ import {
   generateGeminiJson,
   talusSystemPrompt,
 } from "../_shared/talus-ai.ts";
+import { isTrustedServerRequest, unauthorizedResponse } from "../_shared/server-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -162,6 +163,7 @@ function plainText(value: EditorialPatch): string {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (!isTrustedServerRequest(req)) return unauthorizedResponse(corsHeaders);
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers: jsonHeaders });
   }
