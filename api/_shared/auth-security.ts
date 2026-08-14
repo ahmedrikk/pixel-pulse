@@ -76,9 +76,12 @@ export async function readJsonBody(request: Request): Promise<unknown> {
 }
 
 export function getRedis(): Redis {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  if (!url || !token) throw new Error("Missing server Redis configuration");
   return new Redis({
-    url: requiredEnvironment("UPSTASH_REDIS_REST_URL"),
-    token: requiredEnvironment("UPSTASH_REDIS_REST_TOKEN"),
+    url,
+    token,
   });
 }
 
