@@ -8,13 +8,11 @@ import { Mail, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TalusLogo } from "@/components/TalusLogo";
+import { GENERIC_LOGIN_ERROR, loginWithPassword, signupWithPassword } from "@/lib/authApi";
 import { z } from "zod";
 
 const emailSchema = z.string().trim().email().max(254).transform((value) => value.toLowerCase());
 const signupPasswordSchema = z.string().min(10).max(128).regex(/[A-Za-z]/, "Password must include a letter").regex(/\d/, "Password must include a number");
-const LOGIN_ATTEMPT_KEY = "talus_auth_attempts";
-const LOGIN_WINDOW_MS = 10 * 60 * 1000;
-const MAX_LOGIN_ATTEMPTS = 5;
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
 declare global {
@@ -64,19 +62,6 @@ function TurnstileChallenge({ onToken }: { onToken: (token: string) => void }) {
   return <div ref={containerRef} className="flex min-h-[65px] justify-center" />;
 }
 
-function consumeLoginAttempt(): boolean {
-  const now = Date.now();
-  try {
-    const attempts = JSON.parse(localStorage.getItem(LOGIN_ATTEMPT_KEY) || "[]") as number[];
-    const active = attempts.filter((attempt) => Number.isFinite(attempt) && now - attempt < LOGIN_WINDOW_MS);
-    if (active.length >= MAX_LOGIN_ATTEMPTS) return false;
-    localStorage.setItem(LOGIN_ATTEMPT_KEY, JSON.stringify([...active, now]));
-  } catch {
-    // Supabase still applies its server-side authentication limits.
-  }
-  return true;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AuthGatePopup() {
@@ -89,7 +74,6 @@ export function AuthGatePopup() {
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [emailRateLimited, setEmailRateLimited] = useState(false);
   const [website, setWebsite] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const openedAt = useRef(Date.now());
@@ -104,7 +88,6 @@ export function AuthGatePopup() {
       setEmail("");
       setPassword("");
       setAuthError(null);
-      setEmailRateLimited(false);
       setEmailSent(false);
       setIsLoading(null);
       setWebsite("");
@@ -147,14 +130,13 @@ export function AuthGatePopup() {
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
-    setEmailRateLimited(false);
     if (website || Date.now() - openedAt.current < 800) {
       setAuthError("Please wait a moment and try again");
       return;
     }
     const parsedEmail = emailSchema.safeParse(email);
     if (!parsedEmail.success) {
-      setAuthError("Please enter a valid email");
+      setAuthError(tab === "login" ? GENERIC_LOGIN_ERROR : "Unable to create account with those details");
       return;
     }
     if (tab === "signup") {
@@ -164,12 +146,7 @@ export function AuthGatePopup() {
         return;
       }
     } else if (password.length < 6 || password.length > 128) {
-      setAuthError("Invalid email or password");
-      return;
-    }
-    if (!consumeLoginAttempt()) {
-      setEmailRateLimited(true);
-      setAuthError("Too many attempts. Please wait 10 minutes and try again.");
+      setAuthError(GENERIC_LOGIN_ERROR);
       return;
     }
     if (TURNSTILE_SITE_KEY && !captchaToken) {
@@ -179,38 +156,22 @@ export function AuthGatePopup() {
     setIsLoading("email");
     try {
       if (tab === "signup") {
-        const { data, error } = await supabase.auth.signUp({
-          email: parsedEmail.data,
-          password,
-          options: { emailRedirectTo: getRedirectUrl(), captchaToken: captchaToken || undefined },
-        });
-        if (error) throw error;
-        if (data.session) {
+        const result = await signupWithPassword(parsedEmail.data, password, getRedirectUrl(), captchaToken || undefined);
+        if (result.signedIn) {
           closeAuthModal("signup_success");
           window.location.reload();
         } else {
           setEmailSent(true);
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: parsedEmail.data,
-          password,
-          options: { captchaToken: captchaToken || undefined },
-        });
-        if (error) throw error;
+        await loginWithPassword(parsedEmail.data, password, captchaToken || undefined);
         closeAuthModal("login_success");
         window.location.reload();
       }
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Something went wrong";
-      if (/email rate limit exceeded/i.test(message)) {
-        setEmailRateLimited(true);
-        setAuthError("Talus has temporarily reached its confirmation-email limit. Please wait and try again, or use Google, Facebook, or Apple to continue now.");
-      } else if (/email address not authorized/i.test(message)) {
-        setAuthError("Email signup is temporarily unavailable for this address. Please use Google, Facebook, or Apple while email delivery is being configured.");
-      } else {
-        setAuthError(message);
-      }
+      setAuthError(tab === "login"
+        ? GENERIC_LOGIN_ERROR
+        : "Account creation is temporarily unavailable. Please try again later.");
     } finally {
       setIsLoading(null);
     }
@@ -432,7 +393,7 @@ export function AuthGatePopup() {
                     <div className="text-center py-6">
                       <Mail className="w-10 h-10 text-primary mx-auto mb-3" />
                       <h3 className="text-base font-medium text-foreground mb-1">Check your inbox</h3>
-                      <p className="text-muted-foreground text-sm">We sent a confirmation link to <strong>{email}</strong>.</p>
+                      <p className="text-muted-foreground text-sm">If this email can be registered, a confirmation link will arrive shortly.</p>
                     </div>
                   ) : (
                     <form onSubmit={handleEmail} className="flex flex-col gap-3">
@@ -469,15 +430,6 @@ export function AuthGatePopup() {
                       {authError && (
                         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-left dark:border-red-900/60 dark:bg-red-950/30">
                           <p className="text-xs leading-relaxed text-red-600 dark:text-red-300">{authError}</p>
-                          {emailRateLimited && (
-                            <button
-                              type="button"
-                              onClick={() => { setMode("main"); setAuthError(null); setEmailRateLimited(false); }}
-                              className="mt-2 text-xs font-semibold text-primary hover:underline"
-                            >
-                              Use another sign-up method
-                            </button>
-                          )}
                         </div>
                       )}
                       <TurnstileChallenge onToken={setCaptchaToken} />

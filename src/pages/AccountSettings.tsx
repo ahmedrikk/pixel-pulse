@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { supabase } from "@/integrations/supabase/client";
+import { requestPasswordReset } from "@/lib/authApi";
 
 function SettingRow({ icon, label, value, onClick, to, accent = false }: {
   icon: React.ReactNode;
@@ -62,7 +63,7 @@ export default function AccountSettings() {
     const { error } = await supabase.auth.resend({ type: "signup", email: user.email });
     setSaving(false);
     toast(error
-      ? { title: "Verification email not sent", description: error.message, variant: "destructive" }
+      ? { title: "Verification email not sent", description: "Please wait and try again.", variant: "destructive" }
       : { title: "Verification email sent", description: "Check your inbox to finish verification." });
   }
 
@@ -72,7 +73,7 @@ export default function AccountSettings() {
     const { error } = await supabase.auth.updateUser({ email: newEmail.trim() });
     setSaving(false);
     if (error) {
-      toast({ title: "Email not updated", description: error.message, variant: "destructive" });
+      toast({ title: "Email not updated", description: "The request could not be completed. Check the address and try again.", variant: "destructive" });
       return;
     }
     setEmailDialog(false);
@@ -83,11 +84,11 @@ export default function AccountSettings() {
   async function resetPassword() {
     if (!user?.email) return;
     setSaving(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo: `${window.location.origin}/login` });
+    const message = await requestPasswordReset(user.email, `${window.location.origin}/login`).catch(
+      () => "If that email is registered, you'll receive a reset link",
+    );
     setSaving(false);
-    toast(error
-      ? { title: "Reset email not sent", description: error.message, variant: "destructive" }
-      : { title: "Password reset sent", description: "Check your email for the secure reset link." });
+    toast({ title: "Password reset requested", description: message });
   }
 
   async function requestAccountAction(action: "deactivate" | "delete") {
@@ -95,7 +96,7 @@ export default function AccountSettings() {
     const { error } = await supabase.rpc("request_account_action", { p_action: action });
     setSaving(false);
     if (error) {
-      toast({ title: "Account could not be updated", description: error.message, variant: "destructive" });
+      toast({ title: "Account could not be updated", description: "Please wait and try again.", variant: "destructive" });
       return;
     }
     await signOut();
