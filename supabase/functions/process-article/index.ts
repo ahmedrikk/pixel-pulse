@@ -161,7 +161,7 @@ interface ProcessedArticle {
  * Extracts OG image alongside.
  * Tries multiple models if one fails.
  */
-async function processArticleWithProviders(article: ArticleInput): Promise<ProcessedArticle> {
+async function processArticleWithProviders(article: ArticleInput): Promise<ProcessedArticle | null> {
   // --- Step 1: Fetch full article body + OG image ---
   let richContent: string | null = null;
   let ogImage: string | null = null;
@@ -185,7 +185,14 @@ async function processArticleWithProviders(article: ArticleInput): Promise<Proce
 
   const systemPrompt = talusSystemPrompt(`Given an article, produce three things:
 
-1. TITLE (under 60 chars): Sharp, factual headline. No clickbait.
+1. TITLE (6-14 words): Rewrite the supplied source headline as a sharp, factual Talus headline.
+   - Preserve the central fact, named entities, and level of certainty.
+   - Never copy the source headline verbatim. Change its wording or structure meaningfully.
+   - Make it catchy through specific stakes, not hype, withheld facts, or invented reactions.
+   - Sound natural when read aloud, with varied rhythm and normal headline capitalization.
+   - Never use an exclamation point, rhetorical question, em dash, all caps, or formulaic phrases
+     such as "everything you need to know", "here's why", "changes everything",
+     "fans are buzzing", "game-changing", or "a new era".
 
 2. SUMMARY (EXACTLY 100 words):
    - Count every word. Must be exactly 100 words — not 60, not 80, not 120. 100.
@@ -224,8 +231,9 @@ ${contentForAI.substring(0, 7000)}
 
 ---
 TASK:
-1. Write the SUMMARY. Count every word — it MUST be exactly 100 words and use only the supplied facts.
-2. Extract exactly TWO TAGS — specific proper-noun topics only. No generic words.`;
+1. Rewrite the source TITLE as a fresh 6-14 word Talus headline.
+2. Write the SUMMARY. Count every word — it MUST be exactly 100 words and use only the supplied facts.
+3. Extract exactly TWO TAGS — specific proper-noun topics only. No generic words.`;
 
   const parseProviderResult = (
     aiContent: string,
@@ -238,6 +246,29 @@ TASK:
       parsedResult = JSON.parse(cleanJson);
     } catch {
       console.warn(`${provider} returned invalid JSON:`, aiContent.substring(0, 200));
+      return null;
+    }
+
+    const processedTitle = typeof parsedResult.title === "string"
+      ? parsedResult.title.replace(/\s+/g, " ").trim().replace(/^['"]|['"]$/g, "")
+      : "";
+    const normalizeTitle = (value: string) => value
+      .toLowerCase()
+      .replace(/&[a-z]+;|&#\d+;/g, " ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const titleWords = processedTitle.split(/\s+/).filter(Boolean).length;
+    const formulaicTitle = /everything you need to know|what (?:players|you) need to know|here(?:'|’)s why|changes everything|fans are buzzing|game[- ]changing|a new era/i;
+    if (
+      !processedTitle
+      || titleWords < 5
+      || titleWords > 16
+      || normalizeTitle(processedTitle) === normalizeTitle(article.title)
+      || /[!?]|—|…/.test(processedTitle)
+      || formulaicTitle.test(processedTitle)
+    ) {
+      console.warn(`${provider} did not return a valid rewritten headline`);
       return null;
     }
 
@@ -269,7 +300,7 @@ TASK:
 
     console.log(`✓ Processed with ${provider}: "${parsedResult.title}"`);
     return {
-      processedTitle: parsedResult.title || article.title,
+      processedTitle,
       processedSummary: summary,
       processedTags: tags,
       ogImage,
@@ -341,12 +372,7 @@ TASK:
 
   // All models failed
   console.error(`All models failed for article: ${article.title}`);
-  return {
-    processedTitle: article.title,
-    processedSummary: article.content.length > 0 ? article.content : article.title,
-    processedTags: [],
-    ogImage,
-  };
+  return null;
 }
 
 serve(async (req) => {
@@ -379,17 +405,12 @@ serve(async (req) => {
             return await processArticleWithProviders(article);
           } catch (error) {
             console.error(`Error processing article "${article.title}":`, error);
-            return {
-              processedTitle: article.title,
-              processedSummary: article.content.length > 0 ? article.content : article.title,
-              processedTags: [],
-              ogImage: null,
-            };
+            return null;
           }
         })
       );
 
-      processedArticles.push(...batchResults);
+      processedArticles.push(...batchResults.filter((result): result is ProcessedArticle => result !== null));
 
       if (i + batchSize < articles.length) {
         await new Promise(resolve => setTimeout(resolve, 500));

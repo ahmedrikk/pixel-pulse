@@ -834,7 +834,7 @@ async function scrapeArticle(url: string): Promise<ScrapeResult> {
 // ---------------------------------------------------------------------------
 // AI summary + exactly two content-derived topic hashtags
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = talusSystemPrompt(`Condense gaming news into a concise, curiosity-led Talus news card.
+const SYSTEM_PROMPT = talusSystemPrompt(`Rewrite gaming news into a concise, curiosity-led Talus news card.
 
 WRITING STYLE:
 - Confident, specific, natural, and useful. Lead with the strongest verified development.
@@ -847,8 +847,19 @@ WRITING STYLE:
 - Never start with: "In this article", "This article discusses", "This news covers"
 - Never use rhetorical questions, exclamation points, or em dashes.
 
-OUTPUT FORMAT — return ONLY valid JSON with exactly these three keys:
+HEADLINE RULES:
+- Write a fresh 6-14 word headline after reading the supplied title and article.
+- Keep the source headline's central fact, named entities, and level of certainty, but never copy it verbatim.
+- Change the wording or structure meaningfully while staying close to the source's actual news angle.
+- Sound like a human gaming editor: direct, specific, lightly energetic, and natural when read aloud.
+- Use concrete details instead of vague hype. Never invent a reaction, consequence, or opinion.
+- Use natural headline capitalization. Never use all caps, an exclamation point, a rhetorical question, or an em dash.
+- Never use formulaic AI/clickbait phrases such as "everything you need to know", "what players need to know",
+  "here's why", "changes everything", "fans are buzzing", "major shake-up", "game-changing", or "a new era".
+
+OUTPUT FORMAT — return ONLY valid JSON with exactly these four keys:
 {
+  "headline": "Freshly rewritten 6-14 word headline",
   "summary": "50-60 word summary here",
   "gameTags": ["GameTitle1", "GameTitle2"],
   "tags": ["PrimaryTopic", "SecondaryTopic"]
@@ -906,6 +917,44 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
 
 function countSentences(text: string): number {
   return text.split(/[.!?]+/).filter(s => s.trim().length > 3).length;
+}
+
+function normalizeHeadlineForComparison(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/&[a-z]+;|&#\d+;/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function validateRewrittenHeadline(
+  value: unknown,
+  sourceTitle: string,
+  provider: string,
+): string {
+  const headline = typeof value === "string"
+    ? value.replace(/\s+/g, " ").trim().replace(/^['"]|['"]$/g, "")
+    : "";
+  const words = countWords(headline);
+  const normalized = normalizeHeadlineForComparison(headline);
+  const sourceNormalized = normalizeHeadlineForComparison(sourceTitle);
+  const formulaic = /everything you need to know|what (?:players|you) need to know|here(?:'|’)s why|changes everything|fans are buzzing|major shake[- ]up|game[- ]changing|a new era/i;
+
+  if (
+    !headline
+    || words < 5
+    || words > 16
+    || headline.length > 140
+    || normalized === sourceNormalized
+    || /[!?]|—|…/.test(headline)
+    || formulaic.test(headline)
+  ) {
+    console.warn(`  ${provider}: rejected headline rewrite`);
+    return "";
+  }
+
+  return headline;
 }
 
 const BANNED_TOPIC_TAGS = new Set([
@@ -968,12 +1017,15 @@ function buildSourceExcerpt(content: string): string {
   return countWords(excerpt) >= 20 && excerpt.length >= 100 ? excerpt : "";
 }
 
-function parseSummaryResult(raw: string, provider: string): SummarizeResult | null {
+function parseSummaryResult(raw: string, provider: string, sourceTitle: string): SummarizeResult | null {
   const parsed = extractJsonObject(raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim());
   if (!parsed) {
     console.warn(`  ${provider}: JSON parse failed`);
     return null;
   }
+
+  const headline = validateRewrittenHeadline(parsed.headline, sourceTitle, provider);
+  if (!headline) return null;
 
   let summary = String(parsed.summary ?? "").trim();
   if (!summary) return null;
@@ -1007,7 +1059,7 @@ function parseSummaryResult(raw: string, provider: string): SummarizeResult | nu
     .slice(0, 3);
 
   console.log(`  ok ${wc}w ${sentences}s (${provider})`);
-  return { summary, gameTags, tags };
+  return { headline, summary, gameTags, tags };
 }
 
 async function summarizeWithGemini(title: string, content: string): Promise<SummarizeResult> {
@@ -1015,10 +1067,10 @@ async function summarizeWithGemini(title: string, content: string): Promise<Summ
   try {
     const contentJson = await generateGeminiJson(
       SYSTEM_PROMPT,
-      `Article Title: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nWrite 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with summary, gameTags, and tags.`,
+      `Source Headline: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nRewrite the source headline, then write 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with headline, summary, gameTags, and tags.`,
       { maxOutputTokens: 1200, timeoutMs: 60_000, service: "news-ingestion", operation: "summarize-article" },
     );
-    return parseSummaryResult(contentJson, "Gemini")
+    return parseSummaryResult(contentJson, "Gemini", title)
       ?? { summary: "", gameTags: [], tags: [] };
   } catch (error) {
     console.warn("  Gemini error:", error);
@@ -1031,13 +1083,14 @@ async function summarizeWithGroq(title: string, content: string): Promise<Summar
   // Not enough content to produce a real summary — skip and retry next run
   if (countWords(content) < 15) return { summary: "", gameTags: [], tags: [] };
 
-  const userPrompt = `Article Title: ${title}
+  const userPrompt = `Source Headline: ${title}
 
 Article Content:
 ${content.substring(0, 2800)}
 
-Write 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with ALL THREE keys:
+Rewrite the source headline, then write 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with ALL FOUR keys:
 {
+  "headline": "freshly rewritten 6-14 word headline",
   "summary": "your summary here",
   "gameTags": ["GameTitle1", "GameTitle2"],
   "tags": ["PrimaryTopic", "SecondaryTopic"]
@@ -1099,6 +1152,9 @@ Write 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with A
         const parsed = extractJsonObject(raw);
         if (!parsed) { console.warn(`  [retry ${totalRetries}] ${model}: JSON parse failed`); continue; }
 
+        const headline = validateRewrittenHeadline(parsed.headline, title, `Groq ${model}`);
+        if (!headline) continue;
+
         let summary = String(parsed.summary ?? "").trim();
         if (!summary) { console.warn(`  [retry ${totalRetries}] ${model}: empty summary`); continue; }
 
@@ -1151,7 +1207,7 @@ Write 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with A
           .slice(0, 3);
 
         console.log(`  ok ${wc}w ${sentences}s after ${totalRetries} attempt(s) (${model}) gameTags: [${gameTags.join(", ")}] tags: [${tags.join(", ")}]`);
-        return { summary, gameTags, tags };
+        return { headline, summary, gameTags, tags };
 
       } catch (err) {
         console.warn(`  [retry ${totalRetries}] Groq error (${model}):`, err);
@@ -1818,6 +1874,14 @@ serve(async (req) => {
         : await summarizeArticle(item.title, item.content);
       const { headline } = summaryResult;
       let { summary, gameTags, tags, rateLimited } = summaryResult;
+
+      // Website articles must have an independently rewritten Talus headline.
+      // Never publish a new card by silently falling back to the source title.
+      if (item.mediaType !== "youtube" && !headline) {
+        skip("headline_rewrite");
+        console.warn(`  Skipping "${item.title}" — headline rewrite failed, will retry next run`);
+        return "skipped";
+      }
 
       if (!summary) {
         const sourceExcerpt = buildSourceExcerpt(item.content);
