@@ -14,7 +14,6 @@ const ESPORTS_NEWS_SOURCES = [
   { name: 'Sheep Esports', rssFeed: 'https://www.sheepesports.com/feed', displayName: 'Sheep Esports' },
   { name: 'Dot Esports', rssFeed: 'https://dotesports.com/feed', displayName: 'Dot Esports' },
   { name: 'HLTV', rssFeed: 'https://www.hltv.org/rss/news', displayName: 'HLTV' },
-  { name: 'VLR', rssFeed: 'https://www.vlr.gg/rss', displayName: 'VLR' },
 ];
 
 // ---------------------------------------------------------------------------

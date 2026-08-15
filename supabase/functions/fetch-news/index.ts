@@ -43,16 +43,12 @@ const RSS_FEEDS: RssSourceConfig[] = [
   { id: "game-developer", url: "https://www.gamedeveloper.com/rss.xml", source: "Game Developer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "pc-gamer", url: "https://www.pcgamer.com/rss/", source: "PCGamer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "gematsu", url: "https://www.gematsu.com/feed", source: "Gematsu", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
-  { id: "vg247", url: "https://www.vg247.com/feed", source: "VG247", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "game-informer", url: "https://gameinformer.com/rss.xml", source: "Game Informer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
-  { id: "wccftech", url: "https://wccftech.com/topic/games/feed/", source: "WCCFtech", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "gamesradar", url: "https://www.gamesradar.com/rss/", source: "GamesRadar", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   // Added 2026-07-07 (QA F10.5). Additive only: same parser, same gaming
   // filter; excess items drain on later cron runs.
   { id: "eurogamer", url: "https://www.eurogamer.net/feed", source: "Eurogamer", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "rock-paper-shotgun", url: "https://www.rockpapershotgun.com/feed", source: "Rock Paper Shotgun", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
-  { id: "destructoid", url: "https://www.destructoid.com/feed/", source: "Destructoid", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
-  { id: "siliconera", url: "https://www.siliconera.com/feed/", source: "Siliconera", dailyQuota: 5, minQuota: 2, maxQuota: 8 },
   { id: "nintendo-life", url: "https://www.nintendolife.com/feeds/latest", source: "Nintendo Life", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
   { id: "push-square", url: "https://www.pushsquare.com/feeds/latest", source: "Push Square", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
   { id: "dot-esports", url: "https://dotesports.com/feed", source: "Dot Esports", dailyQuota: 4, minQuota: 2, maxQuota: 7 },
@@ -61,7 +57,6 @@ const RSS_FEEDS: RssSourceConfig[] = [
   { id: "esports-insider", url: "https://esportsinsider.com/feed", source: "Esports Insider", dailyQuota: 4, minQuota: 1, maxQuota: 7 },
   { id: "sheep-esports", url: "https://www.sheepesports.com/feed", source: "Sheep Esports", dailyQuota: 4, minQuota: 1, maxQuota: 7 },
   { id: "hltv", url: "https://www.hltv.org/rss/news", source: "HLTV", dailyQuota: 4, minQuota: 1, maxQuota: 7 },
-  { id: "vlr", url: "https://www.vlr.gg/rss", source: "VLR", dailyQuota: 4, minQuota: 1, maxQuota: 7 },
 ];
 
 // ---------------------------------------------------------------------------
