@@ -511,6 +511,53 @@ export type Database = {
           },
         ]
       }
+      game_description_submissions: {
+        Row: {
+          created_at: string
+          description: string
+          game_id: string
+          id: string
+          reviewed_at: string | null
+          reviewer_id: string | null
+          reviewer_notes: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          game_id: string
+          id?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          game_id?: string
+          id?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_description_submissions_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
           cover_image: string | null
@@ -527,6 +574,10 @@ export type Database = {
           free_offer_url: string | null
           genres: string[] | null
           id: string
+          image_checked_at: string | null
+          image_placeholder_key: string | null
+          image_source: string | null
+          image_status: string
           metacritic_score: number | null
           name: string
           opencritic_id: number | null
@@ -557,6 +608,10 @@ export type Database = {
           free_offer_url?: string | null
           genres?: string[] | null
           id: string
+          image_checked_at?: string | null
+          image_placeholder_key?: string | null
+          image_source?: string | null
+          image_status?: string
           metacritic_score?: number | null
           name: string
           opencritic_id?: number | null
@@ -587,6 +642,10 @@ export type Database = {
           free_offer_url?: string | null
           genres?: string[] | null
           id?: string
+          image_checked_at?: string | null
+          image_placeholder_key?: string | null
+          image_source?: string | null
+          image_status?: string
           metacritic_score?: number | null
           name?: string
           opencritic_id?: number | null

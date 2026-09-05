@@ -34,7 +34,7 @@ export interface GameDetails {
   descriptionStatus: string;
 }
 
-const GAME_SELECT = "id, slug, name, cover_image, description, genres, platforms, release_date, developer, publisher, rawg_rating, metacritic_score, opencritic_score, external_ratings, our_rating, review_count, free_now, free_offer_url, free_offer_store, free_offer_ends_at, description_status, expires_at";
+const GAME_SELECT = "id, slug, name, cover_image, image_source, image_status, image_placeholder_key, image_checked_at, description, genres, platforms, release_date, developer, publisher, rawg_rating, metacritic_score, opencritic_score, external_ratings, our_rating, review_count, free_now, free_offer_url, free_offer_store, free_offer_ends_at, description_status, expires_at";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapGame(row: any): GameDetails {
@@ -104,7 +104,10 @@ async function refreshCanonicalGame(slug: string, cached: any | null): Promise<G
       id: canonicalId,
       slug: rawg.slug,
       name: rawg.name,
-      cover_image: rawg.background_image,
+      cover_image: rawg.background_image ?? cached?.cover_image ?? "/game-placeholders/generic.svg",
+      image_source: rawg.background_image ? "rawg" : (cached?.image_source ?? "placeholder"),
+      image_status: rawg.background_image ? "real" : (cached?.image_status ?? "missing"),
+      image_checked_at: new Date().toISOString(),
       genres,
       platforms,
       release_date: rawg.released,

@@ -26,3 +26,6 @@ verify_jwt = true
 
 [functions.purge-deleted-accounts]
 verify_jwt = true
+
+[functions.refresh-game-images]
+verify_jwt = false

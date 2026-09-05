@@ -215,6 +215,9 @@ export default function GameReview() {
   const [newRating, setNewRating] = useState(0);
   const [sortBy, setSortBy] = useState<"helpful" | "recent">("helpful");
   const [following, setFollowing] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [descriptionSubmissionStatus, setDescriptionSubmissionStatus] = useState<"idle" | "pending">("idle");
+  const [submittingDescription, setSubmittingDescription] = useState(false);
 
   const gameQuery = useGameDetails(gameId);
   const reviewsQuery = useUserReviews(gameId, user?.id);
@@ -237,12 +240,46 @@ export default function GameReview() {
     supabase.from("game_follows").select("game_id").eq("user_id", user.id).eq("game_id", gameId).maybeSingle().then(({ data }) => setFollowing(!!data));
   }, [gameId, user]);
 
+  useEffect(() => {
+    if (!user || !gameId) { setDescriptionSubmissionStatus("idle"); return; }
+    supabase.from("game_description_submissions")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("game_id", gameId)
+      .eq("status", "pending")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setDescriptionSubmissionStatus(data ? "pending" : "idle"));
+  }, [gameId, user]);
+
   if (gameQuery.isLoading) {
     return <SiteLayout><div className="h-[520px] animate-pulse rounded-2xl bg-secondary" /></SiteLayout>;
   }
   if (gameQuery.error || !gameQuery.data) return <Navigate to="/reviews" replace />;
 
   const game = gameQuery.data;
+  const descriptionWordCount = descriptionDraft.trim() ? descriptionDraft.trim().split(/\s+/).length : 0;
+  async function submitGameDescription() {
+    if (!user) return openAuthModal("react");
+    if (descriptionWordCount < 120 || descriptionWordCount > 400) {
+      toast.error("Please write between 120 and 400 words.");
+      return;
+    }
+    setSubmittingDescription(true);
+    const { error } = await supabase.from("game_description_submissions").insert({
+      game_id: game.id,
+      user_id: user.id,
+      description: descriptionDraft.trim(),
+    });
+    setSubmittingDescription(false);
+    if (error) {
+      toast.error("Couldn’t submit that description.");
+      return;
+    }
+    setDescriptionDraft("");
+    setDescriptionSubmissionStatus("pending");
+    toast.success("Submitted for review. It will appear after verification.");
+  }
   async function toggleFollow() {
     if (!user) return openAuthModal("react");
     const request = following
@@ -355,7 +392,33 @@ export default function GameReview() {
             {game.description ? (
               <div className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground sm:text-base">{game.description}</div>
             ) : (
-              <p className="mt-3 text-sm text-muted-foreground">No information available right now.</p>
+              <div className="mt-3 space-y-4">
+                <p className="text-sm text-muted-foreground">No information available right now.</p>
+                {descriptionSubmissionStatus === "pending" ? (
+                  <p className="rounded-xl bg-secondary p-4 text-sm text-muted-foreground">Your description is awaiting verification.</p>
+                ) : user ? (
+                  <div className="rounded-xl border bg-background/50 p-4">
+                    <label htmlFor="game-description" className="text-sm font-semibold text-foreground">Help describe this game</label>
+                    <p className="mt-1 text-xs text-muted-foreground">Write an accurate, neutral overview. Talus will review it before publishing.</p>
+                    <textarea
+                      id="game-description"
+                      value={descriptionDraft}
+                      onChange={(event) => setDescriptionDraft(event.target.value)}
+                      maxLength={4000}
+                      placeholder="Explain what the game is, how it plays, and what makes it distinct…"
+                      className="mt-3 min-h-36 w-full resize-y rounded-xl border bg-card p-3 text-sm text-foreground outline-none ring-primary focus:ring-2"
+                    />
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <span className={cn("text-xs", descriptionWordCount > 400 ? "text-destructive" : "text-muted-foreground")}>{descriptionWordCount}/400 words · minimum 120</span>
+                      <Button size="sm" onClick={submitGameDescription} disabled={submittingDescription || descriptionWordCount < 120 || descriptionWordCount > 400}>
+                        {submittingDescription ? "Submitting…" : "Submit for review"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => openAuthModal("react")}>Sign in to contribute</Button>
+                )}
+              </div>
             )}
           </section>
 

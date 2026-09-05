@@ -838,17 +838,20 @@ const SYSTEM_PROMPT = talusSystemPrompt(`Rewrite gaming news into a concise, cur
 
 WRITING STYLE:
 - Confident, specific, natural, and useful. Lead with the strongest verified development.
-- Build curiosity through concrete stakes or consequences, never by withholding the core fact.
+- Reveal the core event, then deliberately leave one useful secondary detail for the source: for example the full feature list, exact rollout window, complete platform list, or the creator's final verdict.
+- Make that curiosity gap concrete and honest. Never hide the core fact, invent a mystery, or use a generic "read more" tease.
 - Use 2 or 3 complete sentences and 50-60 words total.
 - Vary sentence rhythm while keeping every sentence informative.
 - Never use: "dives into", "it's worth noting", "in conclusion", "comprehensive",
   "significantly", "moreover", "furthermore", "according to", "in a statement",
   "delve", "in today's gaming world"
+- Never use: "gamers are in for a treat", "takes center stage", "makes waves", "has arrived",
+  "fans won't want to miss", "the gaming community", or "promises to"
 - Never start with: "In this article", "This article discusses", "This news covers"
 - Never use rhetorical questions, exclamation points, or em dashes.
 
 HEADLINE RULES:
-- Write a fresh 6-14 word headline after reading the supplied title and article.
+- Write a fresh 6-14 word headline after reading the supplied title and article. The game or real subject leads; the publisher or channel does not.
 - Keep the source headline's central fact, named entities, and level of certainty, but never copy it verbatim.
 - Change the wording or structure meaningfully while staying close to the source's actual news angle.
 - Sound like a human gaming editor: direct, specific, lightly energetic, and natural when read aloud.
@@ -939,7 +942,7 @@ function validateRewrittenHeadline(
   const words = countWords(headline);
   const normalized = normalizeHeadlineForComparison(headline);
   const sourceNormalized = normalizeHeadlineForComparison(sourceTitle);
-  const formulaic = /everything you need to know|what (?:players|you) need to know|here(?:'|’)s why|changes everything|fans are buzzing|major shake[- ]up|game[- ]changing|a new era/i;
+  const formulaic = /everything you need to know|what (?:players|you) need to know|here(?:'|’)s why|changes everything|fans are buzzing|major shake[- ]up|game[- ]changing|a new era|in for a treat|takes center stage|makes waves|has arrived|won't want to miss|gaming community|promises to/i;
 
   if (
     !headline
@@ -1233,8 +1236,9 @@ Return ONLY valid JSON with exactly these keys:
 
 Rules:
 - Preserve the actual game name and content type. Do not invent features, dates, platforms, verdicts, or claims.
-- Headline: 6-14 words. State the video's main newsworthy point, not merely that a creator uploaded a video.
-- Summary: 40-60 words and 2-3 complete sentences. Attribute opinions or recommendations to the creator and separate them from verified facts.
+- Headline: 6-14 words. Rewrite the source title meaningfully while keeping its exact subject and certainty. Make the game the subject, never the channel. Never use "Channel: title" or copy the video title.
+- Summary: 40-60 words and 2-3 complete sentences. Reveal the central development, but leave one concrete secondary detail (such as the full list, exact result, or final verdict) for the video. Attribute opinions or recommendations to the creator and separate them from verified facts.
+- If canonical game context is supplied, use it only to identify the game and add accurate context. Do not restate a generic game description instead of covering the video.
 - Use no rhetorical questions, exclamation points, em dashes, or filler transitions.
 - gameTags: game titles only, PascalCase, maximum 3.
 - tags: exactly 2 specific named entities supported by the source.
@@ -1310,7 +1314,7 @@ function parseVideoSummary(
 ): SummarizeResult | null {
   const parsed = extractJsonObject(raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim());
   if (!parsed) return null;
-  const headline = String(parsed.headline ?? fallbackTitle).replace(/\s+/g, " ").trim().slice(0, 140);
+  const headline = validateRewrittenHeadline(parsed.headline, fallbackTitle, provider);
   const summary = String(parsed.summary ?? "").replace(/\s+/g, " ").trim();
   const gameTags = (Array.isArray(parsed.gameTags) ? parsed.gameTags : [])
     .filter((tag): tag is string => typeof tag === "string")
@@ -1347,9 +1351,13 @@ async function summarizeVideo(
   description: string,
   transcript: string,
   source: string,
+  gameContext?: { name: string; description: string | null; genres: string[] | null; platforms: string[] | null },
 ): Promise<SummarizeResult> {
   const sourceText = (transcript || description || title).slice(0, 5000);
-  const userPrompt = `Channel: ${source}\nVideo title: ${title}\n\nSource text:\n${sourceText}\n\nCreate the compact gaming news card JSON.`;
+  const canonicalContext = gameContext
+    ? `\nCanonical game record (context only):\nGame: ${gameContext.name}\nGenres: ${(gameContext.genres ?? []).join(", ")}\nPlatforms: ${(gameContext.platforms ?? []).join(", ")}\nEstablished description: ${(gameContext.description ?? "").slice(0, 900)}\n`
+    : "";
+  const userPrompt = `Channel: ${source}\nVideo title: ${title}${canonicalContext}\nSource text:\n${sourceText}\n\nCreate the compact gaming news card JSON.`;
 
   try {
     const contentJson = await generateGeminiJson(
@@ -1391,7 +1399,22 @@ async function summarizeVideo(
     }
   }
 
-  return { headline: title, summary: "", gameTags: [], tags: [] };
+  return { headline: "", summary: "", gameTags: [], tags: [] };
+}
+
+type CanonicalGameContext = {
+  name: string;
+  description: string | null;
+  genres: string[] | null;
+  platforms: string[] | null;
+};
+
+function findCanonicalGameContext(text: string, games: CanonicalGameContext[]): CanonicalGameContext | undefined {
+  const haystack = ` ${normalizeHeadlineForComparison(text)} `;
+  return games.find((game) => {
+    const needle = normalizeHeadlineForComparison(game.name);
+    return needle.length >= 3 && haystack.includes(` ${needle} `);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1856,6 +1879,12 @@ serve(async (req) => {
   const TIME_BUDGET_MS = 110_000;
   const enrichedArticles = enrichedItems.filter((item) => item.mediaType !== "youtube");
   const enrichedYouTube = enrichedItems.filter((item) => item.mediaType === "youtube");
+  const { data: canonicalGames } = await supabase
+    .from("games")
+    .select("name, description, genres, platforms")
+    .order("name", { ascending: false })
+    .limit(1500);
+  const gameContexts = (canonicalGames ?? []) as CanonicalGameContext[];
   const itemsToProcess = [
     ...enrichedArticles.slice(0, ARTICLE_PROCESS_LIMIT),
     ...enrichedYouTube.slice(0, YOUTUBE_PROCESS_LIMIT),
@@ -1870,28 +1899,24 @@ serve(async (req) => {
   const processItem = async (item: EnrichedItem): Promise<ProcessOutcome> => {
     try {
       const summaryResult = item.mediaType === "youtube"
-        ? await summarizeVideo(item.title, item.description, item.content, item.source)
+        ? await summarizeVideo(
+          item.title,
+          item.description,
+          item.content,
+          item.source,
+          findCanonicalGameContext(`${item.title} ${item.description} ${item.content.slice(0, 1200)}`, gameContexts),
+        )
         : await summarizeArticle(item.title, item.content);
       const { headline } = summaryResult;
-      let { summary, gameTags, tags, rateLimited } = summaryResult;
+      const { summary, gameTags, rateLimited } = summaryResult;
+      let { tags } = summaryResult;
 
       // Website articles must have an independently rewritten Talus headline.
       // Never publish a new card by silently falling back to the source title.
-      if (item.mediaType !== "youtube" && !headline) {
+      if (!headline) {
         skip("headline_rewrite");
         console.warn(`  Skipping "${item.title}" — headline rewrite failed, will retry next run`);
         return "skipped";
-      }
-
-      if (!summary) {
-        const sourceExcerpt = buildSourceExcerpt(item.content);
-        if (sourceExcerpt) {
-          summary = sourceExcerpt;
-          gameTags = [];
-          tags = [];
-          rateLimited = false;
-          console.log(`  using clean source excerpt (${countWords(summary)}w)`);
-        }
       }
 
       tags = completeGroundedTopicTags(item.title, gameTags, tags);
@@ -2024,7 +2049,7 @@ serve(async (req) => {
   // Only the invocation that actually acquired (or reclaimed) this slot may
   // mark it complete. An already-claimed observer has zero allowance and must
   // not close an interrupted run before the recovery window can reclaim it.
-  if (pacingSlotStartedAt && !Boolean(pacing?.already_claimed)) {
+  if (pacingSlotStartedAt && !pacing?.already_claimed) {
     const { error: pacingCompletionError } = await supabase
       .from("news_pacing_runs")
       .update({
