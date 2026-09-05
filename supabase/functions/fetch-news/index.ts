@@ -834,13 +834,15 @@ async function scrapeArticle(url: string): Promise<ScrapeResult> {
 // ---------------------------------------------------------------------------
 // AI summary + exactly two content-derived topic hashtags
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = talusSystemPrompt(`Rewrite gaming news into a concise, curiosity-led Talus news card.
+const SYSTEM_PROMPT = talusSystemPrompt(`Rewrite gaming news into a compact, factual Talus brief in the style of a strong short-news desk.
 
 WRITING STYLE:
 - Confident, specific, natural, and useful. Lead with the strongest verified development.
-- Reveal the core event, then deliberately leave one useful secondary detail for the source: for example the full feature list, exact rollout window, complete platform list, or the creator's final verdict.
-- Make that curiosity gap concrete and honest. Never hide the core fact, invent a mystery, or use a generic "read more" tease.
-- Use 2 or 3 complete sentences and 50-60 words total.
+- Put the main development in the first sentence, then add the most useful verified context, numbers, dates, or consequences.
+- Write one compact paragraph of 2-4 complete sentences and 60-70 words total. Do not tease or withhold a known fact merely to create curiosity.
+- Preserve meaningful names, dates, prices, scores, platforms, and quantities from the source.
+- Treat the supplied Source Website as the speaker for recaps, opinions, testing, recommendations, and first-hand claims.
+- Rewrite first- and second-person source language. Never write I, me, my, we, our, us, or address the reader as you/your. Use the website name, creator name, company, players, or another accurate subject instead.
 - Vary sentence rhythm while keeping every sentence informative.
 - Never use: "dives into", "it's worth noting", "in conclusion", "comprehensive",
   "significantly", "moreover", "furthermore", "according to", "in a statement",
@@ -863,7 +865,7 @@ HEADLINE RULES:
 OUTPUT FORMAT — return ONLY valid JSON with exactly these four keys:
 {
   "headline": "Freshly rewritten 6-14 word headline",
-  "summary": "50-60 word summary here",
+  "summary": "60-70 word short-news brief here",
   "gameTags": ["GameTitle1", "GameTitle2"],
   "tags": ["PrimaryTopic", "SecondaryTopic"]
 }
@@ -920,6 +922,11 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
 
 function countSentences(text: string): number {
   return text.split(/[.!?]+/).filter(s => s.trim().length > 3).length;
+}
+
+function hasRecapPronouns(text: string): boolean {
+  const matches = text.match(/\b(?:I|me|my|we|our|ours|us|you|your|yours)\b/gi) ?? [];
+  return matches.some((match) => match !== "US");
 }
 
 function normalizeHeadlineForComparison(value: string): string {
@@ -1048,7 +1055,7 @@ function parseSummaryResult(raw: string, provider: string, sourceTitle: string):
 
   const wc = countWords(summary);
   const sentences = countSentences(summary);
-  if (wc < 45 || wc > 65 || sentences < 2 || summary.startsWith("http") || !/[.!?"']/.test(summary.slice(-1))) {
+  if (wc < 55 || wc > 75 || sentences < 2 || hasRecapPronouns(summary) || summary.startsWith("http") || !/[.!?"']/.test(summary.slice(-1))) {
     console.warn(`  ${provider}: rejected (${wc}w, ${sentences}s)`);
     return null;
   }
@@ -1065,12 +1072,12 @@ function parseSummaryResult(raw: string, provider: string, sourceTitle: string):
   return { headline, summary, gameTags, tags };
 }
 
-async function summarizeWithGemini(title: string, content: string): Promise<SummarizeResult> {
+async function summarizeWithGemini(title: string, content: string, source: string): Promise<SummarizeResult> {
   if (countWords(content) < 15) return { summary: "", gameTags: [], tags: [] };
   try {
     const contentJson = await generateGeminiJson(
       SYSTEM_PROMPT,
-      `Source Headline: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nRewrite the source headline, then write 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with headline, summary, gameTags, and tags.`,
+      `Source Website: ${source}\nSource Headline: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nRewrite the headline, then write a factual 2-4 sentence brief totaling 60-70 words. Replace first- or second-person language with the source website or the accurate named speaker. Return ONLY valid JSON with headline, summary, gameTags, and tags.`,
       { maxOutputTokens: 1200, timeoutMs: 60_000, service: "news-ingestion", operation: "summarize-article" },
     );
     return parseSummaryResult(contentJson, "Gemini", title)
@@ -1081,17 +1088,18 @@ async function summarizeWithGemini(title: string, content: string): Promise<Summ
   }
 }
 
-async function summarizeWithGroq(title: string, content: string): Promise<SummarizeResult> {
+async function summarizeWithGroq(title: string, content: string, source: string): Promise<SummarizeResult> {
   if (!GROQ_API_KEY) return { summary: "", gameTags: [], tags: [] };
   // Not enough content to produce a real summary — skip and retry next run
   if (countWords(content) < 15) return { summary: "", gameTags: [], tags: [] };
 
-  const userPrompt = `Source Headline: ${title}
+  const userPrompt = `Source Website: ${source}
+Source Headline: ${title}
 
 Article Content:
 ${content.substring(0, 2800)}
 
-Rewrite the source headline, then write 2-3 complete sentences totaling 50-60 words. Return ONLY valid JSON with ALL FOUR keys:
+Rewrite the source headline, then write a factual 2-4 sentence brief totaling 60-70 words. Replace first- or second-person language with the source website or accurate named speaker. Return ONLY valid JSON with ALL FOUR keys:
 {
   "headline": "freshly rewritten 6-14 word headline",
   "summary": "your summary here",
@@ -1188,11 +1196,11 @@ Rewrite the source headline, then write 2-3 complete sentences totaling 50-60 wo
         const lastChar = summary.slice(-1);
         const endsCleanly = /[.!?"']/.test(lastChar);
 
-        // Allow a small tolerance around the locked 50-60 word target.
-        const tooShort = wc < 45;
-        const tooLong = wc > 65;
+        // Allow a small tolerance around the locked 60-70 word target.
+        const tooShort = wc < 55;
+        const tooLong = wc > 75;
         const tooFewSentences = sentences < 2;
-        const malformed = summary.startsWith("http") || !endsCleanly;
+        const malformed = hasRecapPronouns(summary) || summary.startsWith("http") || !endsCleanly;
 
         if (tooShort || tooLong || tooFewSentences || malformed) {
           const reason = tooShort ? `short ${wc}w` : tooLong ? `long ${wc}w` : tooFewSentences ? `${sentences}s only` : "malformed";
@@ -1223,11 +1231,11 @@ Rewrite the source headline, then write 2-3 complete sentences totaling 50-60 wo
   return { summary: "", gameTags: [], tags: [], rateLimited: sawRateLimit };
 }
 
-async function summarizeArticle(title: string, content: string): Promise<SummarizeResult> {
-  const geminiResult = await summarizeWithGemini(title, content);
+async function summarizeArticle(title: string, content: string, source: string): Promise<SummarizeResult> {
+  const geminiResult = await summarizeWithGemini(title, content, source);
   if (geminiResult.summary) return geminiResult;
   console.warn("  Gemini did not return a usable summary — trying Groq backup");
-  return await summarizeWithGroq(title, content);
+  return await summarizeWithGroq(title, content, source);
 }
 
 const VIDEO_SYSTEM_PROMPT = talusSystemPrompt(`Write compact Talus news cards for newly released gaming videos, including trailers, reviews, technical analysis, news roundups, and commentary.
@@ -1237,7 +1245,8 @@ Return ONLY valid JSON with exactly these keys:
 Rules:
 - Preserve the actual game name and content type. Do not invent features, dates, platforms, verdicts, or claims.
 - Headline: 6-14 words. Rewrite the source title meaningfully while keeping its exact subject and certainty. Make the game the subject, never the channel. Never use "Channel: title" or copy the video title.
-- Summary: 40-60 words and 2-3 complete sentences. Reveal the central development, but leave one concrete secondary detail (such as the full list, exact result, or final verdict) for the video. Attribute opinions or recommendations to the creator and separate them from verified facts.
+- Summary: one compact paragraph of 60-70 words and 2-4 complete sentences. Lead with the central development, then include the strongest verified context, figures, or consequence.
+- Attribute opinions, tests, recommendations, and first-hand claims to the channel or named creator. Never use I, me, my, we, our, us, you, or your in the summary; replace those pronouns with the channel, creator, company, players, or another accurate subject.
 - If canonical game context is supplied, use it only to identify the game and add accurate context. Do not restate a generic game description instead of covering the video.
 - Use no rhetorical questions, exclamation points, em dashes, or filler transitions.
 - gameTags: game titles only, PascalCase, maximum 3.
@@ -1339,7 +1348,7 @@ function parseVideoSummary(
     || toPascalEntity(fallbackSource);
   const tags = [primaryTag, secondaryTag];
   const words = countWords(summary);
-  if (!headline || words < 35 || words > 65 || countSentences(summary) < 2) {
+  if (!headline || words < 55 || words > 75 || countSentences(summary) < 2 || hasRecapPronouns(summary)) {
     console.warn(`  ${provider} video result rejected (${words}w, ${tags.length} tags)`);
     return null;
   }
@@ -1906,7 +1915,7 @@ serve(async (req) => {
           item.source,
           findCanonicalGameContext(`${item.title} ${item.description} ${item.content.slice(0, 1200)}`, gameContexts),
         )
-        : await summarizeArticle(item.title, item.content);
+        : await summarizeArticle(item.title, item.content, item.source);
       const { headline } = summaryResult;
       const { summary, gameTags, rateLimited } = summaryResult;
       let { tags } = summaryResult;
