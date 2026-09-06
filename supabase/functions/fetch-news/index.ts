@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { generateGeminiJson, talusSystemPrompt } from "../_shared/talus-ai.ts";
+import { findTalusAiWritingTell, generateGeminiJson, talusSystemPrompt } from "../_shared/talus-ai.ts";
 import { isTrustedServerRequest, unauthorizedResponse } from "../_shared/server-auth.ts";
 
 const corsHeaders = {
@@ -950,6 +950,7 @@ function validateRewrittenHeadline(
   const normalized = normalizeHeadlineForComparison(headline);
   const sourceNormalized = normalizeHeadlineForComparison(sourceTitle);
   const formulaic = /everything you need to know|what (?:players|you) need to know|here(?:'|’)s why|changes everything|fans are buzzing|major shake[- ]up|game[- ]changing|a new era|in for a treat|takes center stage|makes waves|has arrived|won't want to miss|gaming community|promises to/i;
+  const aiTell = findTalusAiWritingTell(headline);
 
   if (
     !headline
@@ -959,8 +960,9 @@ function validateRewrittenHeadline(
     || normalized === sourceNormalized
     || /[!?]|—|…/.test(headline)
     || formulaic.test(headline)
+    || aiTell
   ) {
-    console.warn(`  ${provider}: rejected headline rewrite`);
+    console.warn(`  ${provider}: rejected headline rewrite${aiTell ? ` (${aiTell})` : ""}`);
     return "";
   }
 
@@ -1055,7 +1057,8 @@ function parseSummaryResult(raw: string, provider: string, sourceTitle: string):
 
   const wc = countWords(summary);
   const sentences = countSentences(summary);
-  if (wc < 55 || wc > 75 || sentences < 2 || hasRecapPronouns(summary) || summary.startsWith("http") || !/[.!?"']/.test(summary.slice(-1))) {
+  const aiTell = findTalusAiWritingTell(summary);
+  if (wc < 55 || wc > 75 || sentences < 2 || hasRecapPronouns(summary) || aiTell || summary.startsWith("http") || !/[.!?"']/.test(summary.slice(-1))) {
     console.warn(`  ${provider}: rejected (${wc}w, ${sentences}s)`);
     return null;
   }
@@ -1201,8 +1204,9 @@ Rewrite the source headline, then write a factual 2-4 sentence brief totaling 60
         const tooLong = wc > 75;
         const tooFewSentences = sentences < 2;
         const malformed = hasRecapPronouns(summary) || summary.startsWith("http") || !endsCleanly;
+        const aiTell = findTalusAiWritingTell(summary);
 
-        if (tooShort || tooLong || tooFewSentences || malformed) {
+        if (tooShort || tooLong || tooFewSentences || malformed || aiTell) {
           const reason = tooShort ? `short ${wc}w` : tooLong ? `long ${wc}w` : tooFewSentences ? `${sentences}s only` : "malformed";
           console.warn(`  [retry ${totalRetries}] ${model}: rejected (${reason}) — retrying`);
           continue;
@@ -1348,7 +1352,8 @@ function parseVideoSummary(
     || toPascalEntity(fallbackSource);
   const tags = [primaryTag, secondaryTag];
   const words = countWords(summary);
-  if (!headline || words < 55 || words > 75 || countSentences(summary) < 2 || hasRecapPronouns(summary)) {
+  const aiTell = findTalusAiWritingTell(summary);
+  if (!headline || words < 55 || words > 75 || countSentences(summary) < 2 || hasRecapPronouns(summary) || aiTell) {
     console.warn(`  ${provider} video result rejected (${words}w, ${tags.length} tags)`);
     return null;
   }
