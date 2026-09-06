@@ -12,6 +12,7 @@ import { AuthGatePopup } from "@/components/AuthGatePopup";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { RouteFallback } from "@/components/RouteFallback";
+import { AdminGuard } from "@/components/AdminGuard";
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -44,6 +45,7 @@ const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const PrivacyPolicy  = lazy(() => import("./pages/PrivacyPolicy"));
 const CookiePolicy   = lazy(() => import("./pages/CookiePolicy"));
 const ContentGuidelines = lazy(() => import("./pages/ContentGuidelines"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 
 const queryClient = new QueryClient();
 
@@ -97,6 +99,7 @@ const App = () => (
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/cookies" element={<CookiePolicy />} />
                     <Route path="/guidelines" element={<ContentGuidelines />} />
+                    <Route path="/admin" element={<OnboardingGuard><AdminGuard><AdminDashboard /></AdminGuard></OnboardingGuard>} />
 
                     <Route path="*" element={<NotFound />} />
                   </Routes>

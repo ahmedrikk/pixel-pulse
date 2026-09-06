@@ -24,6 +24,7 @@ export interface Profile {
   deactivated_at: string | null;
   deletion_requested_at: string | null;
   scheduled_deletion_at: string | null;
+  is_admin: boolean;
 }
 
 export interface SocialAccount {

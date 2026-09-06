@@ -287,12 +287,15 @@ async function enrichMissingGames(
 }
 
 async function syncRows(supabase: SupabaseClient, sourceName: string, rows: OfferRow[], now: string) {
-  if (rows.length === 0) throw new Error(`${sourceName} returned no valid game offers`);
-
-  const { error: upsertError } = await supabase
-    .from("free_game_offers")
-    .upsert(rows, { onConflict: "source_name,external_id" });
-  if (upsertError) throw upsertError;
+  // A source can return candidates while its outbound redirect service is
+  // temporarily blocking automation. Cleanup must still run in that case;
+  // otherwise offers last seen weeks ago remain falsely marked as active.
+  if (rows.length > 0) {
+    const { error: upsertError } = await supabase
+      .from("free_game_offers")
+      .upsert(rows, { onConflict: "source_name,external_id" });
+    if (upsertError) throw upsertError;
+  }
 
   const { data: existing, error: existingError } = await supabase
     .from("free_game_offers")
@@ -315,7 +318,11 @@ async function syncRows(supabase: SupabaseClient, sourceName: string, rows: Offe
     if (expireError) throw expireError;
   }
 
-  return { source: sourceName, active: rows.filter((row) => row.status === "active").length, upcoming: rows.filter((row) => row.status === "upcoming").length };
+  return {
+    source: sourceName,
+    active: rows.filter((row) => row.status === "active").length,
+    upcoming: rows.filter((row) => row.status === "upcoming").length,
+  };
 }
 
 async function syncGamerPower(supabase: SupabaseClient, now: string): Promise<SyncResult> {

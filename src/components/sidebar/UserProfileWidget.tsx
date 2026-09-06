@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { useProfile } from "@/contexts/ProfileContext";
-import { User, LogIn, UserCircle, Settings, UserPlus, LogOut } from "lucide-react";
+import { User, LogIn, UserCircle, Settings, UserPlus, LogOut, ShieldCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -123,6 +123,11 @@ export function UserProfileWidget() {
           <DropdownMenuItem onSelect={() => navigate("/settings/account")} className="gap-3 rounded-lg py-2.5">
             <Settings className="h-4 w-4" /> Account settings
           </DropdownMenuItem>
+          {profile?.is_admin && (
+            <DropdownMenuItem onSelect={() => navigate("/admin")} className="gap-3 rounded-lg py-2.5">
+              <ShieldCheck className="h-4 w-4" /> Talus operations
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             onSelect={async () => {
               await signOut();

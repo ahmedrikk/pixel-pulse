@@ -93,5 +93,8 @@ export function useFreeGames() {
     queryFn: getFreeGames,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 }

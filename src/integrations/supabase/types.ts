@@ -743,6 +743,7 @@ export type Database = {
           email: string | null
           freeze_window_start: string | null
           id: string
+          is_admin: boolean
           last_active_day: string | null
           level: number | null
           nameplate_url: string | null
@@ -781,6 +782,7 @@ export type Database = {
           email?: string | null
           freeze_window_start?: string | null
           id: string
+          is_admin?: boolean
           last_active_day?: string | null
           level?: number | null
           nameplate_url?: string | null
@@ -818,6 +820,7 @@ export type Database = {
           email?: string | null
           freeze_window_start?: string | null
           id?: string
+          is_admin?: boolean
           last_active_day?: string | null
           level?: number | null
           nameplate_url?: string | null
@@ -1291,6 +1294,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_moderate_game_description: {
+        Args: {
+          p_decision: string
+          p_edited_description?: string | null
+          p_notes?: string | null
+          p_submission_id: string
+        }
+        Returns: undefined
+      }
+      admin_update_dashboard_setting: {
+        Args: { p_key: string; p_value: Json }
+        Returns: undefined
+      }
+      get_talus_admin_dashboard: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      is_talus_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       request_account_action: {
         Args: { p_action: string }
         Returns: Database["public"]["Tables"]["profiles"]["Row"]
