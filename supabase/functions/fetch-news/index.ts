@@ -841,8 +841,9 @@ WRITING STYLE:
 - Put the main development in the first sentence, then add the most useful verified context, numbers, dates, or consequences.
 - Write one compact paragraph of 2-4 complete sentences and 60-70 words total. Do not tease or withhold a known fact merely to create curiosity.
 - Preserve meaningful names, dates, prices, scores, platforms, and quantities from the source.
-- Treat the supplied Source Website as the speaker for recaps, opinions, testing, recommendations, and first-hand claims.
-- Rewrite first- and second-person source language. Never write I, me, my, we, our, us, or address the reader as you/your. Use the website name, creator name, company, players, or another accurate subject instead.
+- State reported facts directly. Do not write "[website] reports", "according to [website]", "[website] says", or otherwise mention the Source Website inside the summary merely to attribute ordinary reporting.
+- Mention the Source Website inside the summary only when the source text itself uses first-person language such as I, me, my, we, our, or us and the website is the accurate speaker. Replace those pronouns with the website name. Attribute an opinion or first-hand test to a specifically named writer, creator, developer, company, or website only when the source presents it as that party's own view or experience.
+- Never address the reader as you/your.
 - Vary sentence rhythm while keeping every sentence informative.
 - Never use: "dives into", "it's worth noting", "in conclusion", "comprehensive",
   "significantly", "moreover", "furthermore", "according to", "in a statement",
@@ -927,6 +928,22 @@ function countSentences(text: string): number {
 function hasRecapPronouns(text: string): boolean {
   const matches = text.match(/\b(?:I|me|my|we|our|ours|us|you|your|yours)\b/gi) ?? [];
   return matches.some((match) => match !== "US");
+}
+
+function hasFirstPersonSourceLanguage(text: string): boolean {
+  return /\b(?:I|me|my|mine|we|our|ours|us)\b/.test(text);
+}
+
+function removeUnnecessaryWebsiteAttribution(summary: string, source: string, sourceContent: string): string {
+  if (hasFirstPersonSourceLanguage(sourceContent)) return summary;
+  const escapedSource = source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const reportingVerb = "(?:reports?|reported|says?|said|writes?|wrote|notes?|noted|reveals?|revealed|claims?|claimed|found|finds)";
+  return summary
+    .replace(new RegExp(`\\baccording to\\s+${escapedSource}\\s*,?\\s*`, "gi"), "")
+    .replace(new RegExp(`\\b${escapedSource}\\s+${reportingVerb}(?:\\s+that)?\\s+`, "gi"), "")
+    .replace(/(^|[.!?]\s+)([a-z])/g, (_match, boundary: string, letter: string) => `${boundary}${letter.toUpperCase()}`)
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function normalizeHeadlineForComparison(value: string): string {
@@ -1029,7 +1046,7 @@ function buildSourceExcerpt(content: string): string {
   return countWords(excerpt) >= 20 && excerpt.length >= 100 ? excerpt : "";
 }
 
-function parseSummaryResult(raw: string, provider: string, sourceTitle: string): SummarizeResult | null {
+function parseSummaryResult(raw: string, provider: string, sourceTitle: string, source: string, sourceContent: string): SummarizeResult | null {
   const parsed = extractJsonObject(raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim());
   if (!parsed) {
     console.warn(`  ${provider}: JSON parse failed`);
@@ -1054,6 +1071,8 @@ function parseSummaryResult(raw: string, provider: string, sourceTitle: string):
     const lastStop = Math.max(summary.lastIndexOf(". "), summary.lastIndexOf("! "), summary.lastIndexOf("? "));
     summary = lastStop > 80 ? summary.substring(0, lastStop + 1).trim() : "";
   }
+
+  summary = removeUnnecessaryWebsiteAttribution(summary, source, sourceContent);
 
   const wc = countWords(summary);
   const sentences = countSentences(summary);
@@ -1080,10 +1099,10 @@ async function summarizeWithGemini(title: string, content: string, source: strin
   try {
     const contentJson = await generateGeminiJson(
       SYSTEM_PROMPT,
-      `Source Website: ${source}\nSource Headline: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nRewrite the headline, then write a factual 2-4 sentence brief totaling 60-70 words. Replace first- or second-person language with the source website or the accurate named speaker. Return ONLY valid JSON with headline, summary, gameTags, and tags.`,
+      `Source Website: ${source}\nSource Headline: ${title}\n\nArticle Content:\n${content.substring(0, 2800)}\n\nRewrite the headline, then write a factual 2-4 sentence brief totaling 60-70 words. State facts directly without mentioning the website. Use the website name only if the supplied article text uses first-person language and the website is the speaker. Never address the reader. Return ONLY valid JSON with headline, summary, gameTags, and tags.`,
       { maxOutputTokens: 1200, timeoutMs: 60_000, service: "news-ingestion", operation: "summarize-article" },
     );
-    return parseSummaryResult(contentJson, "Gemini", title)
+    return parseSummaryResult(contentJson, "Gemini", title, source, content)
       ?? { summary: "", gameTags: [], tags: [] };
   } catch (error) {
     console.warn("  Gemini error:", error);
@@ -1102,7 +1121,7 @@ Source Headline: ${title}
 Article Content:
 ${content.substring(0, 2800)}
 
-Rewrite the source headline, then write a factual 2-4 sentence brief totaling 60-70 words. Replace first- or second-person language with the source website or accurate named speaker. Return ONLY valid JSON with ALL FOUR keys:
+Rewrite the source headline, then write a factual 2-4 sentence brief totaling 60-70 words. State facts directly without mentioning the website. Use the website name only if the supplied article text uses first-person language and the website is the speaker. Never address the reader. Return ONLY valid JSON with ALL FOUR keys:
 {
   "headline": "freshly rewritten 6-14 word headline",
   "summary": "your summary here",
@@ -1193,6 +1212,8 @@ Rewrite the source headline, then write a factual 2-4 sentence brief totaling 60
           if (lastStop > 80) summary = summary.substring(0, lastStop + 1).trim();
           else summary = ""; // nothing salvageable
         }
+
+        summary = removeUnnecessaryWebsiteAttribution(summary, source, content);
 
         const wc = countWords(summary);
         const sentences = countSentences(summary);
