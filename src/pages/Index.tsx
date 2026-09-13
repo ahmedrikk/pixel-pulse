@@ -8,12 +8,18 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { useEngagementTracker } from "@/hooks/useEngagementTracker";
 import { useAuthGate } from "@/contexts/AuthGateContext";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 // Inner component so it can use TagFilterContext
 function IndexContent() {
   const { trackCardView } = useEngagementTracker();
   const { openSignupPrompt } = useAuthGate();
   const location = useLocation();
+  useDocumentMetadata({
+    title: "Gaming News, Esports Scores and Game Updates | Talus",
+    description: "Follow current gaming news, live esports scores, free game offers, release dates, patch notes, and community game ratings on Talus.",
+    canonicalPath: "/",
+  });
 
   // Open auth modal when redirected from /login or /signup
   useEffect(() => {
@@ -34,6 +40,7 @@ function IndexContent() {
           <div className="talus-main-column">
             <Navbar />
             <div className="px-3 py-3 sm:px-4 sm:py-4">
+              <h1 className="sr-only">Gaming news, esports scores and game updates</h1>
               <NewsFeed onCardView={trackCardView} />
             </div>
           </div>

@@ -3,8 +3,14 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 export default function TermsOfService() {
+  useDocumentMetadata({
+    title: "Terms of Service | Talus",
+    description: "Read the terms governing access to and use of Talus.",
+    canonicalPath: "/terms",
+  });
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

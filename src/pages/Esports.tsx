@@ -18,6 +18,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { GameArtwork } from "@/components/shared/GameArtwork";
 import { supabase } from "@/integrations/supabase/client";
 import { safeExternalUrl } from "@/lib/safeUrl";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 type TabType = "live" | "upcoming" | "results";
 
@@ -664,6 +665,12 @@ export default function Esports() {
   const [activeGame, setActiveGame] = useState("all");
   const [activeTab, setActiveTab] = useState<TabType>("live");
   const [watchingMatch, setWatchingMatch] = useState<EsportsMatch | null>(null);
+  const selectedGameName = gameId ? (GAME_META[gameId]?.label ?? gameId) : null;
+  useDocumentMetadata({
+    title: selectedGameName ? `${selectedGameName} Esports Matches and Results | Talus` : "Live Esports Matches, Scores and Results | Talus",
+    description: selectedGameName ? `See live and upcoming ${selectedGameName} esports matches, schedules, streams, and recent results.` : "See live and upcoming esports matches, schedules, streams, scores, and recent results across competitive games.",
+    canonicalPath: gameId ? `/esports/${gameId}` : "/esports",
+  });
 
   const { liveMatches, upcomingMatches, pastMatches, isLoading, error } = useEsportsMatches();
 
@@ -718,6 +725,9 @@ export default function Esports() {
     <div className="min-h-screen pb-16 md:pb-0">
       <SiteLayout>
         <main className="min-w-0">
+        <h1 className="mb-4 text-3xl font-black text-foreground md:text-4xl">
+          {selectedGameName ? `${selectedGameName} Esports` : "Live Esports Matches"}
+        </h1>
         {/* Featured Match Hero — centered in the content column, aligned with
             the left & right rails so the page reads as one cohesive block. */}
         <FeaturedMatchHero match={featuredMatch} />

@@ -3,8 +3,14 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 export default function CookiePolicy() {
+  useDocumentMetadata({
+    title: "Cookie Policy | Talus",
+    description: "Read how Talus uses cookies and similar technologies for essential features, preferences, and analytics.",
+    canonicalPath: "/cookies",
+  });
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

@@ -3,8 +3,14 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 export default function PrivacyPolicy() {
+  useDocumentMetadata({
+    title: "Privacy Policy | Talus",
+    description: "Read how Talus collects, uses, protects, and manages account and website data.",
+    canonicalPath: "/privacy",
+  });
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

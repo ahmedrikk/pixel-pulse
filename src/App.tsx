@@ -20,6 +20,28 @@ function ScrollToTop() {
   return null;
 }
 
+const PRIVATE_ROUTES = /^\/(?:admin|profile|settings|onboarding|login|notifications|auth|backfill-status)(?:\/|$)/;
+function RouteIndexingPolicy() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (!PRIVATE_ROUTES.test(pathname)) return;
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    const created = !meta;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "robots";
+      document.head.appendChild(meta);
+    }
+    const previous = meta.content;
+    meta.content = "noindex, nofollow";
+    return () => {
+      if (created) meta?.remove();
+      else if (meta) meta.content = previous;
+    };
+  }, [pathname]);
+  return null;
+}
+
 // Route-level code splitting — each page becomes its own chunk.
 const Index          = lazy(() => import("./pages/Index"));
 const Profile        = lazy(() => import("./pages/Profile"));
@@ -61,6 +83,7 @@ const App = () => (
               <AuthGatePopup />
               <BrowserRouter>
                 <ScrollToTop />
+                <RouteIndexingPolicy />
                 <Suspense fallback={<RouteFallback />}>
                   <Routes>
                     {/* Onboarding — no guard */}

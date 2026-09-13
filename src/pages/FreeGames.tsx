@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useFreeGames, type FreeGameOffer } from "@/hooks/useFreeGames";
 import { cn } from "@/lib/utils";
 import { safeExternalUrl } from "@/lib/safeUrl";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 const FILTERS = ["All", "Epic Games", "Steam", "GOG", "itch.io", "Mobile", "Other"];
 
@@ -122,6 +123,11 @@ export default function FreeGames() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const { data: offers = [], isLoading, error } = useFreeGames();
+  useDocumentMetadata({
+    title: "Free Games to Claim This Week | Talus",
+    description: "Find free PC and mobile games available to claim now or coming soon from Epic Games, Steam, GOG, itch.io, and other storefronts.",
+    canonicalPath: "/free-games",
+  });
 
   const filteredOffers = useMemo(() => {
     const query = search.trim().toLowerCase();

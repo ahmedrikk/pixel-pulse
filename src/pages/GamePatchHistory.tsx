@@ -15,6 +15,7 @@ import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { patchPath, useGamePatchHistory, usePatchGame, type GamePatch, type PatchType } from "@/hooks/useGamePatches";
 import { cn } from "@/lib/utils";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 const patchTypeStyles: Record<PatchType, { label: string; className: string }> = {
   patch: { label: "Patch", className: "bg-primary/10 text-primary" },
@@ -87,6 +88,14 @@ export default function GamePatchHistory() {
     [historyQuery.data],
   );
   const total = historyQuery.data?.pages[0]?.total ?? gameQuery.data?.patchCount ?? 0;
+  const metadataGame = gameQuery.data;
+  useDocumentMetadata({
+    title: metadataGame ? `${metadataGame.name} Patch Notes and Update History | Talus` : null,
+    description: metadataGame ? `Read recent ${metadataGame.name} patch notes and browse its complete update history in clear player-focused summaries.` : null,
+    canonicalPath: gameId ? `/game-patch/${gameId}` : null,
+    image: metadataGame?.coverImage,
+    type: "article",
+  });
 
   if (!gameQuery.isLoading && !gameQuery.data) {
     return <Navigate to="/game-patch" replace />;

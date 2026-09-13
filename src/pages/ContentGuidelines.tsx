@@ -3,8 +3,14 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 export default function ContentGuidelines() {
+  useDocumentMetadata({
+    title: "Community Content Guidelines | Talus",
+    description: "Read the standards for reviews, comments, predictions, and other community contributions on Talus.",
+    canonicalPath: "/guidelines",
+  });
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

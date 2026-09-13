@@ -30,6 +30,8 @@ export default function GamePatchDetail() {
     title: patch?.metaTitle ?? (patch && game ? `${patch.title} | ${game.name} Patch Notes | Talus` : null),
     description: patch?.metaDescription ?? patch?.summary ?? null,
     canonicalPath: patch ? patchPath(patch) : null,
+    image: patch?.imageUrl ?? game?.coverImage,
+    type: "article",
   });
 
   if (!patchQuery.isLoading && (!patch || patch.gameId !== gameId)) {

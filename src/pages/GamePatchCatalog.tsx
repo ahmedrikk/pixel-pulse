@@ -8,6 +8,7 @@ import { BottomNavBar } from "@/components/BottomNavBar";
 import { Footer } from "@/components/Footer";
 import { Input } from "@/components/ui/input";
 import { usePatchGames, type PatchGame } from "@/hooks/useGamePatches";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 const typeLabels: Record<string, string> = {
   patch: "Patch",
@@ -94,6 +95,11 @@ function PatchGameCard({ game, index }: { game: PatchGame; index: number }) {
 export default function GamePatchCatalog() {
   const [search, setSearch] = useState("");
   const { data: games = [], isLoading, error } = usePatchGames();
+  useDocumentMetadata({
+    title: "Recent Video Game Patches and Update Notes | Talus",
+    description: "Read recent video game patch notes and browse complete update histories rewritten into clear, player-focused summaries.",
+    canonicalPath: "/game-patch",
+  });
 
   const filteredGames = useMemo(() => {
     const query = search.trim().toLowerCase();

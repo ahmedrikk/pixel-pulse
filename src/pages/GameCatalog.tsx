@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 import { Star, Monitor, Gamepad2, Search, Flame, Users, CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -264,6 +265,11 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
 }
 
 export default function GameCatalog() {
+  useDocumentMetadata({
+    title: "Video Game Ratings and Reviews | Talus",
+    description: "Browse video game ratings, release details, popular recent games, and community reviews across genres and platforms.",
+    canonicalPath: "/reviews",
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 

@@ -36,6 +36,7 @@ import {
 } from "@/hooks/useGameReviews";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 const platformIcons: Record<string, React.ReactNode> = {
   PC: <Monitor className="h-4 w-4" />,
@@ -225,6 +226,14 @@ export default function GameReview() {
   const submitReview = useSubmitReview(gameId ?? "", gameQuery.data?.name);
   const voteReview = useVoteReview(gameId ?? "");
   const addComment = useAddReviewComment(gameId ?? "");
+  const metadataGame = gameQuery.data;
+  useDocumentMetadata({
+    title: metadataGame ? `${metadataGame.name} Rating and Reviews | Talus` : null,
+    description: metadataGame ? `See ${metadataGame.name} release details, ratings, recent patches, and reviews from the Talus community.` : null,
+    canonicalPath: gameId ? `/reviews/${gameId}` : null,
+    image: metadataGame?.coverImage,
+    type: "article",
+  });
 
   useEffect(() => {
     if (!user || !pendingAction || pendingAction.type !== "review" || pendingAction.gameId !== gameId) return;

@@ -30,6 +30,7 @@ interface PatchRow {
   };
   meta_title: string | null;
   meta_description: string | null;
+  seo_slug: string;
   games: { id: string; name: string; cover_image: string | null } | Array<{ id: string; name: string; cover_image: string | null }>;
 }
 
@@ -49,13 +50,17 @@ function escapeHtml(value: unknown): string {
 function replaceMeta(html: string, patch: PatchRow, game: { name: string; cover_image: string | null }, canonicalUrl: string) {
   const title = escapeHtml(patch.meta_title || patch.title);
   const description = escapeHtml(patch.meta_description || patch.summary);
-  const image = escapeHtml(patch.image_url || game.cover_image || "/talus-logo.png");
+  const image = escapeHtml(new URL(patch.image_url || game.cover_image || "/profile-assets/banners/city.jpg", canonicalUrl).toString());
   return html
     .replace(/<title>[\s\S]*?<\/title>/i, `<title>${title}</title>`)
     .replace(/<meta name="description" content="[^"]*"\s*\/>/i, `<meta name="description" content="${description}" />`)
     .replace(/<meta property="og:title" content="[^"]*"\s*\/>/i, `<meta property="og:title" content="${title}" />`)
     .replace(/<meta property="og:description" content="[^"]*"\s*\/>/i, `<meta property="og:description" content="${description}" />`)
     .replace(/<meta property="og:image" content="[^"]*"\s*\/>/i, `<meta property="og:image" content="${image}" />`)
+    .replace(/<meta property="og:url" content="[^"]*"\s*\/>/i, `<meta property="og:url" content="${escapeHtml(canonicalUrl)}" />`)
+    .replace(/<meta name="twitter:title" content="[^"]*"\s*\/>/i, `<meta name="twitter:title" content="${title}" />`)
+    .replace(/<meta name="twitter:description" content="[^"]*"\s*\/>/i, `<meta name="twitter:description" content="${description}" />`)
+    .replace(/<meta name="twitter:image" content="[^"]*"\s*\/>/i, `<meta name="twitter:image" content="${image}" />`)
     .replace("</head>", `  <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />\n  </head>`);
 }
 
@@ -79,7 +84,7 @@ function renderArticle(patch: PatchRow, game: { id: string; name: string; cover_
   )).join("");
   const structuredData = JSON.stringify({
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": "NewsArticle",
     headline: patch.title,
     description: patch.meta_description || patch.summary,
     datePublished: patch.published_at,
@@ -119,14 +124,16 @@ export default async function handler(request: VercelRequestLike, response: Verc
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!safePathPart.test(gameId) || !safePathPart.test(patchId) || !supabaseUrl || !anonKey) {
     response.setHeader("Content-Type", "text/html; charset=utf-8");
-    response.status(404).send(template);
+    response.status(404).send(template.replace("</head>", "  <meta name=\"robots\" content=\"noindex, nofollow\" />\n  </head>"));
     return;
   }
 
   const params = new URLSearchParams({
-    select: "id,game_id,title,summary,source_url,source_name,patch_type,version_label,image_url,published_at,updated_at,editorial_generated_at,editorial_content,meta_title,meta_description,games!game_patches_game_id_fkey(id,name,cover_image)",
-    id: `eq.${patchId}`,
+    select: "id,game_id,title,summary,source_url,source_name,patch_type,version_label,image_url,published_at,updated_at,editorial_generated_at,editorial_content,meta_title,meta_description,seo_slug,games!game_patches_game_id_fkey(id,name,cover_image)",
     game_id: `eq.${gameId}`,
+    ...(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(patchId)
+      ? { id: `eq.${patchId}` }
+      : { seo_slug: `eq.${patchId}` }),
     editorial_status: "eq.ready",
     limit: "1",
   });
@@ -136,13 +143,13 @@ export default async function handler(request: VercelRequestLike, response: Verc
   const rows = patchResponse.ok ? await patchResponse.json() as PatchRow[] : [];
   const patch = rows[0];
   const game = patch ? (Array.isArray(patch.games) ? patch.games[0] : patch.games) : null;
-  const canonicalUrl = `${canonicalOrigin}/game-patch/${encodeURIComponent(gameId)}/${encodeURIComponent(patchId)}`;
+  const canonicalUrl = `${canonicalOrigin}/game-patch/${encodeURIComponent(gameId)}/${encodeURIComponent(patch?.seo_slug || patchId)}`;
   const article = patch && game ? renderArticle(patch, game, canonicalUrl) : "";
 
   response.setHeader("Content-Type", "text/html; charset=utf-8");
   response.setHeader("Cache-Control", article ? "public, s-maxage=3600, stale-while-revalidate=86400" : "public, s-maxage=60");
   if (!article || !patch || !game) {
-    response.status(404).send(template);
+    response.status(404).send(template.replace("</head>", "  <meta name=\"robots\" content=\"noindex, nofollow\" />\n  </head>"));
     return;
   }
   const html = replaceMeta(template, patch, game, canonicalUrl)

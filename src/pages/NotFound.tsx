@@ -2,9 +2,11 @@ import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Gamepad2, Home } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
+import { useDocumentMetadata } from "@/hooks/useDocumentMetadata";
 
 const NotFound = () => {
   const location = useLocation();
+  useDocumentMetadata({ title: "Page Not Found | Talus", robots: "noindex, nofollow" });
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
