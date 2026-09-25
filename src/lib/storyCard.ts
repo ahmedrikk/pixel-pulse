@@ -180,7 +180,7 @@ export async function generateReviewStoryCard(opts: StoryCardOpts): Promise<Blob
     ctx.fillText(`${opts.userName || "A gamer"}'s review`, W / 2, H - 180);
     ctx.fillStyle = "rgba(255,255,255,0.4)";
     ctx.font = "34px Arial, sans-serif";
-    ctx.fillText("pixel-pulse-roan.vercel.app", W / 2, H - 128);
+    ctx.fillText("talus.social", W / 2, H - 128);
   };
 
   // Try with the cover; if the canvas is tainted (export returns null), redraw

@@ -366,7 +366,7 @@ async function fetchYouTubeUploads(source: YouTubeSource): Promise<YouTubeFetchR
     try {
       const feedUrl = `https://www.youtube.com/feeds/videos.xml?playlist_id=${encodeURIComponent(source.uploads_playlist_id)}`;
       const response = await fetch(feedUrl, {
-        headers: { "User-Agent": "Talus/1.0 (+https://pixel-pulse-roan.vercel.app)" },
+        headers: { "User-Agent": "Talus/1.0 (+https://talus.social)" },
         signal: AbortSignal.timeout(15_000),
       });
       if (!response.ok) throw new Error(`YouTube Atom HTTP ${response.status}`);

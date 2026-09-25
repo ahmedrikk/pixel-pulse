@@ -3,7 +3,7 @@ import path from "node:path";
 import { loadEnv } from "vite";
 
 const env = { ...loadEnv(process.env.NODE_ENV || "production", process.cwd(), ""), ...process.env };
-const SITE_URL = (env.SITE_URL || env.VITE_SITE_URL || "https://pixel-pulse-roan.vercel.app").replace(/\/$/, "");
+const SITE_URL = (env.SITE_URL || env.VITE_SITE_URL || "https://talus.social").replace(/\/$/, "");
 const SUPABASE_URL = env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const distDir = path.resolve("dist");

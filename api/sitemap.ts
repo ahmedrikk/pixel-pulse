@@ -28,7 +28,7 @@ async function readTable<T>(baseUrl: string, key: string, table: string, query: 
 export default async function handler(_request: unknown, response: VercelResponseLike) {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  const siteUrl = (process.env.SITE_URL || process.env.VITE_SITE_URL || "https://pixel-pulse-roan.vercel.app").replace(/\/$/, "");
+  const siteUrl = (process.env.SITE_URL || process.env.VITE_SITE_URL || "https://talus.social").replace(/\/$/, "");
   if (!supabaseUrl || !key) {
     response.status(503).send("Sitemap is temporarily unavailable");
     return;

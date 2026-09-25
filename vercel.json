@@ -1,6 +1,19 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.talus.social"
+        }
+      ],
+      "destination": "https://talus.social/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/game-patch/:gameId/:patchId",

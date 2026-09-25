@@ -193,7 +193,7 @@ async function resolveDirectClaimUrl(item: GamerPowerGiveaway): Promise<string |
       signal: AbortSignal.timeout(12_000),
       headers: {
         Accept: "text/html,application/xhtml+xml",
-        "User-Agent": "Mozilla/5.0 (compatible; TalusFreeGames/1.0; +https://pixel-pulse-roan.vercel.app)",
+        "User-Agent": "Mozilla/5.0 (compatible; TalusFreeGames/1.0; +https://talus.social)",
       },
     });
     const resolved = new URL(response.url);
@@ -329,7 +329,7 @@ async function syncGamerPower(supabase: SupabaseClient, now: string): Promise<Sy
   const response = await fetch(GAMERPOWER_URL, {
     headers: {
       Accept: "application/json",
-      "User-Agent": "Talus/1.0 (https://pixel-pulse-roan.vercel.app)",
+      "User-Agent": "Talus/1.0 (https://talus.social)",
     },
   });
   if (!response.ok) throw new Error(`GamerPower returned ${response.status}`);
@@ -414,7 +414,7 @@ async function syncEpicGames(supabase: SupabaseClient, now: string): Promise<Syn
   const response = await fetch(EPIC_PROMOTIONS_URL, {
     headers: {
       Accept: "application/json",
-      "User-Agent": "Talus/1.0 (https://pixel-pulse-roan.vercel.app)",
+      "User-Agent": "Talus/1.0 (https://talus.social)",
     },
   });
   if (!response.ok) throw new Error(`Epic Games Store returned ${response.status}`);

@@ -106,9 +106,9 @@ export default async function handler(request: VercelRequestLike, response: Verc
   const requestedHost = first(request.headers["x-forwarded-host"]) || first(request.headers.host);
   const host = /^[a-z0-9.-]+\.vercel\.app(?::\d+)?$/i.test(requestedHost)
     ? requestedHost
-    : "pixel-pulse-roan.vercel.app";
+    : "talus.social";
   const origin = `https://${host}`;
-  const canonicalOrigin = (process.env.SITE_URL || process.env.VITE_SITE_URL || "https://pixel-pulse-roan.vercel.app").replace(/\/$/, "");
+  const canonicalOrigin = (process.env.SITE_URL || process.env.VITE_SITE_URL || "https://talus.social").replace(/\/$/, "");
   let template = "";
   try {
     const templateResponse = await fetch(`${origin}/index.html`);

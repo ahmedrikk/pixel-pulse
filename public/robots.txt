@@ -9,4 +9,4 @@ Disallow: /notifications
 Disallow: /auth
 Disallow: /backfill-status
 
-Sitemap: https://pixel-pulse-roan.vercel.app/sitemap.xml
+Sitemap: https://talus.social/sitemap.xml

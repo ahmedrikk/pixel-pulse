@@ -198,7 +198,7 @@ async function fetchSteamPage(
   if (endDate) params.set("enddate", String(endDate));
 
   const response = await fetch(`${STEAM_NEWS_URL}?${params}`, {
-    headers: { "User-Agent": "TalusGamePatch/1.0 (+https://pixel-pulse-roan.vercel.app)" },
+    headers: { "User-Agent": "TalusGamePatch/1.0 (+https://talus.social)" },
     signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) throw new Error(`Steam returned HTTP ${response.status}`);

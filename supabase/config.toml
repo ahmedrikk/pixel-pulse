@@ -1,5 +1,23 @@
 project_id = "zxcqqsviwtwxukizibef"
 
+[auth]
+site_url = "https://talus.social"
+additional_redirect_urls = [
+  "https://talus.social/**",
+  "https://www.talus.social/**",
+  "https://ahmedrikk.github.io/pixel-pulse/",
+  "https://pixel-pulse-roan.vercel.app/**",
+  "https://pixel-pulse-roan.vercel.app/",
+  "https://pixel-pulse-ahmedrikks-projects.vercel.app/",
+  "https://pixel-pulse-ahmedrikks-projects.vercel.app/**",
+  "https://pixel-*-pulse-ahmedrikks-projects.vercel.app",
+  "https://pixel-*-pulse-ahmedrikks-projects.vercel.app/**",
+  "https://pixel-pulse-ahmedrikk-ahmedrikks-projects.vercel.app/",
+  "https://pixel-pulse-ahmedrikk-ahmedrikks-projects.vercel.app/**",
+  "https://pixel-*-pulse-ahmedrikk-ahmedrikks-projects.vercel.app",
+  "https://pixel-*-pulse-ahmedrikk-ahmedrikks-projects.vercel.app/**",
+]
+
 [functions.fetch-news]
 verify_jwt = false
 

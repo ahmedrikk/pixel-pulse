@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const PANDA_BASE = "https://api.pandascore.co";
 const ALLOWED_PATHS = new Set(["/matches/running", "/matches/upcoming", "/matches/past"]);
-const DEFAULT_ORIGINS = ["https://pixel-pulse-roan.vercel.app", "http://localhost:5173", "http://localhost:8080"];
+const DEFAULT_ORIGINS = ["https://talus.social", "https://www.talus.social", "https://pixel-pulse-roan.vercel.app", "http://localhost:5173", "http://localhost:8080"];
 
 function corsHeaders(req: Request): Record<string, string> {
   const configured = (Deno.env.get("ALLOWED_WEB_ORIGINS") || "").split(",").map((origin) => origin.trim()).filter(Boolean);
