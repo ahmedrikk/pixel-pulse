@@ -131,12 +131,8 @@ const staticPages = [
 ];
 
 let articles = [];
-let games = [];
 try {
-  [articles, games] = await Promise.all([
-    rest("cached_articles", { select: "id,original_id,title,ai_title,summary,ai_summary,source,source_url,image_url,og_image_url,category,author,tags,game_tags,likes,article_date,fetched_at,media_type,video_id", order: "article_date.desc", limit: "20" }),
-    rest("games", { select: "id,slug,name,description,cover_image,release_date,developer,publisher,review_count,updated_at", order: "updated_at.desc", limit: "500" }),
-  ]);
+  articles = await rest("cached_articles", { select: "id,original_id,title,ai_title,summary,ai_summary,source,source_url,image_url,og_image_url,category,author,tags,game_tags,likes,article_date,fetched_at,media_type,video_id", order: "article_date.desc", limit: "20" });
 } catch (error) {
   console.warn(`[prerender] Database content unavailable; static routes will still be rendered: ${error.message}`);
 }
@@ -164,31 +160,8 @@ const bootstrapNews = articles.map((article) => ({
 await writeRoute({ route: "/", title: "Gaming News, Esports Scores and Game Updates | Talus", description: "Discover gaming news, esports scores, free games, patch notes, ratings and upcoming releases on Talus.", heading: "Gaming News, Esports Scores and Game Updates", content: articleMarkup, bootstrapNews });
 await Promise.all(staticPages.map(writeRoute));
 
-for (const game of games) {
-  const slug = game.slug || game.id;
-  if (!slug || !game.name) continue;
-  const hasSubstantialContent = Boolean(game.description && plainText(game.description).length >= 120) || Number(game.review_count || 0) > 0;
-  const description = truncate(game.description || `Release information, external ratings, patch history and community activity for ${game.name}.`, 170);
-  const facts = [game.developer && `Developed by ${game.developer}`, game.publisher && `Published by ${game.publisher}`, game.release_date && `Released ${game.release_date}`].filter(Boolean);
-  await writeRoute({
-    route: `/reviews/${encodeURIComponent(slug)}`,
-    title: `${game.name} Game Information and Community Ratings | Talus`,
-    description,
-    heading: `${game.name} Game Information and Community Ratings`,
-    image: game.cover_image,
-    type: "article",
-    schemaType: "VideoGame",
-    robots: hasSubstantialContent ? "index, follow, max-image-preview:large" : "noindex, follow",
-    content: `<p>${escapeHtml(truncate(game.description || description, 700))}</p>${facts.length ? `<ul>${facts.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("")}</ul>` : ""}`,
-  });
-  await writeRoute({
-    route: `/game-patch/${encodeURIComponent(game.id)}`,
-    title: `${game.name} Patch Notes and Update History | Talus`,
-    description: `Read the latest ${game.name} patch notes, balance changes, bug fixes and complete update history.`,
-    heading: `${game.name} Patch Notes and Update History`,
-    image: game.cover_image,
-    content: `<p>Browse recent ${escapeHtml(game.name)} updates, balance changes, fixes and patch history.</p>`,
-  });
-}
-
-console.log(`[prerender] Rendered ${staticPages.length + 1 + games.length * 2} public pages with crawlable HTML.`);
+// Game information and per-game patch hubs are rendered on demand by Vercel
+// functions. Do not emit competing static files for those routes: Vercel serves
+// physical files before rewrites, which previously left only a subset of games
+// on the current renderer and caused the rest to return 404.
+console.log(`[prerender] Rendered ${staticPages.length + 1} static public pages. Game detail routes render on demand.`);
