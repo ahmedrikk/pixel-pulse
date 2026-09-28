@@ -1294,6 +1294,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_articles: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string | null }
+        Returns: Json
+      }
+      admin_list_games: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string | null }
+        Returns: Json
+      }
       admin_moderate_game_description: {
         Args: {
           p_decision: string
@@ -1305,6 +1313,30 @@ export type Database = {
       }
       admin_update_dashboard_setting: {
         Args: { p_key: string; p_value: Json }
+        Returns: undefined
+      }
+      admin_update_article: {
+        Args: {
+          p_article_id: string
+          p_headline: string
+          p_image_url: string
+          p_summary: string
+          p_visible: boolean
+        }
+        Returns: undefined
+      }
+      admin_update_game: {
+        Args: {
+          p_cover_image: string
+          p_description: string
+          p_developer: string
+          p_game_id: string
+          p_genres: string[]
+          p_name: string
+          p_platforms: string[]
+          p_publisher: string
+          p_release_date: string | null
+        }
         Returns: undefined
       }
       get_talus_admin_dashboard: {
