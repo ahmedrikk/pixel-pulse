@@ -20,6 +20,10 @@
       "destination": "/api/patch-page?gameId=:gameId&patchId=:patchId"
     },
     {
+      "source": "/game-patch/:gameId",
+      "destination": "/api/patch-hub?gameId=:gameId"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
     },

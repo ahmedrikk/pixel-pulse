@@ -49,7 +49,7 @@ export default async function handler(_request: unknown, response: VercelRespons
       add(`/game-patch/${encodeURIComponent(patch.game_id)}/${encodeURIComponent(patch.seo_slug)}`, patch.updated_at);
     });
     const now = new Date();
-    for (let offset = 0; offset < 12; offset += 1) {
+    for (let offset = 0; offset < 3; offset += 1) {
       const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset, 1));
       add(`/game-calendar?month=${month.getUTCFullYear()}-${String(month.getUTCMonth() + 1).padStart(2, "0")}`);
     }

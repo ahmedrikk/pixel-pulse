@@ -15,8 +15,13 @@ const escapeHtml = (value = "") => String(value).replace(/[&<>"']/g, (character)
 const plainText = (value = "") => String(value).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 const truncate = (value, length = 170) => {
   const text = plainText(value);
-  return text.length <= length ? text : `${text.slice(0, length - 1).trim()}…`;
+  if (text.length <= length) return text;
+  const candidate = text.slice(0, length - 1).trim();
+  const boundary = candidate.lastIndexOf(" ");
+  return `${(boundary > Math.floor(length * 0.65) ? candidate.slice(0, boundary) : candidate).trim()}…`;
 };
+
+const primaryNavigation = `<nav aria-label="Primary navigation"><a href="/">Home</a> · <a href="/esports">Esports</a> · <a href="/free-games">Free Games</a> · <a href="/game-patch">Game Patches</a> · <a href="/game-calendar">Game Calendar</a> · <a href="/reviews">Game Ratings</a></nav>`;
 
 async function rest(table, params) {
   if (!SUPABASE_URL || !SUPABASE_KEY) return [];
@@ -34,7 +39,7 @@ function replaceMeta(html, selector, value) {
 }
 
 function renderPage({ route, title, description, heading, content, image, type = "website", schemaType = "WebPage" }) {
-  const canonical = `${SITE_URL}${route === "/" ? "" : route}`;
+  const canonical = `${SITE_URL}${route === "/" ? "/" : route}`;
   let html = template
     .replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(title)}</title>`)
     .replace(/<link rel="canonical" href="[^"]*"\s*\/?>/i, `<link rel="canonical" href="${escapeHtml(canonical)}" />`);
@@ -50,16 +55,39 @@ function renderPage({ route, title, description, heading, content, image, type =
     "twitter:image": image || `${SITE_URL}/profile-assets/banners/city.jpg`,
   })) html = replaceMeta(html, key, value);
 
+  const organizationId = `${SITE_URL}/#organization`;
+  const websiteId = `${SITE_URL}/#website`;
+  const pageId = `${canonical}#webpage`;
   const structured = JSON.stringify({
     "@context": "https://schema.org",
-    "@type": schemaType,
-    name: heading,
-    headline: heading,
-    description,
-    url: canonical,
-    isPartOf: { "@type": "WebSite", name: "Talus", url: SITE_URL },
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": organizationId,
+        name: "Talus",
+        url: `${SITE_URL}/`,
+        logo: { "@type": "ImageObject", url: `${SITE_URL}/talus-logo.png` },
+      },
+      {
+        "@type": "WebSite",
+        "@id": websiteId,
+        name: "Talus",
+        url: `${SITE_URL}/`,
+        publisher: { "@id": organizationId },
+      },
+      {
+        "@type": schemaType,
+        "@id": pageId,
+        name: heading,
+        headline: heading,
+        description,
+        url: canonical,
+        isPartOf: { "@id": websiteId },
+        publisher: { "@id": organizationId },
+      },
+    ],
   }).replace(/</g, "\\u003c");
-  const shell = `<main id="seo-prerendered-content"><article><h1>${escapeHtml(heading)}</h1>${content}</article></main>`;
+  const shell = `<main id="seo-prerendered-content">${primaryNavigation}<article><h1>${escapeHtml(heading)}</h1>${content}</article></main>`;
   html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`)
     .replace("</head>", `  <script type="application/ld+json">${structured}</script>\n  </head>`);
   return html;
@@ -95,7 +123,7 @@ try {
 }
 
 const articleMarkup = articles.length
-  ? `<section aria-label="Latest gaming news"><h2>Latest gaming news</h2>${articles.map((article) => `<article><h2><a href="${escapeHtml(article.source_url)}" rel="noopener noreferrer">${escapeHtml(article.ai_title || article.title)}</a></h2><p>${escapeHtml(truncate(article.ai_summary || article.summary, 240))}</p><p>${escapeHtml(article.source)}${article.article_date ? ` · <time datetime="${escapeHtml(article.article_date)}">${escapeHtml(article.article_date)}</time>` : ""}</p></article>`).join("")}</section>`
+  ? `<section aria-label="Latest gaming news"><h2>Latest gaming news</h2>${articles.map((article) => `<article><h2><a href="${escapeHtml(article.source_url)}" rel="noopener noreferrer">${escapeHtml(article.ai_title || article.title)}</a></h2><p>${escapeHtml(truncate(article.ai_summary || article.summary, 520))}</p><p>${escapeHtml(article.source)}${article.article_date ? ` · <time datetime="${escapeHtml(article.article_date)}">${escapeHtml(article.article_date)}</time>` : ""}</p></article>`).join("")}</section>`
   : "<p>Discover current gaming news, esports coverage, free-game offers, patch notes and release dates.</p>";
 await writeRoute({ route: "/", title: "Gaming News, Esports Scores and Game Updates | Talus", description: "Discover gaming news, esports scores, free games, patch notes, ratings and upcoming releases on Talus.", heading: "Gaming News, Esports Scores and Game Updates", content: articleMarkup });
 await Promise.all(staticPages.map(writeRoute));
