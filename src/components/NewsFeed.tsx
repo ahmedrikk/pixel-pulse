@@ -237,6 +237,7 @@ export function NewsFeed({ onCardView }: NewsFeedProps) {
                   <EnhancedNewsCard 
                     article={item} 
                     onCardView={onCardView}
+                    priority={index === 0}
                   />
                 </motion.div>
               );

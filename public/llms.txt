@@ -1,0 +1,22 @@
+# Talus
+
+Talus is a gaming discovery platform at https://talus.social/. It organizes concise linked gaming-news briefs, esports information, free-game offers, patch histories, release dates, game information and community ratings.
+
+## Main sections
+
+- Home and gaming news: https://talus.social/
+- Esports: https://talus.social/esports
+- Free games: https://talus.social/free-games
+- Game patches: https://talus.social/game-patch
+- Release calendar: https://talus.social/game-calendar
+- Game information and community ratings: https://talus.social/reviews
+
+## Trust and policy
+
+- About: https://talus.social/about
+- Editorial standards: https://talus.social/editorial-standards
+- Corrections policy: https://talus.social/corrections
+- Content guidelines: https://talus.social/guidelines
+- Privacy policy: https://talus.social/privacy
+
+News briefs identify and link to the original publication. The linked source remains authoritative for an aggregated story. Community reviews are separately labeled.

@@ -4,7 +4,7 @@ interface VercelResponseLike {
   send(body: string): void;
 }
 
-type GameRow = { id: string; updated_at: string | null };
+type GameRow = { id: string; description: string | null; review_count: number | null; updated_at: string | null };
 type PatchRow = { game_id: string; seo_slug: string; updated_at: string };
 
 function escapeXml(value: string) {
@@ -36,14 +36,16 @@ export default async function handler(_request: unknown, response: VercelRespons
 
   try {
     const [games, patches] = await Promise.all([
-      readTable<GameRow>(supabaseUrl, key, "games", new URLSearchParams({ select: "id,updated_at", order: "updated_at.desc", limit: "10000" })),
+      readTable<GameRow>(supabaseUrl, key, "games", new URLSearchParams({ select: "id,description,review_count,updated_at", order: "updated_at.desc", limit: "10000" })),
       readTable<PatchRow>(supabaseUrl, key, "game_patches", new URLSearchParams({ select: "game_id,seo_slug,updated_at", editorial_status: "eq.ready", order: "updated_at.desc", limit: "10000" })),
     ]);
 
     const urls = new Map<string, string | undefined>();
     const add = (path: string, modified?: string | null) => urls.set(path, isoDate(modified));
-    ["/", "/esports", "/reviews", "/free-games", "/game-patch", "/game-calendar", "/terms", "/privacy", "/cookies", "/guidelines"].forEach((path) => add(path));
-    games.forEach((game) => add(`/reviews/${encodeURIComponent(game.id)}`, game.updated_at));
+    ["/", "/esports", "/reviews", "/free-games", "/game-patch", "/game-calendar", "/about", "/editorial-standards", "/corrections", "/terms", "/privacy", "/cookies", "/guidelines"].forEach((path) => add(path));
+    games
+      .filter((game) => (game.description?.trim().length ?? 0) >= 120 || Number(game.review_count ?? 0) > 0)
+      .forEach((game) => add(`/reviews/${encodeURIComponent(game.id)}`, game.updated_at));
     patches.forEach((patch) => {
       add(`/game-patch/${encodeURIComponent(patch.game_id)}`, patch.updated_at);
       add(`/game-patch/${encodeURIComponent(patch.game_id)}/${encodeURIComponent(patch.seo_slug)}`, patch.updated_at);

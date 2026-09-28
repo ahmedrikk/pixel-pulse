@@ -39,6 +39,7 @@ import {
 interface EnhancedNewsCardProps {
   article: Article;
   onCardView?: (cardId: string) => void;
+  priority?: boolean;
 }
 
 const QUICK_REACTIONS = [
@@ -64,7 +65,7 @@ function formatDate(dateString: string | null | undefined): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps) {
+export function EnhancedNewsCard({ article, onCardView, priority = false }: EnhancedNewsCardProps) {
   const { isAuthenticated, openAuthModal, user } = useAuthGate();
   const navigate = useNavigate();
   // useBookmarks removed for Talus redesign
@@ -407,7 +408,10 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
                 src={`https://i.ytimg.com/vi/${article.videoId}/hqdefault.jpg`}
                 alt=""
                 className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
-                loading="lazy"
+                loading={priority ? "eager" : "lazy"}
+                fetchPriority={priority ? "high" : "auto"}
+                width="480"
+                height="360"
               />
               <span className="absolute flex h-16 w-16 items-center justify-center rounded-2xl bg-red-600 shadow-lg transition-transform hover:scale-105">
                 <Play className="ml-1 h-8 w-8 fill-current" aria-hidden="true" />
@@ -421,7 +425,11 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             src={article.heroImageUrl}
             alt={article.title}
             className="h-full w-full object-cover"
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            decoding="async"
+            width="1200"
+            height="675"
             onError={() => setImgError(true)}
           />
         </div>
@@ -482,7 +490,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
               variant="ghost"
               size="sm"
               className={cn(
-                "h-8 px-1.5",
+                "min-h-11 min-w-11 px-2 md:min-h-8 md:min-w-0 md:px-1.5",
                 vote === "up" ? "text-primary" : "text-muted-foreground hover:text-primary"
               )}
               onClick={handleUpvote}
@@ -505,7 +513,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
               variant="ghost"
               size="sm"
               className={cn(
-                "h-8 px-1.5",
+                "min-h-11 min-w-11 px-2 md:min-h-8 md:min-w-0 md:px-1.5",
                 vote === "down" ? "text-destructive" : "text-muted-foreground hover:text-destructive"
               )}
               onClick={handleDownvote}
@@ -519,7 +527,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1 text-muted-foreground hover:text-primary h-8 px-2"
+              className="min-h-11 min-w-11 gap-1 px-2 text-muted-foreground hover:text-primary md:min-h-8 md:min-w-0"
               onClick={() => setShowComments(!showComments)}
             >
               <MessageCircle className="h-4 w-4" />
@@ -529,7 +537,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
             {/* Share */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary h-8 px-2">
+                <Button variant="ghost" size="sm" aria-label="Share article" className="min-h-11 min-w-11 px-2 text-muted-foreground hover:text-primary md:min-h-8 md:min-w-0">
                   <Share2 className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>

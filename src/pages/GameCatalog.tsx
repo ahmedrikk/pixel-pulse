@@ -266,8 +266,8 @@ function TrendingCard({ game, index }: { game: CatalogGame; index: number }) {
 
 export default function GameCatalog() {
   useDocumentMetadata({
-    title: "Video Game Ratings and Reviews | Talus",
-    description: "Browse video game ratings, release details, popular recent games, and community reviews across genres and platforms.",
+    title: "Video Game Information and Community Ratings | Talus",
+    description: "Browse video game information, release details, external ratings and genuine community reviews across genres and platforms.",
     canonicalPath: "/reviews",
   });
   const [searchQuery, setSearchQuery] = useState("");

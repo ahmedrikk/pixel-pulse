@@ -228,11 +228,12 @@ export default function GameReview() {
   const addComment = useAddReviewComment(gameId ?? "");
   const metadataGame = gameQuery.data;
   useDocumentMetadata({
-    title: metadataGame ? `${metadataGame.name} Rating and Reviews | Talus` : null,
-    description: metadataGame ? `See ${metadataGame.name} release details, ratings, recent patches, and reviews from the Talus community.` : null,
+    title: metadataGame ? `${metadataGame.name} Game Information and Community Ratings | Talus` : null,
+    description: metadataGame ? `See ${metadataGame.name} release details, external ratings, recent patches${metadataGame.reviewCount ? ", and verified Talus community reviews" : ""}.` : null,
     canonicalPath: gameId ? `/reviews/${gameId}` : null,
     image: metadataGame?.coverImage,
     type: "article",
+    robots: metadataGame && !metadataGame.description && metadataGame.reviewCount === 0 ? "noindex, follow" : null,
   });
 
   useEffect(() => {
@@ -402,7 +403,7 @@ export default function GameReview() {
               <div className="mt-4 whitespace-pre-line text-sm leading-7 text-muted-foreground sm:text-base">{game.description}</div>
             ) : (
               <div className="mt-3 space-y-4">
-                <p className="text-sm text-muted-foreground">No information available right now.</p>
+                <p className="text-sm text-muted-foreground">A detailed game overview is being prepared. Release, platform, rating and patch information shown above remains available.</p>
                 {descriptionSubmissionStatus === "pending" ? (
                   <p className="rounded-xl bg-secondary p-4 text-sm text-muted-foreground">Your description is awaiting verification.</p>
                 ) : user ? (

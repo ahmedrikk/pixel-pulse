@@ -67,6 +67,9 @@ const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const PrivacyPolicy  = lazy(() => import("./pages/PrivacyPolicy"));
 const CookiePolicy   = lazy(() => import("./pages/CookiePolicy"));
 const ContentGuidelines = lazy(() => import("./pages/ContentGuidelines"));
+const About = lazy(() => import("./pages/About"));
+const EditorialStandards = lazy(() => import("./pages/EditorialStandards"));
+const Corrections = lazy(() => import("./pages/Corrections"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 
 const queryClient = new QueryClient();
@@ -122,6 +125,9 @@ const App = () => (
                     <Route path="/privacy" element={<PrivacyPolicy />} />
                     <Route path="/cookies" element={<CookiePolicy />} />
                     <Route path="/guidelines" element={<ContentGuidelines />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/editorial-standards" element={<EditorialStandards />} />
+                    <Route path="/corrections" element={<Corrections />} />
                     <Route path="/admin" element={<OnboardingGuard><AdminGuard><AdminDashboard /></AdminGuard></OnboardingGuard>} />
 
                     <Route path="*" element={<NotFound />} />

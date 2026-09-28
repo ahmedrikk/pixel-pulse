@@ -19,11 +19,28 @@ import { createFeedSessionId } from "@/lib/feedTracking";
 
 const MINIMUM_ARTICLE_FLOOR = 10;
 
+let initialNewsCache: NewsItem[] | undefined;
+
+function readInitialNews(): NewsItem[] {
+  if (initialNewsCache) return initialNewsCache;
+  if (typeof document === "undefined") return [];
+  const element = document.getElementById("talus-initial-news");
+  if (!element?.textContent) return [];
+  try {
+    const parsed: unknown = JSON.parse(element.textContent);
+    initialNewsCache = Array.isArray(parsed) ? parsed as NewsItem[] : [];
+  } catch {
+    initialNewsCache = [];
+  }
+  return initialNewsCache;
+}
+
 export function useGamingNews(options?: { category?: string; tag?: string }) {
   const category = options?.category;
   const tag = options?.tag;
-  const [news, setNews]               = useState<NewsItem[]>([]);
-  const [isLoading, setIsLoading]     = useState(true);
+  const bootstrappedNews = !category && !tag ? readInitialNews() : [];
+  const [news, setNews]               = useState<NewsItem[]>(bootstrappedNews);
+  const [isLoading, setIsLoading]     = useState(bootstrappedNews.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError]             = useState<string | null>(null);
@@ -136,16 +153,18 @@ export function useGamingNews(options?: { category?: string; tag?: string }) {
     let cancelled = false;
 
     async function init() {
-      newsCountRef.current = 0;
+      const hasBootstrap = !category && !tag && newsCountRef.current > 0;
+      newsCountRef.current = hasBootstrap ? newsCountRef.current : 0;
       pageRef.current = 0;
       feedSessionRef.current = createFeedSessionId();
-      setNews([]);
+      if (!hasBootstrap) setNews([]);
       setHasMore(true);
-      setIsLoading(true);
+      setIsLoading(!hasBootstrap);
       setError(null);
 
-      // Always show whatever is cached immediately
-      await loadFromDB();
+      // Build-injected content paints immediately. The ranked database result
+      // then replaces it in the background without a loading skeleton.
+      await loadFromDB(true, hasBootstrap);
       if (!cancelled) setIsLoading(false);
 
       // Cache-floor guard: if the cache is critically low, fetch in background

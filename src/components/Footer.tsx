@@ -10,6 +10,15 @@ export function Footer() {
           &copy; {currentYear} Talus. All rights reserved.
         </p>
         <nav className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+          <Link to="/about" className="hover:text-foreground transition-colors">
+            About
+          </Link>
+          <Link to="/editorial-standards" className="hover:text-foreground transition-colors">
+            Editorial Standards
+          </Link>
+          <Link to="/corrections" className="hover:text-foreground transition-colors">
+            Corrections
+          </Link>
           <Link to="/terms" className="hover:text-foreground transition-colors">
             Terms of Service
           </Link>

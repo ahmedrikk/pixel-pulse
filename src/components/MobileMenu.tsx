@@ -10,6 +10,9 @@ interface MobileMenuProps {
 }
 
 const LEGAL_LINKS = [
+  { label: "About Talus", href: "/about" },
+  { label: "Editorial Standards", href: "/editorial-standards" },
+  { label: "Corrections", href: "/corrections" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms & Conditions", href: "/terms" },
   { label: "Cookie Policy", href: "/cookies" },
