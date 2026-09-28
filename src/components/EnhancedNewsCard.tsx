@@ -9,7 +9,8 @@ import {
   ArrowBigDown,
   Link2,
   Twitter,
-  MessageSquare
+  MessageSquare,
+  Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Article, GameReview } from "@/types/feed";
@@ -77,6 +78,7 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
   const [userReactions, setUserReactions] = useState<Record<string, number>>(article.reactions || {});
   const [myReactions, setMyReactions] = useState<Set<string>>(new Set());
   const [imgError, setImgError] = useState(false);
+  const [videoActivated, setVideoActivated] = useState(false);
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   const [reviewGame, setReviewGame] = useState<{ id: string; name: string; coverUrl: string } | null>(null);
 
@@ -386,14 +388,32 @@ export function EnhancedNewsCard({ article, onCardView }: EnhancedNewsCardProps)
       {/* Hero Image — only shown when URL exists and loads successfully */}
       {showVideo ? (
         <div className="relative aspect-video overflow-hidden bg-black">
-          <iframe
-            src={`https://www.youtube-nocookie.com/embed/${article.videoId}`}
-            title={`${article.title} video`}
-            className="h-full w-full"
-            loading="lazy"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
+          {videoActivated ? (
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${article.videoId}?autoplay=1`}
+              title={`${article.title} video`}
+              className="h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setVideoActivated(true)}
+              className="absolute inset-0 flex h-full w-full items-center justify-center overflow-hidden bg-black text-white"
+              aria-label={`Play ${article.title}`}
+            >
+              <img
+                src={`https://i.ytimg.com/vi/${article.videoId}/hqdefault.jpg`}
+                alt=""
+                className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                loading="lazy"
+              />
+              <span className="absolute flex h-16 w-16 items-center justify-center rounded-2xl bg-red-600 shadow-lg transition-transform hover:scale-105">
+                <Play className="ml-1 h-8 w-8 fill-current" aria-hidden="true" />
+              </span>
+            </button>
+          )}
         </div>
       ) : showImage && (
         <div className="relative aspect-video overflow-hidden">
