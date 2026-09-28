@@ -112,6 +112,7 @@ export default function GameCalendar() {
     title: `Game Calendar — ${format(month, "MMMM yyyy")} | Talus`,
     description: "Track confirmed PC, PlayStation, Xbox, Switch, and mobile game release dates on Talus.",
     canonicalPath: `/game-calendar?month=${monthToParam(month)}`,
+    robots: "noindex, follow",
   });
 
   const filteredGames = useMemo(

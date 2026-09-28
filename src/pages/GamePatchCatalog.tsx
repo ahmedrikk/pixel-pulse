@@ -99,6 +99,7 @@ export default function GamePatchCatalog() {
     title: "Recent Video Game Patches and Update Notes | Talus",
     description: "Read recent video game patch notes and browse complete update histories rewritten into clear, player-focused summaries.",
     canonicalPath: "/game-patch",
+    robots: "noindex, follow",
   });
 
   const filteredGames = useMemo(() => {

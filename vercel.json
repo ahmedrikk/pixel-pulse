@@ -24,6 +24,10 @@
       "destination": "/api/patch-hub?gameId=:gameId"
     },
     {
+      "source": "/reviews/:gameId",
+      "destination": "/api/game-page?gameId=:gameId"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "/api/sitemap"
     },

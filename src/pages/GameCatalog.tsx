@@ -269,6 +269,7 @@ export default function GameCatalog() {
     title: "Video Game Information and Community Ratings | Talus",
     description: "Browse video game information, release details, external ratings and genuine community reviews across genres and platforms.",
     canonicalPath: "/reviews",
+    robots: "noindex, follow",
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
