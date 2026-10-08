@@ -4,4 +4,4 @@ window.gtag = window.gtag || function gtag() {
 };
 
 window.gtag("js", new Date());
-window.gtag("config", "G-47XP5F5MX3");
+window.gtag("config", "G-NYGKE29WVE");
