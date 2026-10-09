@@ -670,7 +670,7 @@ export default function Esports() {
     title: selectedGameName ? `${selectedGameName} Esports Matches and Results | Talus` : "Live Esports Matches, Scores and Results | Talus",
     description: selectedGameName ? `See live and upcoming ${selectedGameName} esports matches, schedules, streams, and recent results.` : "See live and upcoming esports matches, schedules, streams, scores, and recent results across competitive games.",
     canonicalPath: gameId ? `/esports/${gameId}` : "/esports",
-    robots: gameId ? "index, follow, max-image-preview:large" : "noindex, follow",
+    robots: "index, follow, max-image-preview:large",
   });
 
   const { liveMatches, upcomingMatches, pastMatches, isLoading, error } = useEsportsMatches();

@@ -42,7 +42,10 @@ export default async function handler(_request: unknown, response: VercelRespons
 
     const urls = new Map<string, string | undefined>();
     const add = (path: string, modified?: string | null) => urls.set(path, isoDate(modified));
-    ["/", "/about", "/editorial-standards", "/corrections", "/terms", "/privacy", "/cookies", "/guidelines"].forEach((path) => add(path));
+    [
+      "/", "/esports", "/free-games", "/game-patch", "/game-calendar", "/reviews",
+      "/about", "/editorial-standards", "/corrections", "/terms", "/privacy", "/cookies", "/guidelines",
+    ].forEach((path) => add(path));
     games
       .filter((game) => (game.description?.trim().length ?? 0) >= 120 || Number(game.review_count ?? 0) > 0)
       .forEach((game) => add(`/reviews/${encodeURIComponent(game.slug || game.id)}`, game.updated_at));

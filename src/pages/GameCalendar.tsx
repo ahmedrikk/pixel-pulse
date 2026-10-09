@@ -111,8 +111,8 @@ export default function GameCalendar() {
   useDocumentMetadata({
     title: `Game Calendar — ${format(month, "MMMM yyyy")} | Talus`,
     description: "Track confirmed PC, PlayStation, Xbox, Switch, and mobile game release dates on Talus.",
-    canonicalPath: `/game-calendar?month=${monthToParam(month)}`,
-    robots: "noindex, follow",
+    canonicalPath: "/game-calendar",
+    robots: "index, follow, max-image-preview:large",
   });
 
   const filteredGames = useMemo(

@@ -127,7 +127,7 @@ export default function FreeGames() {
     title: "Free Games to Claim This Week | Talus",
     description: "Find free PC and mobile games available to claim now or coming soon from Epic Games, Steam, GOG, itch.io, and other storefronts.",
     canonicalPath: "/free-games",
-    robots: "noindex, follow",
+    robots: "index, follow, max-image-preview:large",
   });
 
   const filteredOffers = useMemo(() => {
