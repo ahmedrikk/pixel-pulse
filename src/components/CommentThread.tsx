@@ -5,8 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Comment, COMMENT_CONSTANTS } from "@/types/feed";
-import { useGatedAction } from "@/contexts/AuthGateContext";
 import { toast } from "sonner";
+import { countCommentReplies } from "@/lib/commentTree";
 
 interface CommentThreadProps {
   comment: Comment;
@@ -32,13 +32,22 @@ export function CommentThread({
   const [editBody, setEditBody] = useState(comment.body);
   const [showActions, setShowActions] = useState(false);
   
-  const { requireAuth } = useGatedAction();
   const isAuthor = currentUserId === comment.userId;
   const canEdit = isAuthor && !comment.deletedAt && canEditComment(comment.createdAt);
   const canDelete = isAuthor && !comment.deletedAt;
 
   const score = comment.upvotes - comment.downvotes;
-  const hasUserVote = comment.userVote !== undefined;
+  const replyCount = countCommentReplies(comment);
+  const repliesId = `comment-replies-${comment.id}`;
+  const threadClassName = cn("group min-w-0", comment.depth > 0 && "border-l-2 border-border pl-3 sm:pl-4");
+  const nestedReplies = comment.replies && comment.replies.length > 0 && (
+    <div id={repliesId} className="mt-3 min-w-0 space-y-3">
+      {comment.replies.map(reply => (
+        <CommentThread key={reply.id} comment={reply} onVote={onVote} onReply={onReply}
+          onEdit={onEdit} onDelete={onDelete} currentUserId={currentUserId} />
+      ))}
+    </div>
+  );
 
   const handleVote = useCallback((type: "up" | "down") => {
     if (isAuthor) {
@@ -80,16 +89,17 @@ export function CommentThread({
 
   if (comment.deletedAt) {
     return (
-      <div className="py-2 text-sm text-muted-foreground italic">
-        [deleted]
+      <div className={threadClassName}>
+        <p className="py-2 text-sm text-muted-foreground italic">[deleted]</p>
+        {nestedReplies}
       </div>
     );
   }
 
   return (
-    <div className={cn("group", comment.depth > 0 && "ml-4 md:ml-8 border-l-2 border-border pl-4")}>
+    <div className={threadClassName}>
       {/* Comment Header */}
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 items-start gap-2 sm:gap-3">
         <Avatar className="w-8 h-8 flex-shrink-0">
           <AvatarImage src={comment.author.avatar} />
           <AvatarFallback className="text-xs">
@@ -100,7 +110,7 @@ export function CommentThread({
         <div className="flex-1 min-w-0">
           {/* Author Info */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-sm">{comment.author.name}</span>
+            <span className="max-w-full break-words text-sm font-semibold [overflow-wrap:anywhere]">{comment.author.name}</span>
             {comment.author.tier && comment.author.tier > 0 && (
               <span className="text-tiny-label px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                 Tier {comment.author.tier}
@@ -129,11 +139,11 @@ export function CommentThread({
               </div>
             </div>
           ) : (
-            <p className="text-sm mt-1 leading-relaxed">{comment.body}</p>
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed [overflow-wrap:anywhere]">{comment.body}</p>
           )}
 
           {/* Actions Row */}
-          <div className="flex items-center gap-1 mt-2">
+          <div className="mt-2 flex flex-wrap items-center gap-1">
             {/* Vote Buttons */}
             <div className="flex items-center gap-1">
               <Button
@@ -144,6 +154,7 @@ export function CommentThread({
                   comment.userVote === "up" && "text-orange-500 bg-orange-500/10"
                 )}
                 onClick={() => handleVote("up")}
+                aria-label={`Upvote comment by ${comment.author.name}`}
               >
                 <ChevronUp className="h-4 w-4" />
               </Button>
@@ -161,6 +172,7 @@ export function CommentThread({
                   comment.userVote === "down" && "text-blue-500 bg-blue-500/10"
                 )}
                 onClick={() => handleVote("down")}
+                aria-label={`Downvote comment by ${comment.author.name}`}
               >
                 <ChevronDown className="h-4 w-4" />
               </Button>
@@ -186,8 +198,10 @@ export function CommentThread({
                 size="sm"
                 className="h-7 px-2 text-muted-foreground"
                 onClick={() => setIsCollapsed(!isCollapsed)}
+                aria-expanded={!isCollapsed}
+                aria-controls={repliesId}
               >
-                {isCollapsed ? "[+]" : "[-]"} {comment.replies.length} replies
+                {isCollapsed ? "Show" : "Hide"} {replyCount} {replyCount === 1 ? "reply" : "replies"}
               </Button>
             )}
 
@@ -260,24 +274,9 @@ export function CommentThread({
             </div>
           )}
 
-          {/* Nested Replies */}
-          {!isCollapsed && comment.replies && comment.replies.length > 0 && (
-            <div className="mt-3 space-y-3">
-              {comment.replies.map((reply) => (
-                <CommentThread
-                  key={reply.id}
-                  comment={reply}
-                  onVote={onVote}
-                  onReply={onReply}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  currentUserId={currentUserId}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
+      {!isCollapsed && nestedReplies}
     </div>
   );
 }

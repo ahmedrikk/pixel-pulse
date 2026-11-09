@@ -1,9 +1,8 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useId, useRef } from "react";
 import { MessageCircle, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Comment, COMMENT_CONSTANTS } from "@/types/feed";
@@ -11,8 +10,7 @@ import { CommentThread } from "./CommentThread";
 import { useAuthGate } from "@/contexts/AuthGateContext";
 import { fetchComments, insertComment, updateComment, softDeleteComment, toggleCommentVote } from "@/lib/comments";
 import { toast } from "sonner";
-
-type SortMode = "top" | "new" | "hot";
+import { buildCommentTree, type CommentSortMode } from "@/lib/commentTree";
 
 interface EnhancedCommentSectionProps {
   articleId: string;
@@ -20,50 +18,6 @@ interface EnhancedCommentSectionProps {
   className?: string;
   onCountChange?: (count: number) => void;
   onEngage?: () => void;
-}
-
-// Wilson score for "hot" sorting
-function wilsonScore(upvotes: number, total: number): number {
-  if (total === 0) return 0;
-  const z = 1.96; // 95% confidence
-  const phat = upvotes / total;
-  const n = total;
-  return (
-    (phat + z * z / (2 * n) - z * Math.sqrt((phat * (1 - phat) + z * z / (4 * n)) / n)) /
-    (1 + z * z / n)
-  );
-}
-
-// Recency decay for hot sorting
-function recencyDecay(timestamp: string): number {
-  const hoursOld = (Date.now() - new Date(timestamp).getTime()) / (1000 * 60 * 60);
-  const halfLife = 6; // 6 hour half-life
-  return Math.pow(0.5, hoursOld / halfLife);
-}
-
-// Build comment tree from flat list
-function buildCommentTree(comments: Comment[]): Comment[] {
-  const commentMap = new Map<string, Comment>();
-  const roots: Comment[] = [];
-
-  // First pass: create map
-  comments.forEach(comment => {
-    commentMap.set(comment.id, { ...comment, replies: [] });
-  });
-
-  // Second pass: build tree
-  comments.forEach(comment => {
-    const node = commentMap.get(comment.id)!;
-    if (comment.parentCommentId && commentMap.has(comment.parentCommentId)) {
-      const parent = commentMap.get(comment.parentCommentId)!;
-      if (!parent.replies) parent.replies = [];
-      parent.replies.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-
-  return roots;
 }
 
 export function EnhancedCommentSection({
@@ -76,42 +30,40 @@ export function EnhancedCommentSection({
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>("new");
+  const [sortMode, setSortMode] = useState<CommentSortMode>("new");
   const [isExpanded, setIsExpanded] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const listId = useId();
+  const requestId = useRef(0);
+  const currentArticle = useRef(articleId);
+  currentArticle.current = articleId;
   const { isAuthenticated, openAuthModal, user } = useAuthGate();
 
   // Load persisted comments for this article (visible to everyone).
   const reload = useCallback(async () => {
+    const request = ++requestId.current;
     const rows = await fetchComments(articleId);
-    setComments(rows);
+    if (request === requestId.current && currentArticle.current === articleId) {
+      setComments(rows);
+      setIsLoading(false);
+    }
   }, [articleId]);
 
   useEffect(() => {
-    reload();
+    setIsLoading(true);
+    void reload();
+    return () => { requestId.current += 1; };
   }, [reload]);
 
-  // Sort comments based on mode
-  const sortedComments = useMemo(() => {
-    const sorted = [...comments];
-    
-    switch (sortMode) {
-      case "top":
-        sorted.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
-        break;
-      case "new":
-        sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        break;
-      case "hot":
-        sorted.sort((a, b) => {
-          const scoreA = wilsonScore(a.upvotes, a.upvotes + a.downvotes) * recencyDecay(a.createdAt);
-          const scoreB = wilsonScore(b.upvotes, b.upvotes + b.downvotes) * recencyDecay(b.createdAt);
-          return scoreB - scoreA;
-        });
-        break;
-    }
-    
-    return buildCommentTree(sorted);
-  }, [comments, sortMode]);
+  useEffect(() => {
+    if (!isExpanded) return;
+    const refresh = () => { if (document.visibilityState === "visible") void reload(); };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [isExpanded, reload]);
+
+  const sortedComments = useMemo(() => buildCommentTree(comments, sortMode), [comments, sortMode]);
 
   // Handle vote
   const handleVote = useCallback(async (commentId: string, type: "up" | "down") => {
@@ -198,23 +150,26 @@ export function EnhancedCommentSection({
   const totalComments = comments.length;
 
   useEffect(() => {
-    onCountChange?.(totalComments);
-  }, [onCountChange, totalComments]);
+    if (!isLoading) onCountChange?.(totalComments);
+  }, [isLoading, onCountChange, totalComments]);
 
   return (
-    <div className={cn("border-t pt-4", className)}>
+    <div className={cn("min-w-0 border-t pt-4", className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
+          type="button"
+          aria-expanded={isExpanded}
+          aria-controls={listId}
+          onClick={() => { if (!isExpanded) void reload(); setIsExpanded(!isExpanded); }}
           className="flex items-center gap-2 text-sm font-semibold hover:text-primary transition-colors"
         >
           <MessageCircle className="h-4 w-4" />
-          <span>Comments ({totalComments})</span>
+          <span>{isLoading ? "Comments" : `Comments (${totalComments})`}</span>
         </button>
         
         {totalComments > 0 && (
-          <Tabs value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+          <Tabs value={sortMode} onValueChange={(v) => setSortMode(v as CommentSortMode)}>
             <TabsList className="h-7">
               <TabsTrigger value="top" className="text-xs px-2">Top</TabsTrigger>
               <TabsTrigger value="new" className="text-xs px-2">New</TabsTrigger>
@@ -232,7 +187,7 @@ export function EnhancedCommentSection({
             {(user?.email ?? "G").slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1 space-y-2">
+        <div className="min-w-0 flex-1 space-y-2">
           <Textarea
             placeholder={isAuthenticated ? "Share your thoughts..." : "Sign in to comment"}
             value={newComment}
@@ -269,12 +224,14 @@ export function EnhancedCommentSection({
         </div>
       </div>
 
-      {/* Comments List — grows with content, caps + scrolls past 500px so a
-          short thread doesn't leave a big empty gap before anything below. */}
+      {/* Conversations use normal page scrolling so long threads stay reachable. */}
       {isExpanded && (
-        <ScrollArea className="max-h-[500px]">
-          <div className="space-y-4">
-            {sortedComments.map((comment) => (
+        <div id={listId} role="region" aria-label="Article comments" aria-busy={isLoading} className="min-w-0 space-y-5">
+            {isLoading ? (
+              <p role="status" className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading comments…
+              </p>
+            ) : sortedComments.map((comment) => (
               <CommentThread
                 key={comment.id}
                 comment={comment}
@@ -286,20 +243,19 @@ export function EnhancedCommentSection({
               />
             ))}
 
-            {sortedComments.length === 0 && (
+            {!isLoading && sortedComments.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No comments yet. Be the first!</p>
               </div>
             )}
-          </div>
-        </ScrollArea>
+        </div>
       )}
 
       {!isExpanded && totalComments > 0 && (
         <div className="text-center">
           <button
-            onClick={() => setIsExpanded(true)}
+            onClick={() => { setIsExpanded(true); void reload(); }}
             className="text-sm text-muted-foreground hover:text-primary transition-colors"
           >
             Show all {totalComments} comments
